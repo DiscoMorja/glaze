@@ -74,7 +74,7 @@ class _Card:
 	func _init(id: int) -> void:
 		_id = id
 		mouse_filter = Control.MOUSE_FILTER_STOP
-		custom_minimum_size = Vector2(130, 0)
+		custom_minimum_size = Vector2(150, 0)
 		_style = StyleBoxFlat.new()
 		_style.bg_color = Color(0.1, 0.11, 0.13, 0.9)
 		_style.set_border_width_all(2)
@@ -98,7 +98,8 @@ class _Card:
 		box.add_child(_pips)
 
 	func show_member(e: SimEntity, turn_start_ap: int, pending: int, border: Color) -> void:
-		_name.text = "%s  %d/%d" % [e.name, e.hp, e.max_hp]
+		var role := SimArchetypes.title(e.archetype)
+		_name.text = "%s  %d/%d" % [e.name, e.hp, e.max_hp] if role == "" else "%s · %s  %d/%d" % [e.name, role, e.hp, e.max_hp]
 		_hp.max_value = e.max_hp
 		_hp.value = e.hp
 		_pips.set_points(e.ap, turn_start_ap, pending)

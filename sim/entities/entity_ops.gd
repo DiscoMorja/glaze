@@ -21,6 +21,14 @@ static func damage(state: SimState, e: SimEntity, amount: int, source_id: int = 
 		_die(state, e)
 
 
+static func heal(state: SimState, e: SimEntity, amount: int, source_id: int = -1) -> void:
+	var healed := mini(amount, e.max_hp - e.hp)
+	if not e.is_alive() or healed <= 0:
+		return
+	e.hp += healed
+	state.emit_event(SimEvent.Type.HEALED, e.cell, e.id, source_id, healed)
+
+
 ## Moves an entity to a cell, then lets it fall until something holds it up.
 static func place(state: SimState, e: SimEntity, c: Vector3i) -> void:
 	e.cell = c

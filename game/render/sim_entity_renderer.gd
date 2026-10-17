@@ -7,6 +7,7 @@ const PLAYER_COLOR := Color(0.25, 0.6, 1.0)
 const ENEMY_COLOR := Color(0.9, 0.25, 0.2)
 const PROP_COLOR := Color(0.55, 0.38, 0.2)
 const MOVE_SECONDS_PER_CELL := 0.08
+const TARGETABLE_GLOW := Color(1.0, 0.8, 0.15)
 
 var _views := {}  # entity id -> _View
 
@@ -33,6 +34,12 @@ func set_selected(id: int) -> void:
 		_views[view_id].set_selected(view_id == id)
 
 
+## Tints entities that the hovered or aimed action can target (id -> true).
+func set_targetable(ids: Dictionary) -> void:
+	for view_id: int in _views:
+		_views[view_id].set_targetable(ids.has(view_id))
+
+
 ## Shows preview text above entities (id -> text); others are cleared.
 func set_preview(texts: Dictionary) -> void:
 	for view_id: int in _views:
@@ -52,6 +59,8 @@ class _View:
 	var _material: StandardMaterial3D
 	var _base_color: Color
 	var _tween: Tween
+	var _selected := false
+	var _targetable := false
 
 	func _init(e: SimEntity) -> void:
 		_material = StandardMaterial3D.new()
@@ -96,9 +105,17 @@ class _View:
 			_label.text = "%s  %d/%d" % [e.name, e.hp, e.max_hp]
 
 	func set_selected(selected: bool) -> void:
-		_material.albedo_color = _base_color.lightened(0.45) if selected else _base_color
-		_material.emission_enabled = selected
-		_material.emission = _base_color * 0.4
+		_selected = selected
+		_update_look()
+
+	func set_targetable(targetable: bool) -> void:
+		_targetable = targetable
+		_update_look()
+
+	func _update_look() -> void:
+		_material.albedo_color = _base_color.lightened(0.45) if _selected else _base_color
+		_material.emission_enabled = _selected or _targetable
+		_material.emission = TARGETABLE_GLOW if _targetable else _base_color * 0.4
 
 	func set_preview(text: String) -> void:
 		_preview.text = text

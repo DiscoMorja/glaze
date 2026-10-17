@@ -15,6 +15,7 @@ const W_DAMAGE := 10  ## per HP taken from an opponent
 const W_KILL := 40
 const W_FRIENDLY := 14  ## per HP lost on our own side, self included
 const W_DISARM := 15  ## per point of attack damage taken off an opponent (lasts all fight)
+const W_LOOT := 35  ## per item taken from an opponent (a skirmisher's whole point)
 const W_HAZARD := 30  ## ending up standing in fire
 const W_DISTANCE := 1  ## per cell away from where the unit wants to be
 ## Cells from the nearest opponent that ranged units try to keep.
@@ -54,7 +55,7 @@ static func score(state: SimState, baseline: SimState, e: SimEntity, command: Si
 	var after := state.duplicate_state()
 	command.execute(after)  # validated by the caller; skips a second path search
 	CombatRules.check_end(after)
-	if command is MoveCommand:
+	if command is MoveCommand or (command is CastCommand and (command as CastCommand).ability == SimAbilities.Ability.BLINK):
 		_follow_up(after, after.get_entity(e.id))
 	var reference := state
 	if command is CastCommand:
@@ -74,6 +75,7 @@ static func _compare(reference: SimState, after: SimState, e: SimEntity) -> int:
 		if before.faction == opponent:
 			value += lost * W_DAMAGE
 			value += (before.attack_damage() - now.attack_damage()) * W_DISARM
+			value += (before.inventory.size() - now.inventory.size()) * W_LOOT
 			if before.is_alive() and not now.is_alive():
 				value += W_KILL
 		elif before.faction == e.faction:
@@ -108,12 +110,13 @@ static func candidates(state: SimState, e: SimEntity) -> Array[SimCommand]:
 	for o in opponents:
 		if SimAbilities.is_adjacent(e.cell, o.cell):
 			result.append(AttackCommand.new(e.id, o.id))
+	var allies := CombatRules.fighters(state, e.faction)
 	for ability in e.abilities:
 		match ability:
 			SimAbilities.Ability.FIREBOLT:
 				for c in _fire_targets(state, e, opponents):
 					result.append(CastCommand.new(e.id, ability, c))
-			SimAbilities.Ability.SHOVE, SimAbilities.Ability.STEAL:
+			SimAbilities.Ability.SHOVE, SimAbilities.Ability.STEAL, SimAbilities.Ability.CLEAVE:
 				for o in opponents:
 					if SimAbilities.is_adjacent(e.cell, o.cell):
 						result.append(CastCommand.new(e.id, ability, o.cell))
@@ -121,13 +124,45 @@ static func candidates(state: SimState, e: SimEntity) -> Array[SimCommand]:
 				for o in opponents:
 					for spot in _drop_spots(state, e, o):
 						result.append(CastCommand.new(e.id, ability, o.cell, spot))
+			SimAbilities.Ability.FROST:
+				for o in opponents:
+					result.append(CastCommand.new(e.id, ability, o.cell))
+			SimAbilities.Ability.MEND:
+				for a in allies:
+					if a.hp < a.max_hp:
+						result.append(CastCommand.new(e.id, ability, a.cell))
+			SimAbilities.Ability.RAIN:
+				for a in allies:
+					if state.grid.fire[state.grid.index(a.cell)] > 0:
+						result.append(CastCommand.new(e.id, ability, a.cell))
+			SimAbilities.Ability.BLINK:
+				for c in _blink_spots(state, e, opponents):
+					result.append(CastCommand.new(e.id, ability, c))
 	for c in _move_targets(state, e, opponents):
 		result.append(MoveCommand.new(e.id, c))
 	return result
 
 
+## Ranged units hang back at PREFERRED_RANGE instead of closing to melee.
 static func is_ranged(e: SimEntity) -> bool:
-	return e.abilities.has(SimAbilities.Ability.FIREBOLT) or e.abilities.has(SimAbilities.Ability.TELEPORT)
+	for ability in [SimAbilities.Ability.FIREBOLT, SimAbilities.Ability.TELEPORT, SimAbilities.Ability.MEND]:
+		if e.abilities.has(ability):
+			return true
+	return false
+
+
+## Blink destinations: free cells next to opponents, within blink range.
+static func _blink_spots(state: SimState, e: SimEntity, opponents: Array[SimEntity]) -> Array[Vector3i]:
+	var result: Array[Vector3i] = []
+	var reach: int = SimAbilities.RANGE[SimAbilities.Ability.BLINK]
+	for o in opponents:
+		for d: Vector3i in SimPathfinder.DIRS_8:
+			var c := o.cell + d
+			if result.size() >= MAX_DROP_SPOTS:
+				return result
+			if SimAbilities.in_range(e.cell, c, reach) and SimPathfinder.is_standable(state, c, e.id) and not result.has(c):
+				result.append(c)
+	return result
 
 
 ## After a move, spend leftover AP the obvious way (hit the weakest adjacent

@@ -93,15 +93,29 @@ func test_enemy_steps_out_of_fire() -> void:
 	assert_eq(state.grid.fire[state.grid.index(bandit.cell)], 0)
 
 
-func test_thief_disarms_adjacent_player() -> void:
+func test_thief_takes_items_but_never_player_weapons() -> void:
 	var state := Fixtures.duel_state()
+	var hero := Fixtures.hero(state)
 	var bandit := Fixtures.bandit(state)
+	hero.can_be_disarmed = false
+	hero.inventory.assign(["Gold"])
 	bandit.abilities.assign([A.STEAL])
-	bandit.weapon_damage = 1  # hitting barely matters; taking the sword does
 	EntityOps.place(state, bandit, Vector3i(3, Y, 2))
 	var chosen := _enemy_turn(state)
 	assert_true(_has_cast(chosen, A.STEAL))
-	assert_eq(Fixtures.hero(state).weapon, "")
+	assert_eq(hero.weapon, "Sword")
+	assert_true(bandit.inventory.has("Gold"))
+
+
+func test_healer_mends_hurt_ally() -> void:
+	var state := Fixtures.duel_state()
+	var shaman := Fixtures.bandit(state)
+	shaman.abilities.assign([A.MEND])
+	var grunt := state.add_entity(SimEntity.character("Grunt", ENEMIES, Vector3i(9, Y, 7), 20, "Club", 3))
+	grunt.hp = 8
+	var chosen := _enemy_turn(state)
+	assert_true(_has_cast(chosen, A.MEND))
+	assert_gt(grunt.hp, 8)
 
 
 func test_ai_is_deterministic() -> void:

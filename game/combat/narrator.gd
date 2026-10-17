@@ -46,7 +46,11 @@ static func describe(state: SimState, e: SimEvent) -> String:
 		SimEvent.Type.FELL:
 			return "%s falls %d level%s." % [who, e.amount, "" if e.amount == 1 else "s"] if e.amount > 1 else ""
 		SimEvent.Type.TELEPORTED:
-			return "%s teleports %s." % [other, who]
+			return "%s blinks." % who if e.entity_id == e.other_id else "%s teleports %s." % [other, who]
+		SimEvent.Type.HEALED:
+			return "%s heals %s for %d." % [other, who, e.amount] if e.other_id != e.entity_id else "%s heals for %d." % [who, e.amount]
+		SimEvent.Type.FROZE:
+			return ""
 		SimEvent.Type.SHOVED:
 			return "%s shoves %s." % [other, who]
 		SimEvent.Type.COLLIDED:

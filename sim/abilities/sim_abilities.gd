@@ -1,14 +1,15 @@
 class_name SimAbilities
 extends RefCounted
-## The starter verbs. Each one acts on cells and entity properties, so they
-## combine with materials and each other (GDD §5.3).
+## The verbs. Each one acts on cells and entity properties, so they combine
+## with materials and each other (GDD §5.3). Which character knows which verbs
+## comes from SimArchetypes.
 
-enum Ability { FIREBOLT, RAIN, TELEPORT, SHOVE, STEAL }
+enum Ability { FIREBOLT, RAIN, TELEPORT, SHOVE, STEAL, FROST, OIL_FLASK, MEND, CLEAVE, BLINK }
 
-const NAMES := ["Firebolt", "Rain", "Teleport", "Shove", "Steal"]
-const AP_COST := [2, 2, 2, 1, 1]
+const NAMES := ["Firebolt", "Rain", "Teleport", "Shove", "Steal", "Frost", "Oil Flask", "Mend", "Cleave", "Blink"]
+const AP_COST := [2, 2, 2, 1, 1, 2, 1, 2, 2, 1]
 ## Reach in cells. 1 means adjacent only (diagonals count).
-const RANGE := [7, 7, 7, 1, 1]
+const RANGE := [7, 7, 7, 1, 1, 6, 6, 5, 1, 4]
 
 const FIREBOLT_DAMAGE := 4
 const RAIN_AMOUNT := 40
@@ -16,6 +17,11 @@ const RAIN_RADIUS := 1
 const TELEPORT_MAX_MASS := 150
 const SHOVE_MAX_MASS := 120
 const SHOVE_DISTANCE := 2
+const FROST_DAMAGE := 2
+const FROST_RADIUS := 1
+const OIL_FLASK_AMOUNT := 30
+const OIL_FLASK_RADIUS := 1
+const MEND_HEAL := 6
 
 
 static func all() -> Array[int]:
@@ -46,20 +52,28 @@ static func needs_line_of_sight(ability: int) -> bool:
 	return RANGE[ability] > 1
 
 
+## Whether the victim's weapon can be stolen; otherwise Steal takes an item.
+static func can_take_weapon(victim: SimEntity) -> bool:
+	return victim.weapon != "" and victim.can_be_disarmed
+
+
 static func validate(state: SimState, caster: SimEntity, ability: int, target: Vector3i, destination: Vector3i) -> bool:
 	if ability < 0 or ability >= NAMES.size() or not caster.abilities.has(ability):
 		return false
 	if not CombatRules.can_act(state, caster, AP_COST[ability]):
 		return false
-	if not state.grid.in_bounds(target) or not can_reach(ability, caster.cell, target):
+	if not state.grid.in_bounds(target) or state.grid.is_solid(target):
+		return false
+	var self_target := ability == Ability.MEND and target == caster.cell
+	if not self_target and not can_reach(ability, caster.cell, target):
 		return false
 	if needs_line_of_sight(ability) and not SimLos.has_line_of_sight(state.grid, caster.cell, target):
 		return false
 	var victim := state.entity_at(target)
 	var other_victim := victim != null and victim.id != caster.id
 	match ability:
-		Ability.FIREBOLT, Ability.RAIN:
-			return not state.grid.is_solid(target)
+		Ability.FIREBOLT, Ability.RAIN, Ability.FROST, Ability.OIL_FLASK:
+			return true
 		Ability.TELEPORT:
 			return (other_victim
 					and victim.mass <= TELEPORT_MAX_MASS
@@ -69,7 +83,13 @@ static func validate(state: SimState, caster: SimEntity, ability: int, target: V
 		Ability.SHOVE:
 			return other_victim and victim.mass <= SHOVE_MAX_MASS
 		Ability.STEAL:
-			return other_victim and (victim.weapon != "" or not victim.inventory.is_empty())
+			return other_victim and (can_take_weapon(victim) or not victim.inventory.is_empty())
+		Ability.MEND:
+			return victim != null and victim.takes_turns() and victim.hp < victim.max_hp
+		Ability.CLEAVE:
+			return other_victim
+		Ability.BLINK:
+			return SimPathfinder.is_standable(state, target, caster.id) and victim == null
 	return false
 
 
@@ -93,6 +113,19 @@ static func execute(state: SimState, caster: SimEntity, ability: int, target: Ve
 			_shove(state, caster, victim)
 		Ability.STEAL:
 			_steal(state, caster, victim)
+		Ability.FROST:
+			_frost(state, caster, target)
+		Ability.OIL_FLASK:
+			for c in state.grid.disc_cells(target, OIL_FLASK_RADIUS):
+				state.grid.add_surface(c, SimMaterials.Surface.OIL, OIL_FLASK_AMOUNT)
+		Ability.MEND:
+			EntityOps.heal(state, victim, MEND_HEAL, caster.id)
+		Ability.CLEAVE:
+			_cleave(state, caster)
+		Ability.BLINK:
+			var event := state.emit_event(SimEvent.Type.TELEPORTED, target, caster.id, caster.id)
+			event.cells.assign([caster.cell, target])
+			EntityOps.place(state, caster, target)
 
 
 ## Pushes the victim up to SHOVE_DISTANCE cells away from the caster. Walls and
@@ -129,10 +162,10 @@ static func _shove(state: SimState, caster: SimEntity, victim: SimEntity) -> voi
 	EntityOps.settle(state, victim)
 
 
-## Takes the victim's weapon if it has one, otherwise its first item.
+## Takes the victim's weapon if it can be disarmed, otherwise its first item.
 static func _steal(state: SimState, caster: SimEntity, victim: SimEntity) -> void:
 	var item: String
-	if victim.weapon != "":
+	if can_take_weapon(victim):
 		item = victim.weapon
 		victim.weapon = ""
 	else:
@@ -140,3 +173,32 @@ static func _steal(state: SimState, caster: SimEntity, victim: SimEntity) -> voi
 	caster.inventory.append(item)
 	var event := state.emit_event(SimEvent.Type.STOLEN, victim.cell, victim.id, caster.id)
 	event.text = item
+
+
+## Chills an area: puts out fire, freezes water into ice right away, and nips
+## anyone standing there.
+static func _frost(state: SimState, caster: SimEntity, target: Vector3i) -> void:
+	var grid := state.grid
+	for c in grid.disc_cells(target, FROST_RADIUS):
+		var i := grid.index(c)
+		grid.temperature[i] = mini(grid.temperature[i], SimMaterials.CHILL_TEMPERATURE)
+		if grid.fire[i] > 0:
+			grid.fire[i] = 0
+			state.emit_event(SimEvent.Type.EXTINGUISHED, c)
+		if grid.surface_type[i] == SimMaterials.Surface.WATER:
+			grid.surface_type[i] = SimMaterials.Surface.ICE
+			state.emit_event(SimEvent.Type.FROZE, c)
+		var occupant := state.entity_at(c)
+		if occupant != null:
+			EntityOps.damage(state, occupant, FROST_DAMAGE, caster.id)
+
+
+## Hits every entity adjacent to the caster, friend or foe.
+static func _cleave(state: SimState, caster: SimEntity) -> void:
+	var victims: Array[SimEntity] = []
+	for e in state.entities:
+		if e.is_alive() and e != caster and is_adjacent(caster.cell, e.cell):
+			victims.append(e)
+	for e in victims:
+		state.emit_event(SimEvent.Type.ATTACKED, e.cell, e.id, caster.id)
+		EntityOps.damage(state, e, caster.attack_damage(), caster.id)

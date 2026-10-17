@@ -119,17 +119,38 @@ Characters, barrels, chairs, doors, chests and potions share **one property mode
 
 **Spells and verbs act on properties, never on types.** Teleport moves *anything* under a mass limit; freeze works on any liquid — including the potion in an enemy's pocket. New items cost one data entry; combinations emerge for free.
 
-### 5.3 Verbs (starter set)
+### 5.3 Verbs
 
-| Verb | Notes |
-|---|---|
-| Fire | Ignite cell/object/unit |
-| Water | Create water surface / douse |
-| Teleport | Move any object or unit under mass limit to target cell |
-| Push / Shove | Knockback into hazards, off heights |
-| Steal | Pickpocket in exploration *and* combat |
+| Verb | AP | Range | Notes |
+|---|---|---|---|
+| Firebolt | 2 | 7 | 4 damage and ignites the target cell |
+| Rain | 2 | 7 | Water in a radius; douses fire (makes steam) |
+| Teleport | 2 | 7 | Moves any entity under the mass limit to a free cell in sight; drop it from height or into fire |
+| Shove | 1 | adjacent | Pushes 2 cells; walls and bodies hurt, ledges drop |
+| Steal | 1 | adjacent | Takes an enemy's weapon, otherwise an item. Player characters can't be disarmed |
+| Frost | 2 | 6 | Chills a radius: freezes water to ice now, puts out fire, 2 damage |
+| Oil Flask | 1 | 6 | Oil in a radius, ready to be lit |
+| Mend | 2 | 5 | Heals 6 (self or others) |
+| Cleave | 2 | adjacent | Weapon hit on everything adjacent, allies included |
+| Blink | 1 | 4 | Caster jumps to a free cell in sight |
 
-Expand only after these five are deeply fun together.
+Ranged verbs need line of sight. Every verb works on properties and the
+material sim, so roles combo with each other and with the environment.
+
+### 5.3.1 Roles (`SimArchetypes`)
+
+Each character is built from a role: HP, weapon, mass and verbs. Roles are tuned in one table.
+
+**Party** — built to combo:
+
+| Role | Verbs | Job |
+|---|---|---|
+| Vanguard | Shove, Cleave | Front line; pushes enemies into hazards and off ledges |
+| Pyromancer | Firebolt, Oil Flask | Area damage; lays oil, then lights it |
+| Trickster | Steal, Blink, Teleport | Control; disarms, repositions enemies into fire or the air |
+| Tidecaller | Rain, Frost, Mend | Support; heals, douses, makes ice that trips people |
+
+**Enemies:** Brute (Shove, Cleave), Firecaller (Firebolt, Teleport), Skirmisher (Steal, Blink — takes items, never player weapons), Shaman (Mend, Rain, Frost), Pikeman (Shove), Thug (melee only).
 
 ### 5.4 NPC Simulation (light)
 
@@ -151,7 +172,8 @@ Needed for pickpocketing, crime and abusing systems:
 - **Optional undo** of the last action (setting) to encourage experimentation.
 - **Objectives beyond "kill all":** assassinate, steal, rescue, survive, escape, protect.
 - **AI (utility, `UtilityAi`):** for each enemy it generates candidate actions (attacks, its own abilities on sensible targets, a short list of move destinations), applies each to a copy of the sim and scores the outcome against doing nothing. Damage, kills and disarms on opponents score up; damage to its own side scores down; ending in fire or on fuel next to fire scores down; units want to be adjacent (melee) or ~5 cells away with sight (casters). Casts are compared after advancing the world to the end of the turn, so the AI sees chain reactions. Moves are valued with the attacks or casts they set up. Decisions take up to ~100 ms on the M1 arena.
-- **Per-character verbs:** each character has its own ability list (players currently all five; enemies a few each), checked by the sim.
+- **Per-character verbs:** each character's verbs come from its role (§5.3.1) and are checked by the sim.
+- **Controls (M1 greybox):** right-click always moves. The action bar (keys 1–9) holds Attack in slot 1, then the character's verbs; left-click a target to use the aimed action. Hovering a button shows its tooltip, its range (red where there's no line of sight) and makes every entity it can target glow. WASD is camera only.
 
 ### 5.6 Generated Narration
 
@@ -269,4 +291,6 @@ The sim layer must be runnable headless and in isolation — this enables previe
 | 2026-10-17 | GDScript only (dropped C#/.NET); GDExtension as a later performance escape hatch. |
 | 2026-10-17 | Combat: Divinity-style AP pool (4/turn, cap 6), side-based turns, movement on the sim grid (navmesh only for exploration). |
 | 2026-10-17 | Enemy AI is utility scoring over simulated outcomes; abilities are per character and enemies use them on the same rules. |
+| 2026-10-17 | Roles: Vanguard, Pyromancer, Trickster, Tidecaller for the party; six enemy roles. Five new verbs (Frost, Oil Flask, Mend, Cleave, Blink). Player characters can't be disarmed. |
+| 2026-10-17 | Controls: right-click moves, Attack is an action-bar slot like any verb, action bar with instant tooltips and target highlights. |
 | 2026-10-17 | Scope: Prologue (1 hub + 1 zone, 2–3 h co-op) targeted at 12–18 months, 6–8 h/week, Claude Code writes the code. |

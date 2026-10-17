@@ -8,6 +8,8 @@ enum Faction { NONE, PLAYERS, ENEMIES }
 
 var id: int = 0
 var name: String = ""
+## Role this entity was built from (SimArchetypes id), for display.
+var archetype: String = ""
 var cell: Vector3i
 var faction: Faction = Faction.NONE
 var hp: int = 1
@@ -21,6 +23,8 @@ var mass: int = 70
 var contents_surface: int = SimMaterials.Surface.NONE
 var contents_amount: int = 0
 var weapon: String = ""
+## Whether Steal can take the weapon. Player characters keep theirs.
+var can_be_disarmed := true
 var weapon_damage: int = 0
 var unarmed_damage: int = 1
 var inventory: Array[String] = []
@@ -42,10 +46,10 @@ func attack_damage() -> int:
 
 func to_dict() -> Dictionary:
 	return {
-		"id": id, "name": name, "cell": cell, "faction": faction,
+		"id": id, "name": name, "archetype": archetype, "cell": cell, "faction": faction,
 		"hp": hp, "max_hp": max_hp, "ap": ap, "max_ap": max_ap, "mass": mass,
 		"contents_surface": contents_surface, "contents_amount": contents_amount,
-		"weapon": weapon, "weapon_damage": weapon_damage, "unarmed_damage": unarmed_damage,
+		"weapon": weapon, "can_be_disarmed": can_be_disarmed, "weapon_damage": weapon_damage, "unarmed_damage": unarmed_damage,
 		"inventory": inventory.duplicate(),
 		"abilities": abilities.duplicate(),
 	}
@@ -55,6 +59,7 @@ static func from_dict(data: Dictionary) -> SimEntity:
 	var e := SimEntity.new()
 	e.id = data.id
 	e.name = data.name
+	e.archetype = data.archetype
 	e.cell = data.cell
 	e.faction = data.faction
 	e.hp = data.hp
@@ -65,6 +70,7 @@ static func from_dict(data: Dictionary) -> SimEntity:
 	e.contents_surface = data.contents_surface
 	e.contents_amount = data.contents_amount
 	e.weapon = data.weapon
+	e.can_be_disarmed = data.can_be_disarmed
 	e.weapon_damage = data.weapon_damage
 	e.unarmed_damage = data.unarmed_damage
 	e.inventory.assign(data.inventory)

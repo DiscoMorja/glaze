@@ -2,23 +2,18 @@ extends Node3D
 ## M1 combat greybox. Every player and AI action is a SimCommand; hovering shows
 ## a preview computed by running the command on a copy of the sim.
 ##
-## Select: click a party card, F1-F4, Tab (next with AP left), or click a party
-## member in Move mode. Selecting always returns to Move mode.
-## Modes: M move (default)  A attack  1 Firebolt  2 Rain  3 Teleport  4 Shove  5 Steal
-## Abilities return to Move mode after use. Actions that would hurt your own
-## party need a second click to confirm.
+## Select: click a party card, F1-F4, Tab (next with AP left), or left-click a
+## party member when nothing is aimed.
+## Move: right-click a cell, always (it also cancels aiming). Left-click moves
+## too when nothing is aimed.
+## Actions: the action bar (or keys 1-9) aims Attack or one of the selected
+## character's abilities; left-click a target to use it. Hovering a button shows
+## its tooltip, range and what it can target. Actions return to moving after
+## use. Actions that would hurt your own party need a second click to confirm.
 ## Teleport takes two clicks: the target, then where to put it.
-## Enter: end turn (asks first if anyone has AP left)   Esc / RMB: cancel   R: restart
+## Enter: end turn (asks first if anyone has AP left)   Esc: cancel   R: restart
 
-enum Mode { MOVE, ATTACK, FIREBOLT, RAIN, TELEPORT, SHOVE, STEAL }
-const MODE_NAMES := ["Move", "Attack", "Firebolt", "Rain", "Teleport", "Shove", "Steal"]
-const MODE_ABILITY := {
-	Mode.FIREBOLT: SimAbilities.Ability.FIREBOLT,
-	Mode.RAIN: SimAbilities.Ability.RAIN,
-	Mode.TELEPORT: SimAbilities.Ability.TELEPORT,
-	Mode.SHOVE: SimAbilities.Ability.SHOVE,
-	Mode.STEAL: SimAbilities.Ability.STEAL,
-}
+const SLOT_KEYS := [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9]
 const ENEMY_ACTION_DELAY := 0.45
 const LOG_LINES := 14
 
@@ -30,12 +25,16 @@ const COLOR_SURFACE := Color(0.6, 0.8, 1.0, 0.45)
 const COLOR_SELECTED := Color(0.3, 1.0, 0.4, 0.75)
 const COLOR_HAS_AP := Color(0.3, 1.0, 0.4, 0.3)
 const COLOR_TARGET := Color(1.0, 0.85, 0.2, 0.6)
+const COLOR_TARGETABLE := Color(1.0, 0.8, 0.15, 0.45)
 const COLOR_RANGE := Color(0.35, 0.6, 1.0, 0.16)
 const COLOR_NO_SIGHT := Color(1.0, 0.3, 0.25, 0.12)
 
 var state: SimState
 
-var _mode: Mode = Mode.MOVE
+## Action being aimed (ActionInfo.ATTACK or an ability), or ActionInfo.NONE to move.
+var _action := ActionInfo.NONE
+## Action button under the mouse, for range and target highlights.
+var _hovered_action := ActionInfo.NONE
 var _selected_id := -1
 var _teleport_target: Variant = null
 var _hover: Variant = null
@@ -57,6 +56,7 @@ var _rig: CameraRig
 var _hud: Label
 var _log_label: Label
 var _party_bar: PartyBar
+var _action_bar: ActionBar
 var _dialog: PanelContainer
 var _dialog_label: Label
 
@@ -86,15 +86,12 @@ func _unhandled_input(event: InputEvent) -> void:
 				KEY_ENTER, KEY_KP_ENTER, KEY_Y: _end_turn(true)
 				KEY_ESCAPE, KEY_N: _cancel_end_turn()
 			return
+		var slot := SLOT_KEYS.find(event.keycode)
+		if slot >= 0:
+			_aim_slot(slot)
+			return
 		match event.keycode:
-			KEY_M: _set_mode(Mode.MOVE)
-			KEY_A: _set_mode(Mode.ATTACK)
-			KEY_1: _set_mode(Mode.FIREBOLT)
-			KEY_2: _set_mode(Mode.RAIN)
-			KEY_3: _set_mode(Mode.TELEPORT)
-			KEY_4: _set_mode(Mode.SHOVE)
-			KEY_5: _set_mode(Mode.STEAL)
-			KEY_ESCAPE: _set_mode(Mode.MOVE)
+			KEY_ESCAPE: _aim(ActionInfo.NONE)
 			KEY_TAB: _select_next()
 			KEY_F1: _select_index(0)
 			KEY_F2: _select_index(1)
@@ -108,8 +105,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		match event.button_index:
 			MOUSE_BUTTON_LEFT:
 				_update_hover()
-				_click()
-			MOUSE_BUTTON_RIGHT: _set_mode(Mode.MOVE)
+				_left_click()
+			MOUSE_BUTTON_RIGHT:
+				_update_hover()
+				_right_click()
 
 
 # --- Flow ----------------------------------------------------------------------
@@ -126,16 +125,20 @@ func _restart() -> void:
 	_select_next()
 
 
-func _click() -> void:
-	if _busy or _hover == null or not _is_players_turn():
+func _can_command() -> bool:
+	return not _busy and _is_players_turn()
+
+
+func _left_click() -> void:
+	if not _can_command() or _hover == null:
 		return
 	var cell: Vector3i = _hover
 	var clicked := state.entity_at(cell)
 	var own_unit := clicked != null and clicked.faction == SimEntity.Faction.PLAYERS and clicked.takes_turns()
-	if own_unit and (_mode == Mode.MOVE or _mode == Mode.ATTACK):
+	if own_unit and _action == ActionInfo.NONE:
 		_select(clicked.id)
 		return
-	if _mode == Mode.TELEPORT and _teleport_target == null:
+	if _action == SimAbilities.Ability.TELEPORT and _teleport_target == null:
 		if _can_teleport_target(clicked):
 			_teleport_target = cell
 			_update_range()
@@ -149,15 +152,28 @@ func _click() -> void:
 		_update_preview()
 		return
 	state.apply_command(command)
-	if not command is MoveCommand:
-		_mode = Mode.MOVE
-		_teleport_target = null
+	_action = ActionInfo.NONE
+	_teleport_target = null
 	_after_action()
+
+
+## Right-click always moves the selected character (and drops any aim).
+func _right_click() -> void:
+	if not _can_command():
+		return
+	if _action != ActionInfo.NONE:
+		_aim(ActionInfo.NONE)
+	if _hover == null:
+		return
+	var command := MoveCommand.new(_selected_id, _hover)
+	if command.validate(state):
+		state.apply_command(command)
+		_after_action()
 
 
 ## Ends the players' turn. Asks first if anyone still has AP, unless confirmed.
 func _end_turn(confirmed: bool = false) -> void:
-	if _busy or not _is_players_turn():
+	if not _can_command():
 		return
 	var idle: Array[String] = []
 	for e in CombatRules.fighters(state, SimEntity.Faction.PLAYERS):
@@ -225,17 +241,41 @@ func _is_players_turn() -> bool:
 	return state.combat.active and state.combat.side == SimEntity.Faction.PLAYERS
 
 
-func _set_mode(mode: Mode) -> void:
-	_mode = mode
+## Aims an action (or NONE to go back to moving).
+func _aim(action: int) -> void:
+	_action = action
 	_teleport_target = null
 	_confirm_cell = null
 	_update_range()
 	_update_preview()
 
 
+## Aims the action in action-bar slot `slot` (0-based) for the selected character.
+func _aim_slot(slot: int) -> void:
+	var actor := state.get_entity(_selected_id)
+	if actor == null:
+		return
+	var actions := ActionInfo.actions_for(actor)
+	if slot < actions.size():
+		_aim(actions[slot])
+
+
+func _on_action_pressed(action: int) -> void:
+	_aim(ActionInfo.NONE if _action == action else action)
+
+
+func _on_action_hovered(action: int) -> void:
+	_hovered_action = action
+	_update_range()
+
+
+func _mode_name() -> String:
+	return "Move" if _action == ActionInfo.NONE else ActionInfo.name_of(_action)
+
+
 func _select(id: int) -> void:
 	_selected_id = id
-	_set_mode(Mode.MOVE)
+	_aim(ActionInfo.NONE)
 
 
 func _select_index(index: int) -> void:
@@ -271,28 +311,57 @@ func _build_command(cell: Vector3i) -> SimCommand:
 	var actor := state.get_entity(_selected_id)
 	if actor == null:
 		return null
-	match _mode:
-		Mode.MOVE:
+	match _action:
+		ActionInfo.NONE:
 			return MoveCommand.new(actor.id, cell)
-		Mode.ATTACK:
+		ActionInfo.ATTACK:
 			var target := state.entity_at(cell)
 			return AttackCommand.new(actor.id, target.id) if target != null else null
-		Mode.TELEPORT:
+		SimAbilities.Ability.TELEPORT:
 			if _teleport_target == null:
 				return null
-			return CastCommand.new(actor.id, SimAbilities.Ability.TELEPORT, _teleport_target, cell)
-	return CastCommand.new(actor.id, MODE_ABILITY[_mode], cell)
+			return CastCommand.new(actor.id, _action, _teleport_target, cell)
+	return CastCommand.new(actor.id, _action, cell)
 
 
 ## First Teleport click: is this entity something the selected character can teleport?
 func _can_teleport_target(target: SimEntity) -> bool:
 	var actor := state.get_entity(_selected_id)
+	return actor != null and _teleportable(state, actor, target) and actor.ap >= SimAbilities.AP_COST[SimAbilities.Ability.TELEPORT]
+
+
+static func _teleportable(s: SimState, actor: SimEntity, target: SimEntity) -> bool:
 	var ability := SimAbilities.Ability.TELEPORT
-	return (actor != null and target != null and target != actor
+	return (target != null and target != actor and target.is_alive()
 			and target.mass <= SimAbilities.TELEPORT_MAX_MASS
-			and actor.ap >= SimAbilities.AP_COST[ability]
 			and SimAbilities.can_reach(ability, actor.cell, target.cell)
-			and SimLos.has_line_of_sight(state.grid, actor.cell, target.cell))
+			and SimLos.has_line_of_sight(s.grid, actor.cell, target.cell))
+
+
+## Entities the action can target from where the actor stands, ignoring AP so
+## hovering shows options even when the actor can't afford them yet.
+func _targetable_ids(actor: SimEntity, action: int) -> Dictionary:
+	var ids := {}
+	if action == ActionInfo.NONE or action == SimAbilities.Ability.BLINK:
+		return ids
+	if action == SimAbilities.Ability.TELEPORT and _teleport_target != null and action == _action:
+		return ids  # second click picks a cell, not an entity
+	var probe := state.duplicate_state()
+	var me := probe.get_entity(actor.id)
+	me.ap = CombatRules.AP_CAP
+	for e in probe.entities:
+		if not e.is_alive():
+			continue
+		var ok: bool
+		if action == ActionInfo.ATTACK:
+			ok = AttackCommand.new(me.id, e.id).validate(probe)
+		elif action == SimAbilities.Ability.TELEPORT:
+			ok = _teleportable(probe, me, e)
+		else:
+			ok = CastCommand.new(me.id, action, e.cell).validate(probe)
+		if ok:
+			ids[e.id] = true
+	return ids
 
 
 ## Why a command is invalid, for the HUD. Only checks what the player can fix.
@@ -304,13 +373,15 @@ func _target_reason(command: SimCommand) -> String:
 		var cast := command as CastCommand
 		if actor.ap < SimAbilities.AP_COST[cast.ability]:
 			return "Not enough AP"
-		if not SimAbilities.can_reach(cast.ability, actor.cell, cast.target):
+		if not SimAbilities.can_reach(cast.ability, actor.cell, cast.target) and not (cast.ability == SimAbilities.Ability.MEND and cast.target == actor.cell):
 			return "Out of range"
 		if SimAbilities.needs_line_of_sight(cast.ability) and not SimLos.has_line_of_sight(state.grid, actor.cell, cast.target):
 			return "No line of sight"
+		return "No valid target there"
 	elif command is AttackCommand:
 		if actor.ap < CombatRules.ATTACK_AP:
 			return "Not enough AP"
+		return "Too far to hit"
 	elif command is MoveCommand:
 		if MoveCommand.path_for(state, actor, (command as MoveCommand).destination).is_empty():
 			return "Can't get there"
@@ -318,34 +389,43 @@ func _target_reason(command: SimCommand) -> String:
 	return "" if command.validate(state) else "Can't do that"
 
 
-# --- Range ---------------------------------------------------------------------
+# --- Range & targets -----------------------------------------------------------
 
-## Highlights where the current mode can act: reachable cells for Move, cells
-## in range for abilities (red where there is no line of sight).
+## Highlights the hovered (or else aimed) action: cells in range (red where
+## there is no line of sight) and the entities it can target. When moving,
+## shows reachable cells.
 func _update_range() -> void:
 	var cells: Array[Vector3i] = []
 	var colors: Array[Color] = []
+	var targetable := {}
 	var actor := state.get_entity(_selected_id)
-	if not _busy and _is_players_turn() and actor != null and actor.is_alive():
-		match _mode:
-			Mode.MOVE:
-				var reach := SimPathfinder.reachable(state, actor.cell, actor.ap * CombatRules.MOVE_COST_PER_AP, actor.id)
-				for c: Vector3i in reach:
-					cells.append(c)
-					colors.append(COLOR_RANGE)
-			Mode.ATTACK, Mode.SHOVE, Mode.STEAL:
-				for c in _floor_cells_near(actor.cell, 1):
+	var action := _hovered_action if _hovered_action != ActionInfo.NONE else _action
+	if _can_command() and actor != null and actor.is_alive():
+		if action == ActionInfo.NONE:
+			var reach := SimPathfinder.reachable(state, actor.cell, actor.ap * CombatRules.MOVE_COST_PER_AP, actor.id)
+			for c: Vector3i in reach:
+				cells.append(c)
+				colors.append(COLOR_RANGE)
+		else:
+			var reach_cells := ActionInfo.range_of(action)
+			if action == SimAbilities.Ability.MEND:
+				cells.append(actor.cell)
+				colors.append(COLOR_RANGE)
+			for c in _floor_cells_near(actor.cell, reach_cells):
+				if reach_cells == 1:
 					if SimAbilities.is_adjacent(actor.cell, c):
 						cells.append(c)
 						colors.append(COLOR_RANGE)
-			_:
-				var ability: int = MODE_ABILITY[_mode]
-				for c in _floor_cells_near(actor.cell, SimAbilities.RANGE[ability]):
-					if not SimAbilities.in_range(actor.cell, c, SimAbilities.RANGE[ability]) or c == actor.cell:
-						continue
+				elif c != actor.cell and SimAbilities.in_range(actor.cell, c, reach_cells):
 					cells.append(c)
 					colors.append(COLOR_RANGE if SimLos.has_line_of_sight(state.grid, actor.cell, c) else COLOR_NO_SIGHT)
+			targetable = _targetable_ids(actor, action)
+			for id: int in targetable:
+				cells.append(state.get_entity(id).cell)
+				colors.append(COLOR_TARGETABLE)
 	_range_markers.show_cells(cells, colors, 0.03)
+	_entity_renderer.set_targetable(targetable)
+	_refresh()
 
 
 ## Open cells within `radius` columns that stand on solid ground or hold an entity.
@@ -385,14 +465,16 @@ func _update_preview() -> void:
 		cells.append(_teleport_target)
 		colors.append(COLOR_TARGET)
 
-	if not _busy and _hover != null and _is_players_turn() and actor != null:
+	if _can_command() and _hover != null and actor != null:
 		var cell: Vector3i = _hover
 		var command := _build_command(cell)
 		if command == null:
 			cells.append(cell)
 			colors.append(COLOR_CURSOR)
-			if _mode == Mode.TELEPORT:
+			if _action == SimAbilities.Ability.TELEPORT:
 				_preview_text = "Pick something to teleport"
+			elif _action == ActionInfo.ATTACK:
+				_preview_text = "Pick someone to hit"
 		elif not command.validate(state):
 			cells.append(cell)
 			colors.append(COLOR_INVALID)
@@ -443,16 +525,18 @@ func _preview_outcome(command: SimCommand, actor: SimEntity, cells: Array[Vector
 		var parts: Array[String] = []
 		if now_hp == 0:
 			parts.append("dies")
+		elif now_hp > e.hp:
+			parts.append("+%d" % (now_hp - e.hp))
 		elif now_hp != e.hp:
 			parts.append("-%d" % (e.hp - now_hp))
 		if now_hp > 0 and later_hp == 0:
 			parts.append("dies by turn end")
-		elif later_hp != now_hp:
+		elif later_hp < now_hp:
 			parts.append("-%d by turn end" % (now_hp - later_hp))
 		texts[e.id] = "  ".join(parts)
 
 	_preview_cost = actor.ap - after.get_entity(actor.id).ap
-	_preview_text = "%s: %d AP" % [MODE_NAMES[_mode], _preview_cost]
+	_preview_text = "%s: %d AP" % [_mode_name(), _preview_cost]
 	if not _preview_hurts_allies.is_empty():
 		if _confirm_cell != null and _confirm_cell == _hover:
 			_preview_text += "   HITS %s — click again to confirm" % ", ".join(_preview_hurts_allies).to_upper()
@@ -493,7 +577,7 @@ func _build_scene() -> void:
 	var canvas := CanvasLayer.new()
 	add_child(canvas)
 	_hud = _make_label(canvas, Vector2(12, 10))
-	_log_label = _make_label(canvas, Vector2(12, 200))
+	_log_label = _make_label(canvas, Vector2(12, 150))
 
 	_party_bar = PartyBar.new()
 	canvas.add_child(_party_bar)
@@ -505,6 +589,11 @@ func _build_scene() -> void:
 			_end_turn(true)
 		else:
 			_end_turn())
+
+	_action_bar = ActionBar.new()
+	canvas.add_child(_action_bar)
+	_action_bar.action_pressed.connect(_on_action_pressed)
+	_action_bar.action_hovered.connect(_on_action_hovered)
 
 	_dialog = PanelContainer.new()
 	_dialog.set_anchors_preset(Control.PRESET_CENTER)
@@ -537,20 +626,19 @@ func _refresh() -> void:
 	if _hud == null or state == null:
 		return
 	_entity_renderer.set_selected(_selected_id)
-	_party_bar.update_party(CombatRules.fighters(state, SimEntity.Faction.PLAYERS), _selected_id, _turn_start_ap, _preview_cost, _is_players_turn() and not _busy)
+	_party_bar.update_party(CombatRules.fighters(state, SimEntity.Faction.PLAYERS), _selected_id, _turn_start_ap, _preview_cost, _can_command())
+	var actor := state.get_entity(_selected_id)
+	_action_bar.show_actions(actor if actor != null and actor.is_alive() else null, _action, _can_command())
 	var lines: Array[String] = []
 	if state.combat.active:
 		lines.append("Round %d — %s" % [state.combat.round_number, "Your turn" if _is_players_turn() else "Enemy turn..."])
 	else:
 		lines.append("Combat over — press R to restart")
-	var actor := state.get_entity(_selected_id)
 	if actor != null:
 		var items := ", ".join(actor.inventory) if not actor.inventory.is_empty() else "nothing"
-		lines.append("%s   weapon: %s   carrying: %s" % [actor.name, actor.weapon if actor.weapon != "" else "none", items])
-	lines.append("Mode: %s   %s" % [MODE_NAMES[_mode], _preview_text])
-	lines.append("")
-	lines.append("M move  A attack (2)  1 Firebolt (2)  2 Rain (2)  3 Teleport (2)  4 Shove (1)  5 Steal (1)")
-	lines.append("F1-F4 / Tab / party cards: select   Enter: end turn   Esc/RMB: cancel   R: restart")
+		lines.append("%s the %s   weapon: %s   carrying: %s" % [actor.name, SimArchetypes.title(actor.archetype), actor.weapon if actor.weapon != "" else "none", items])
+	lines.append("%s   %s" % [_mode_name(), _preview_text])
+	lines.append("RMB move   LMB use / select   1-9 actions   Esc cancel   F1-F4 / Tab select   Enter end turn   R restart")
 	lines.append("WASD pan   Q/E rotate   wheel zoom")
 	_hud.text = "\n".join(lines)
 	_log_label.text = "\n".join(_log)
