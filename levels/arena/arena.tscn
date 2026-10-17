@@ -1,0 +1,195 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://game/level/game_level.gd" id="1_level"]
+[ext_resource type="Script" path="res://game/level/level_spawn.gd" id="2_spawn"]
+[ext_resource type="Script" path="res://game/level/level_barrel.gd" id="3_barrel"]
+[ext_resource type="Script" path="res://game/level/level_surface.gd" id="4_surface"]
+
+[sub_resource type="Environment" id="Env_arena"]
+background_mode = 1
+background_color = Color(0.08, 0.09, 0.11, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.55, 0.55, 0.6, 1)
+
+[sub_resource type="StandardMaterial3D" id="Mat_stone"]
+albedo_color = Color(0.55, 0.53, 0.5, 1)
+
+[sub_resource type="StandardMaterial3D" id="Mat_wood"]
+albedo_color = Color(0.45, 0.33, 0.22, 1)
+
+[node name="Arena" type="Node3D"]
+script = ExtResource("1_level")
+grid_size = Vector3i(28, 6, 24)
+start_in_combat = true
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Env_arena")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+rotation = Vector3(-0.959931, -0.523599, 0)
+shadow_enabled = true
+
+[node name="Structures" type="Node3D" parent="."]
+
+[node name="Floor" type="CSGBox3D" parent="Structures"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14, 1, 12)
+use_collision = true
+size = Vector3(28, 2, 24)
+material = SubResource("Mat_stone")
+
+[node name="Pit" type="CSGBox3D" parent="Structures/Floor"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, 0.5, 5)
+operation = 2
+size = Vector3(6, 1, 6)
+
+[node name="Platform" type="CSGBox3D" parent="Structures"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21.5, 3, 7.5)
+use_collision = true
+size = Vector3(9, 2, 9)
+material = SubResource("Mat_stone")
+
+[node name="Step" type="CSGBox3D" parent="Structures"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 16, 2.5, 7.5)
+use_collision = true
+size = Vector3(2, 1, 3)
+material = SubResource("Mat_stone")
+
+[node name="Wall" type="CSGBox3D" parent="Structures"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.5, 3, 7.5)
+use_collision = true
+size = Vector3(1, 2, 7)
+material = SubResource("Mat_wood")
+
+[node name="Party" type="Node3D" parent="."]
+
+[node name="Ari" type="Marker3D" parent="Party"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.5, 2.5, 15.5)
+script = ExtResource("2_spawn")
+role = "vanguard"
+entity_name = "Ari"
+team = 0
+inventory = Array[String](["Gold"])
+
+[node name="Bram" type="Marker3D" parent="Party"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, 2.5, 17.5)
+script = ExtResource("2_spawn")
+role = "pyromancer"
+entity_name = "Bram"
+team = 0
+inventory = Array[String](["Gold"])
+
+[node name="Cel" type="Marker3D" parent="Party"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.5, 2.5, 18.5)
+script = ExtResource("2_spawn")
+role = "trickster"
+entity_name = "Cel"
+team = 0
+inventory = Array[String](["Gold"])
+
+[node name="Dov" type="Marker3D" parent="Party"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.5, 2.5, 19.5)
+script = ExtResource("2_spawn")
+role = "tidecaller"
+entity_name = "Dov"
+team = 0
+inventory = Array[String](["Gold"])
+
+[node name="Bandits" type="Node3D" parent="."]
+
+[node name="Chief" type="Marker3D" parent="Bandits"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22.5, 4.5, 7.5)
+script = ExtResource("2_spawn")
+role = "brute"
+entity_name = "Chief"
+inventory = Array[String](["Camp key"])
+
+[node name="Hexer" type="Marker3D" parent="Bandits"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.5, 4.5, 9.5)
+script = ExtResource("2_spawn")
+role = "firecaller"
+entity_name = "Hexer"
+
+[node name="Shaman" type="Marker3D" parent="Bandits"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24.5, 4.5, 5.5)
+script = ExtResource("2_spawn")
+role = "shaman"
+entity_name = "Shaman"
+
+[node name="Cutpurse" type="Marker3D" parent="Bandits"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 19.5, 4.5, 5.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+entity_name = "Cutpurse"
+inventory = Array[String](["Gold"])
+
+[node name="Thug" type="Marker3D" parent="Bandits"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 19.5, 4.5, 9.5)
+script = ExtResource("2_spawn")
+role = "thug"
+entity_name = "Thug"
+
+[node name="Pikeman" type="Marker3D" parent="Bandits"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.5, 2.5, 9.5)
+script = ExtResource("2_spawn")
+role = "pikeman"
+entity_name = "Pikeman"
+
+[node name="Props" type="Node3D" parent="."]
+
+[node name="OilBarrel1" type="Marker3D" parent="Props"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21.5, 4.5, 6.5)
+script = ExtResource("3_barrel")
+
+[node name="OilBarrel2" type="Marker3D" parent="Props"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21.5, 4.5, 8.5)
+script = ExtResource("3_barrel")
+
+[node name="OilBarrel3" type="Marker3D" parent="Props"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.5, 2.5, 11.5)
+script = ExtResource("3_barrel")
+amount = 120
+
+[node name="WaterBarrel" type="Marker3D" parent="Props"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.5, 2.5, 14.5)
+script = ExtResource("3_barrel")
+contents = 1
+
+[node name="PitWater" type="Marker3D" parent="Props"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.5, 1.5, 16.5)
+script = ExtResource("4_surface")
+amount = 120
+
+[node name="OilTrail1" type="Marker3D" parent="Props"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.5, 2.5, 7.5)
+script = ExtResource("4_surface")
+kind = 1
+amount = 20
+radius = 0
+
+[node name="OilTrail2" type="Marker3D" parent="Props"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.5, 2.5, 7.5)
+script = ExtResource("4_surface")
+kind = 1
+amount = 20
+radius = 0
+
+[node name="OilTrail3" type="Marker3D" parent="Props"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.5, 2.5, 7.5)
+script = ExtResource("4_surface")
+kind = 1
+amount = 20
+radius = 0
+
+[node name="OilTrail4" type="Marker3D" parent="Props"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 13.5, 2.5, 7.5)
+script = ExtResource("4_surface")
+kind = 1
+amount = 20
+radius = 0
+
+[node name="OilTrail5" type="Marker3D" parent="Props"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 14.5, 2.5, 7.5)
+script = ExtResource("4_surface")
+kind = 1
+amount = 20
+radius = 0

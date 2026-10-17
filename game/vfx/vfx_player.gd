@@ -148,8 +148,8 @@ func _later(delay: float, effect: Callable) -> void:
 
 
 static func _feet(c: Vector3i) -> Vector3:
-	return Vector3(c.x + 0.5, c.y + 0.1, c.z + 0.5)
+	return WorldSpace.cell_to_world(c) + Vector3(0, 0.1, 0)
 
 
 static func _body(c: Vector3i) -> Vector3:
-	return Vector3(c.x + 0.5, c.y + 0.8, c.z + 0.5)
+	return WorldSpace.cell_to_world(c) + Vector3(0, 0.8, 0)

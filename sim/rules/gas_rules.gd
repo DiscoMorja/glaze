@@ -1,7 +1,10 @@
 class_name GasRules
 extends RefCounted
 ## Gas transport: gases rise when the cell above is open, otherwise spread
-## sideways, then decay. Delta-based like LiquidRules for order independence.
+## sideways, then decay. Delta-based like LiquidRules for order independence;
+## only cells holding gas (and the cells it moves into) are visited.
+
+const GASES := [SimMaterials.Gas.STEAM, SimMaterials.Gas.SMOKE]
 
 
 @warning_ignore("integer_division")
@@ -13,11 +16,14 @@ static func step(state: SimState) -> void:
 	delta.resize(grid.cell_count)
 	delta.fill(0)
 	var next_types := types.duplicate()
+	var active := SimGrid.indices_of(types, GASES)
+	if active.is_empty():
+		return
+	var touched := {}
 
-	for i in grid.cell_count:
+	for i in active:
+		touched[i] = true
 		var t: int = types[i]
-		if t == SimMaterials.Gas.NONE:
-			continue
 		var amount: int = amounts[i]
 		var c := grid.coord(i)
 
@@ -28,6 +34,7 @@ static func step(state: SimState) -> void:
 				delta[i] -= amount
 				delta[ai] += amount
 				next_types[ai] = t
+				touched[ai] = true
 				continue
 
 		if amount < SimMaterials.GAS_MIN_SPREAD:
@@ -45,8 +52,9 @@ static func step(state: SimState) -> void:
 			delta[i] -= flow
 			delta[ni] += flow
 			next_types[ni] = t
+			touched[ni] = true
 
-	for i in grid.cell_count:
+	for i: int in touched:
 		var t: int = next_types[i]
 		if t == SimMaterials.Gas.NONE:
 			continue

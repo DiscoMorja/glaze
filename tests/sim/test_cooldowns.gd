@@ -54,12 +54,13 @@ func test_attack_has_no_cooldown() -> void:
 	assert_true(state.apply_command(AttackCommand.new(1, 2)))
 
 
-func test_no_cooldowns_outside_combat() -> void:
+func test_cooldowns_count_down_in_real_time_outside_combat() -> void:
 	var state := Fixtures.flat_state()
 	var e := state.add_entity(SimEntity.character("Walker", PLAYERS, Vector3i(1, Y, 1), 10, "", 0, [], [A.OIL_FLASK]))
 	assert_true(state.apply_command(CastCommand.new(e.id, A.OIL_FLASK, Vector3i(3, Y, 3))))
+	assert_false(state.apply_command(CastCommand.new(e.id, A.OIL_FLASK, Vector3i(5, Y, 5))), "cooling down")
+	state.step_ticks(SimAbilities.COOLDOWN[A.OIL_FLASK] * CombatRules.REALTIME_TICKS_PER_TURN)
 	assert_true(state.apply_command(CastCommand.new(e.id, A.OIL_FLASK, Vector3i(5, Y, 5))))
-	assert_eq(e.cooldown(A.OIL_FLASK), 0)
 
 
 func test_cooldowns_survive_copies() -> void:

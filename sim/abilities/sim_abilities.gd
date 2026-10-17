@@ -10,8 +10,9 @@ const NAMES := ["Firebolt", "Rain", "Teleport", "Shove", "Steal", "Frost", "Oil 
 const AP_COST := [2, 2, 2, 1, 1, 2, 1, 2, 2, 1]
 ## Reach in cells. 1 means adjacent only (diagonals count).
 const RANGE := [7, 7, 7, 1, 1, 6, 6, 5, 1, 4]
-## Turns until an ability can be used again (by its user, in combat): 1 = once
-## per turn, 3 = every third turn. Counted down at the start of the user's turn.
+## Turns until an ability can be used again by its user: 1 = once per turn,
+## 3 = every third turn. In combat they count down at the start of the user's
+## turn; outside combat every CombatRules.REALTIME_TICKS_PER_TURN ticks.
 const COOLDOWN := [1, 2, 3, 1, 2, 2, 2, 3, 2, 2]
 
 const FIREBOLT_DAMAGE := 4
@@ -65,7 +66,7 @@ static func validate(state: SimState, caster: SimEntity, ability: int, target: V
 		return false
 	if not CombatRules.can_act(state, caster, AP_COST[ability]):
 		return false
-	if state.combat.active and caster.cooldown(ability) > 0:
+	if caster.cooldown(ability) > 0:
 		return false
 	if not state.grid.in_bounds(target) or state.grid.is_solid(target):
 		return false
@@ -100,8 +101,7 @@ static func validate(state: SimState, caster: SimEntity, ability: int, target: V
 
 static func execute(state: SimState, caster: SimEntity, ability: int, target: Vector3i, destination: Vector3i) -> void:
 	CombatRules.spend(state, caster, AP_COST[ability])
-	if state.combat.active:
-		caster.cooldowns[ability] = COOLDOWN[ability]
+	caster.cooldowns[ability] = COOLDOWN[ability]
 	state.emit_event(SimEvent.Type.CAST, target, caster.id, -1, ability)
 	var victim := state.entity_at(target)
 	match ability:

@@ -17,6 +17,8 @@ static func damage(state: SimState, e: SimEntity, amount: int, source_id: int = 
 		return
 	e.hp = maxi(e.hp - amount, 0)
 	state.emit_event(SimEvent.Type.DAMAGED, e.cell, e.id, source_id, amount)
+	if not state.combat.active and e.takes_turns() and e.faction != SimEntity.Faction.NONE:
+		state.provoked = true
 	if e.hp == 0:
 		_die(state, e)
 

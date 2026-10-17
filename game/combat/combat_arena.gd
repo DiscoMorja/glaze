@@ -1,4 +1,14 @@
 extends Node3D
+## Plays a level scene: real-time exploration and turn-based combat. The level
+## (layout, characters, props, lighting) is edited in its own scene; levels
+## with start_in_combat begin straight in a fight (the arena).
+##
+## Exploration: the world ticks in real time; right-click (or left-click with
+## nothing aimed) walks the party there, the others following in formation.
+## Abilities work without AP. Enemy sight areas are tinted red; walking into one,
+## or hurting an enemy, starts combat right where everyone stands. After a win
+## the world goes back to real time.
+##
 ## M1 combat greybox. Every player and AI action is a SimCommand; hovering shows
 ## a preview computed by running the command on a copy of the sim.
 ##
@@ -28,6 +38,9 @@ const FAST_FORWARD := 3.0
 ## Camera glide to frame a caster and target before the action lands.
 const CAMERA_FRAME_SECONDS := 0.42
 const LOG_LINES := 10
+## Real-time sim rate outside combat (one cell of walking per tick).
+const EXPLORE_TICKS_PER_SECOND := 4.0
+const COLOR_DANGER := Color(1.0, 0.2, 0.15, 0.13)
 
 const COLOR_CURSOR := Color(1, 1, 1, 0.45)
 const COLOR_INVALID := Color(1, 0.15, 0.1, 0.5)
@@ -43,7 +56,12 @@ const COLOR_NO_SIGHT := Color(1.0, 0.3, 0.25, 0.12)
 const COLOR_ENEMY_ACTOR := Color(1.0, 0.25, 0.2, 0.7)
 const COLOR_ENEMY_TARGET := Color(1.0, 0.55, 0.1, 0.6)
 
+## Level to explore. Empty = the combat arena.
+@export var level_scene: PackedScene
+
 var state: SimState
+var _level: GameLevel
+var _tick_accumulator := 0.0
 
 ## Action being aimed (ActionInfo.ATTACK or an ability), or ActionInfo.NONE to move.
 var _action := ActionInfo.NONE
@@ -61,6 +79,10 @@ var _confirm_cell: Variant = null
 var _confirming_end_turn := false
 var _turn_start_ap := {}
 var _mouse_pos := Vector2.ZERO
+## Mouse position and camera transform the hover was last picked with.
+var _last_pick_view := []
+## Set when the world changed under a still cursor (e.g. after an action).
+var _force_pick := false
 ## State the HUD shows; a ghost copy while the world-advance is animating.
 var _view: SimState
 ## Bumped on restart so running turn coroutines stop.
@@ -96,7 +118,15 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if state == null:
+		return
 	_update_hover()
+	if _exploring() and not _busy:
+		_tick_accumulator += delta
+		var tick_seconds := 1.0 / EXPLORE_TICKS_PER_SECOND
+		while _tick_accumulator >= tick_seconds and _exploring():
+			_tick_accumulator -= tick_seconds
+			_explore_tick()
 	# Hold Space to fast-forward the enemy turn and world animation.
 	Engine.time_scale = FAST_FORWARD if _busy and Input.is_key_pressed(KEY_SPACE) else 1.0
 	_entity_renderer.show_all_bars = Input.is_key_pressed(KEY_ALT)
@@ -110,6 +140,11 @@ func _process(delta: float) -> void:
 
 
 func _update_hover() -> void:
+	var view := [_mouse_pos, _rig.camera.global_transform]
+	if view == _last_pick_view and not _force_pick:
+		return
+	_last_pick_view = view
+	_force_pick = false
 	var hover: Variant = _rig.pick_cell(state, _mouse_pos)
 	if typeof(hover) != typeof(_hover) or hover != _hover:
 		_hover = hover
@@ -143,9 +178,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 		match event.button_index:
 			MOUSE_BUTTON_LEFT:
+				_force_pick = true
 				_update_hover()
 				_left_click()
 			MOUSE_BUTTON_RIGHT:
+				_force_pick = true
 				_update_hover()
 				_right_click()
 
@@ -154,7 +191,22 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _restart() -> void:
 	_session += 1
-	state = ArenaBuilder.build()
+	var session := _session
+	state = null
+	if level_scene == null:
+		push_error("No level_scene set on %s" % name)
+		return
+	if _level != null:
+		_level.queue_free()
+	_level = level_scene.instantiate() as GameLevel
+	add_child(_level)
+	var baked: SimState = await _level.bake()
+	if session != _session:
+		return
+	state = baked
+	_grid_renderer.show_solids = false
+	_rig.position = Vector3(state.grid.size.x / 2.0, 2.0, state.grid.size.z / 2.0)
+	_tick_accumulator = 0.0
 	_view = null
 	_fire_field.clear()
 	_caption.text = ""
@@ -166,11 +218,65 @@ func _restart() -> void:
 	_capture_turn_start_ap()
 	_consume_events()
 	_select_next()
-	_show_banner("Round 1 — Your turn")
+	_show_banner("Round 1 — Your turn" if state.combat.active else "Explore")
 
 
 func _can_command() -> bool:
-	return not _busy and _is_players_turn()
+	return state != null and not _busy and (_is_players_turn() or _exploring())
+
+
+## Real time: no fight is on and the party is alive.
+func _exploring() -> bool:
+	return state != null and not state.combat.active \
+			and not CombatRules.fighters(state, SimEntity.Faction.PLAYERS).is_empty()
+
+
+## One real-time tick. If it starts combat (someone was spotted), switch over.
+func _explore_tick() -> void:
+	state.step()
+	_present(state, state.drain_events())
+	if state.combat.active:
+		_tick_accumulator = 0.0
+		_show_banner("Combat!")
+		_select_next(true)
+		_update_range()
+		_update_preview()
+
+
+## Walks the selected character to `dest`; the rest of the party follows to
+## free cells around it, nearest first.
+func _travel_party(dest: Vector3i) -> void:
+	var leader := state.get_entity(_selected_id)
+	if leader == null or not TravelCommand.new(leader.id, dest).validate(state):
+		return
+	state.apply_command(TravelCommand.new(leader.id, dest))
+	var taken := {dest: true}
+	for member in CombatRules.fighters(state, SimEntity.Faction.PLAYERS):
+		if member.id == leader.id:
+			continue
+		var spot: Variant = _formation_cell(dest, taken, member.id)
+		if spot != null:
+			taken[spot] = true
+			state.apply_command(TravelCommand.new(member.id, spot))
+	_rig.follow(_entity_renderer.view_of(leader.id), leader.travel.size() / EXPLORE_TICKS_PER_SECOND + 0.5)
+	_after_action()
+
+
+## The nearest standable cell to `dest` (breadth-first over walkable steps)
+## that nobody else has been sent to.
+func _formation_cell(dest: Vector3i, taken: Dictionary, mover_id: int) -> Variant:
+	var queue: Array[Vector3i] = [dest]
+	var seen := {dest: true}
+	while not queue.is_empty() and seen.size() < 200:
+		var c: Vector3i = queue.pop_front()
+		for n in SimPathfinder.neighbors(state, c, mover_id):
+			if seen.has(n):
+				continue
+			seen[n] = true
+			if not taken.has(n):
+				return n
+			queue.append(n)
+	return null
 
 
 func _left_click() -> void:
@@ -190,6 +296,9 @@ func _left_click() -> void:
 		return
 	var command := _build_command(cell)
 	if command == null or not command.validate(state):
+		return
+	if command is TravelCommand:
+		_travel_party(cell)
 		return
 	if not _preview_hurts_allies.is_empty() and _confirm_cell != _hover:
 		_confirm_cell = cell
@@ -247,7 +356,7 @@ func _target_point(command: SimCommand, actor: SimEntity) -> Variant:
 
 
 static func _body_point(c: Vector3i) -> Vector3:
-	return Vector3(c.x + 0.5, c.y + 0.8, c.z + 0.5)
+	return WorldSpace.cell_to_world(c) + Vector3(0, 0.8, 0)
 
 
 ## Right-click always moves the selected character (and drops any aim).
@@ -258,6 +367,9 @@ func _right_click() -> void:
 		_aim(ActionInfo.NONE)
 	if _hover == null:
 		return
+	if _exploring():
+		_travel_party(_hover)
+		return
 	var command := MoveCommand.new(_selected_id, _hover)
 	if command.validate(state):
 		state.apply_command(command)
@@ -266,7 +378,7 @@ func _right_click() -> void:
 
 ## Ends the players' turn. Asks first if anyone still has AP, unless confirmed.
 func _end_turn(confirmed: bool = false) -> void:
-	if not _can_command():
+	if not _can_command() or not _is_players_turn():
 		return
 	var idle: Array[String] = []
 	for e in CombatRules.fighters(state, SimEntity.Faction.PLAYERS):
@@ -470,6 +582,7 @@ func _consume_events() -> void:
 
 ## Draws a state and plays its events: log, grid, flames, entities, effects.
 func _present(s: SimState, events: Array[SimEvent]) -> void:
+	_force_pick = true  # entities may have moved under the cursor
 	for e in events:
 		if e.type == SimEvent.Type.TURN_STARTED and e.amount == SimEntity.Faction.PLAYERS:
 			_capture_turn_start_ap()
@@ -477,6 +590,10 @@ func _present(s: SimState, events: Array[SimEvent]) -> void:
 		_log.push_front(line)
 	if _log.size() > LOG_LINES:
 		_log.resize(LOG_LINES)
+	for e in events:
+		if e.type == SimEvent.Type.COMBAT_ENDED:
+			_show_banner("Victory!" if e.amount == SimEntity.Faction.PLAYERS else "Defeat")
+	_entity_renderer.walk_seconds = 1.0 / EXPLORE_TICKS_PER_SECOND if not s.combat.active else 0.0
 	_grid_renderer.render(s.grid)
 	_fire_field.sync(s.grid)
 	_entity_renderer.render(s, events)
@@ -582,6 +699,8 @@ func _build_command(cell: Vector3i) -> SimCommand:
 		return null
 	match _action:
 		ActionInfo.NONE:
+			if _exploring():
+				return TravelCommand.new(actor.id, cell)
 			return MoveCommand.new(actor.id, cell)
 		ActionInfo.ATTACK:
 			var target := state.entity_at(cell)
@@ -640,7 +759,7 @@ func _target_reason(command: SimCommand) -> String:
 		return "No one selected"
 	if command is CastCommand:
 		var cast := command as CastCommand
-		if actor.ap < SimAbilities.AP_COST[cast.ability]:
+		if state.combat.active and actor.ap < SimAbilities.AP_COST[cast.ability]:
 			return "Not enough AP"
 		if actor.cooldown(cast.ability) > 0:
 			return "On cooldown (ready in %d)" % actor.cooldown(cast.ability)
@@ -650,9 +769,11 @@ func _target_reason(command: SimCommand) -> String:
 			return "No line of sight"
 		return "No valid target there"
 	elif command is AttackCommand:
-		if actor.ap < CombatRules.ATTACK_AP:
+		if state.combat.active and actor.ap < CombatRules.ATTACK_AP:
 			return "Not enough AP"
 		return "Too far to hit"
+	elif command is TravelCommand:
+		return "Can't get there"
 	elif command is MoveCommand:
 		if MoveCommand.path_for(state, actor, (command as MoveCommand).destination).is_empty():
 			return "Can't get there"
@@ -666,13 +787,19 @@ func _target_reason(command: SimCommand) -> String:
 ## there is no line of sight) and the entities it can target. When moving,
 ## shows reachable cells.
 func _update_range() -> void:
+	if state == null:
+		return
 	var cells: Array[Vector3i] = []
 	var colors: Array[Color] = []
 	var targetable := {}
 	var actor := state.get_entity(_selected_id)
 	var action := _hovered_action if _hovered_action != ActionInfo.NONE else _action
 	if _can_command() and actor != null and actor.is_alive():
-		if action == ActionInfo.NONE:
+		if action == ActionInfo.NONE and _exploring():
+			for c in _danger_cells():
+				cells.append(c)
+				colors.append(COLOR_DANGER)
+		elif action == ActionInfo.NONE:
 			var reach := SimPathfinder.reachable(state, actor.cell, actor.ap * CombatRules.MOVE_COST_PER_AP, actor.id)
 			for c: Vector3i in reach:
 				cells.append(c)
@@ -699,6 +826,22 @@ func _update_range() -> void:
 	_refresh()
 
 
+## Floor cells some watchful enemy can see: walking in starts combat.
+func _danger_cells() -> Array[Vector3i]:
+	var result: Array[Vector3i] = []
+	var seen := {}
+	for watcher in CombatRules.fighters(state, SimEntity.Faction.ENEMIES):
+		if watcher.sight <= 0:
+			continue
+		for c in _floor_cells_near(watcher.cell, watcher.sight):
+			if seen.has(c) or absi(c.y - watcher.cell.y) > watcher.sight:
+				continue
+			if SimAbilities.in_range(watcher.cell, c, watcher.sight) and SimLos.has_line_of_sight(state.grid, watcher.cell, c):
+				seen[c] = true
+				result.append(c)
+	return result
+
+
 ## Open cells within `radius` columns that stand on solid ground or hold an entity.
 func _floor_cells_near(center: Vector3i, radius: int) -> Array[Vector3i]:
 	var grid := state.grid
@@ -717,6 +860,8 @@ func _floor_cells_near(center: Vector3i, radius: int) -> Array[Vector3i]:
 ## Runs the hovered command on a copy of the sim and shows what would happen:
 ## immediately, and by the end of the turn once the world has advanced.
 func _update_preview() -> void:
+	if state == null:
+		return
 	var hovered := state.entity_at(_hover) if _hover != null else null
 	_entity_renderer.set_hovered(hovered.id if hovered != null else -1)
 	if _busy:
@@ -770,28 +915,52 @@ func _update_preview() -> void:
 
 
 func _preview_outcome(command: SimCommand, actor: SimEntity, cells: Array[Vector3i], colors: Array[Color], texts: Dictionary) -> void:
+	# The caller has validated the command, so run it straight on the copy (no
+	# second validation) and read the path from what it did, rather than
+	# searching for it again.
 	var after := state.duplicate_state()
-	after.apply_command(command)
-	var forecast := after.duplicate_state()
-	forecast.step_ticks(CombatRules.TICKS_PER_SIDE_TURN)
+	command.execute(after)
+	CombatRules.check_end(after)
+	var moved_cells: Array[Vector3i] = []
+	for e in after.drain_events():
+		if e.type == SimEvent.Type.MOVED and e.entity_id == actor.id:
+			moved_cells = e.cells
+	if command is TravelCommand:
+		moved_cells = after.get_entity(actor.id).travel
+	for c in moved_cells:
+		cells.append(c)
+		colors.append(COLOR_PATH)
 
-	if command is MoveCommand:
-		for c in MoveCommand.path_for(state, actor, (command as MoveCommand).destination):
-			cells.append(c)
-			colors.append(COLOR_PATH)
+	# Turn-end forecast (fire spreading, burning) only matters in combat; in real
+	# time there is no turn end to forecast.
+	var forecast := after
+	if state.combat.active:
+		forecast = after.duplicate_state()
+		forecast.step_ticks(CombatRules.TICKS_PER_SIDE_TURN)
 	if command is CastCommand and (command as CastCommand).ability == SimAbilities.Ability.TELEPORT:
 		var moved := after.get_entity(state.entity_at((command as CastCommand).target).id)
 		cells.append(moved.cell)
 		colors.append(COLOR_TARGET)
 
+	# New fire and changed surfaces, found with native array compares and
+	# searches so the cost depends on what changed, not on the grid size.
 	var grid := state.grid
-	for i in grid.cell_count:
-		if forecast.grid.fire[i] > 0 and grid.fire[i] == 0:
-			cells.append(grid.coord(i))
-			colors.append(COLOR_FIRE)
-		elif after.grid.surface_type[i] != grid.surface_type[i]:
-			cells.append(grid.coord(i))
-			colors.append(COLOR_SURFACE)
+	var marked := {}
+	if forecast.grid.fire != grid.fire:
+		for i in SimGrid.indices_in_range(forecast.grid.fire, SimMaterials.FIRE_MAX):
+			if grid.fire[i] == 0:
+				marked[i] = true
+				cells.append(grid.coord(i))
+				colors.append(COLOR_FIRE)
+	if after.grid.surface_type != grid.surface_type:
+		var kinds := [SimMaterials.Surface.WATER, SimMaterials.Surface.OIL, SimMaterials.Surface.ICE]
+		var candidates := SimGrid.indices_of(after.grid.surface_type, kinds)
+		candidates.append_array(SimGrid.indices_of(grid.surface_type, kinds))
+		for i in candidates:
+			if not marked.has(i) and after.grid.surface_type[i] != grid.surface_type[i]:
+				marked[i] = true
+				cells.append(grid.coord(i))
+				colors.append(COLOR_SURFACE)
 
 	for e in state.entities:
 		if not e.is_alive():
@@ -805,7 +974,10 @@ func _preview_outcome(command: SimCommand, actor: SimEntity, cells: Array[Vector
 		texts[e.id] = [now_hp, later_hp]
 
 	_preview_cost = actor.ap - after.get_entity(actor.id).ap
-	_preview_text = "%s: %d AP" % [_mode_name(), _preview_cost]
+	if state.combat.active:
+		_preview_text = "%s: %d AP" % [_mode_name(), _preview_cost]
+	else:
+		_preview_text = "Walk" if command is TravelCommand else _mode_name()
 	if not _preview_hurts_allies.is_empty():
 		if _confirm_cell != null and _confirm_cell == _hover:
 			_preview_text += "   HITS %s — click again to confirm" % ", ".join(_preview_hurts_allies).to_upper()
@@ -816,19 +988,6 @@ func _preview_outcome(command: SimCommand, actor: SimEntity, cells: Array[Vector
 # --- Scene & HUD ---------------------------------------------------------------
 
 func _build_scene() -> void:
-	var env := WorldEnvironment.new()
-	env.environment = Environment.new()
-	env.environment.background_mode = Environment.BG_COLOR
-	env.environment.background_color = Color(0.08, 0.09, 0.11)
-	env.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.environment.ambient_light_color = Color(0.55, 0.55, 0.6)
-	add_child(env)
-
-	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-55, -30, 0)
-	sun.shadow_enabled = true
-	add_child(sun)
-
 	_grid_renderer = SimGridRenderer.new()
 	_grid_renderer.show_fire = false
 	add_child(_grid_renderer)
@@ -844,7 +1003,6 @@ func _build_scene() -> void:
 	add_child(_markers)
 
 	_rig = CameraRig.new()
-	_rig.position = Vector3(ArenaBuilder.SIZE.x / 2.0, 2.0, ArenaBuilder.SIZE.z / 2.0)
 	_rig.zoom = 18.0
 	add_child(_rig)
 	_vfx.shake_requested.connect(_rig.shake)
@@ -929,12 +1087,14 @@ func _refresh() -> void:
 		return
 	_entity_renderer.set_selected(_selected_id)
 	var shown := _view if _view != null else state
-	_party_bar.update_party(CombatRules.fighters(shown, SimEntity.Faction.PLAYERS), _selected_id, _turn_start_ap, _preview_cost, _can_command())
+	_party_bar.update_party(CombatRules.fighters(shown, SimEntity.Faction.PLAYERS), _selected_id, _turn_start_ap, _preview_cost, _can_command() and _is_players_turn())
 	var actor := state.get_entity(_selected_id)
-	_action_bar.show_actions(actor if actor != null and actor.is_alive() else null, _action, _can_command())
+	_action_bar.show_actions(actor if actor != null and actor.is_alive() else null, _action, _can_command(), state.combat.active)
 	var lines: Array[String] = []
 	if state.combat.active:
 		lines.append("Round %d — %s" % [state.combat.round_number, "Your turn" if _is_players_turn() else "Enemy turn..."])
+	elif _exploring():
+		lines.append("Exploring — red ground is in an enemy's sight")
 	else:
 		lines.append("Combat over — press R to restart")
 	if actor != null:

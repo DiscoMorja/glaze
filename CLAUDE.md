@@ -52,10 +52,12 @@ Leak/RID errors printed after "All tests passed!" are engine shutdown noise.
 
 Don't run `--import` headless while the editor is open: it rewrites the class cache under the editor and the editor's class list goes stale. If the editor reports `Identifier "SomeSimClass" not declared` for a class that exists, touch the scripts and run `filesystem_manage(op="scan")`, or restart the editor.
 
-## Scenes
+## Scenes & levels
 
-- `res://game/combat/combat_arena.tscn` (main scene): M1 combat greybox. Controls are listed in the script header.
-- `res://game/debug/sim_debug.tscn`: material sim sandbox (real-time ticking, paint water/oil/fire/chill/steam).
+- `res://game/world/world.tscn` (main scene): explore `levels/start_area` in real time; combat starts on sight or hostility. Same controller as the arena (`game/combat/combat_arena.gd`, controls in its header) with `level_scene` set.
+- `res://game/combat/combat_arena.tscn`: same controller on `levels/arena` (a level with `start_in_combat`), straight into a fight.
+- Levels (`levels/<name>/<name>.tscn`, root script `GameLevel`): Terrain3D ground (collision layer 2), structures with collision on layer 1, and `LevelSpawn` / `LevelBarrel` / `LevelSurface` markers. `GameLevel.bake()` builds the sim grid at load; use `WorldSpace` (not raw `c.y`) to turn cells into world positions. Nothing about the world is built in code: terrain is sculpted/painted/foliage-scattered with Terrain3D's editor tools, and each level scene owns its WorldEnvironment and Sun. Don't add generator scripts for level content. Shared terrain textures live in `levels/shared/terrain/` (CC0, see its LICENSE.txt).
+- `res://game/debug/sim_debug.tscn`: material sim sandbox on `levels/arena` (real-time ticking, paint water/oil/fire/chill/steam; characters ignored).
 
 ## Third-party assets
 

@@ -2,7 +2,11 @@ class_name LiquidRules
 extends RefCounted
 ## Liquid transport: liquids fall when unsupported, otherwise spread to open
 ## neighbours with less liquid (and drain quickly off ledges). Reads the current
-## grid and writes deltas, so results don't depend on iteration order.
+## grid and writes deltas, so results don't depend on iteration order. Only
+## cells holding a liquid (and the cells they flow into) are visited.
+
+
+const FLUIDS := [SimMaterials.Surface.WATER, SimMaterials.Surface.OIL]
 
 
 @warning_ignore("integer_division")
@@ -14,11 +18,14 @@ static func step(state: SimState) -> void:
 	delta.resize(grid.cell_count)
 	delta.fill(0)
 	var next_types := types.duplicate()
+	var active := SimGrid.indices_of(types, FLUIDS)
+	if active.is_empty():
+		return
+	var touched := {}
 
-	for i in grid.cell_count:
+	for i in active:
+		touched[i] = true
 		var t: int = types[i]
-		if not SimMaterials.is_fluid(t):
-			continue
 		var amount: int = amounts[i]
 		var c := grid.coord(i)
 
@@ -29,6 +36,7 @@ static func step(state: SimState) -> void:
 				delta[i] -= amount
 				delta[bi] += amount
 				next_types[bi] = t
+				touched[bi] = true
 				continue
 
 		if amount < SimMaterials.min_spread(t):
@@ -49,8 +57,9 @@ static func step(state: SimState) -> void:
 			delta[i] -= flow
 			delta[ni] += flow
 			next_types[ni] = t
+			touched[ni] = true
 
-	for i in grid.cell_count:
+	for i: int in touched:
 		var d: int = delta[i]
 		if d == 0:
 			continue

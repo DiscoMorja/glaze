@@ -1,18 +1,22 @@
 extends Node3D
-## Debug view for the material sim: renders SimState cells and lets you poke
-## the sim through commands.
+## Debug view for the material sim: loads a level scene (the arena by
+## default), renders its sim cells and lets you poke the sim through commands.
+## Characters in the level are ignored here.
 ##
 ## Tools: 1 water  2 oil  3 fire  4 chill  5 steam  | LMB apply  | [ ] radius
 ## Sim:   Space pause  . single step  R reset
 ## Camera: WASD pan  Q/E rotate  mouse wheel zoom
 
-const GRID_SIZE := Vector3i(32, 7, 32)
 const TICKS_PER_SECOND := 4.0
 
 enum Tool { WATER, OIL, FIRE, CHILL, STEAM }
 const TOOL_NAMES := ["Water", "Oil", "Fire", "Chill", "Steam"]
 
+## Level to load; edit the layout in that scene.
+@export var level_scene: PackedScene = preload("res://levels/arena/arena.tscn")
+
 var state: SimState
+var _level: GameLevel
 
 var _tool: Tool = Tool.WATER
 var _radius := 1
@@ -31,6 +35,8 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if state == null:
+		return
 	if not _paused:
 		_accumulator += delta
 		var tick_time := 1.0 / TICKS_PER_SECOND
@@ -53,16 +59,21 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_PERIOD: _step()
 			KEY_R: _reset()
 		_update_label()
-	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+	elif state != null and event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		_apply_tool(event.position)
 
 
 func _reset() -> void:
-	state = SimState.new(_build_arena(), 1)
+	state = null
+	if _level != null:
+		_level.queue_free()
+	_level = level_scene.instantiate() as GameLevel
+	_level.start_in_combat = false
+	add_child(_level)
+	var baked: SimState = await _level.bake()
+	state = baked
+	_rig.position = Vector3(state.grid.size.x / 2.0, 2.0, state.grid.size.z / 2.0)
 	_event_log.clear()
-	# Oil pool on the platform (it will run down the stairs) and water in the pit.
-	state.apply_command(SpawnSurfaceCommand.new(Vector3i(24, 4, 9), SimMaterials.Surface.OIL, 120, 2))
-	state.apply_command(SpawnSurfaceCommand.new(Vector3i(7, 1, 23), SimMaterials.Surface.WATER, 150, 2))
 	_refresh()
 
 
@@ -87,21 +98,6 @@ func _apply_tool(screen_pos: Vector2) -> void:
 		_refresh()
 
 
-## Floor two cells thick (walk layer y = 2) with a pit, a raised platform with a
-## stair, and a wall with a gap.
-func _build_arena() -> SimGrid:
-	var grid := SimGrid.new(GRID_SIZE)
-	var max_x := GRID_SIZE.x - 1
-	var max_z := GRID_SIZE.z - 1
-	grid.fill_solid(Vector3i(0, 0, 0), Vector3i(max_x, 1, max_z))
-	grid.fill_solid(Vector3i(3, 1, 19), Vector3i(11, 1, 28), false)  # pit, floor at y = 0
-	grid.fill_solid(Vector3i(20, 2, 4), Vector3i(29, 3, 14))  # platform, walk layer y = 4
-	grid.fill_solid(Vector3i(18, 2, 7), Vector3i(19, 2, 11))  # stair step, walk layer y = 3
-	grid.fill_solid(Vector3i(14, 2, 16), Vector3i(14, 3, max_z))  # wall
-	grid.fill_solid(Vector3i(14, 2, 22), Vector3i(14, 3, 23), false)  # gap in the wall
-	return grid
-
-
 func _refresh() -> void:
 	for e in state.drain_events():
 		_event_log.push_front("t%d  %s at %s" % [state.tick, SimEvent.Type.keys()[e.type], e.cell])
@@ -112,24 +108,11 @@ func _refresh() -> void:
 
 
 func _build_scene() -> void:
-	var env := WorldEnvironment.new()
-	env.environment = Environment.new()
-	env.environment.background_mode = Environment.BG_COLOR
-	env.environment.background_color = Color(0.08, 0.09, 0.11)
-	env.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.environment.ambient_light_color = Color(0.55, 0.55, 0.6)
-	add_child(env)
-
-	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-55, -30, 0)
-	sun.shadow_enabled = true
-	add_child(sun)
-
 	_renderer = SimGridRenderer.new()
+	_renderer.show_solids = false  # the level's own geometry is visible
 	add_child(_renderer)
 	_rig = CameraRig.new()
-	_rig.position = Vector3(GRID_SIZE.x / 2.0, 2.0, GRID_SIZE.z / 2.0)
-	_rig.zoom = 34.0
+	_rig.zoom = 30.0
 	add_child(_rig)
 
 	var hud := CanvasLayer.new()

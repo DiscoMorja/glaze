@@ -13,6 +13,10 @@ const TARGETABLE_GLOW := Color(1.0, 0.8, 0.15)
 ## How long a bar stays up after the entity's HP changes.
 const RECENT_SECONDS := 3.0
 
+## When > 0 (real-time exploration), each move glides linearly over this many
+## seconds, matching the sim tick, instead of playing a combat walk animation.
+var walk_seconds := 0.0
+
 var show_all_bars := false
 
 var _views := {}  # entity id -> _View
@@ -44,7 +48,7 @@ func render(state: SimState, events: Array[SimEvent] = []) -> void:
 		view.visible = e.is_alive()
 		if view.set_stats(e):
 			view.recent_until = now + RECENT_SECONDS
-		view.move_to(cell_position(e.cell), paths.get(e.id, []))
+		view.move_to(cell_position(e.cell), paths.get(e.id, []), walk_seconds)
 
 
 ## The view node for an entity (e.g. for the camera to follow), or null.
@@ -73,7 +77,7 @@ func set_preview(predicted: Dictionary) -> void:
 
 
 static func cell_position(c: Vector3i) -> Vector3:
-	return Vector3(c.x + 0.5, c.y, c.z + 0.5)
+	return WorldSpace.cell_to_world(c)
 
 
 class _View:
@@ -163,12 +167,15 @@ class _View:
 		_material.emission_enabled = _selected or _targetable
 		_material.emission = TARGETABLE_GLOW if _targetable else _base_color * 0.4
 
-	func move_to(target: Vector3, path: Array) -> void:
+	func move_to(target: Vector3, path: Array, glide_seconds: float = 0.0) -> void:
 		if position.is_equal_approx(target):
 			return
 		if _tween != null:
 			_tween.kill()
 		_tween = create_tween()
+		if glide_seconds > 0.0:
+			_tween.tween_property(self, "position", target, glide_seconds)
+			return
 		for c: Vector3i in path:
 			_tween.tween_property(self, "position", SimEntityRenderer.cell_position(c), MOVE_SECONDS_PER_CELL)
 		_tween.tween_property(self, "position", target, MOVE_SECONDS_PER_CELL * 2.0)

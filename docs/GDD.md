@@ -71,8 +71,8 @@ Explore (real time) ──► interact with world, scheme, steal, set up ──�
    consequences ◄── quest facts updated ◄── resolve (turn-based) ◄── fight with your setup
 ```
 
-- **Exploration (real time):** move freely, talk, loot, pickpocket, sneak, move objects, prepare surfaces. This *is* the "prep phase" — there is no separate planning mode.
-- **Combat (turn-based):** starts when hostility is triggered. Everyone fights from their current positions, so exploration setup carries directly into combat.
+- **Exploration (real time):** move freely, talk, loot, pickpocket, sneak, move objects, prepare surfaces. This *is* the "prep phase" — there is no separate planning mode. The sim ticks live (4 Hz); characters walk the sim grid one cell per tick (paths around hazards, re-routing around anyone in the way). Right-click walks the party, the others following to the nearest free cells. Abilities need no AP outside combat, but cooldowns still run (8 ticks = one turn).
+- **Combat (turn-based):** starts when hostility is triggered: an enemy with sight (6 cells for enemy roles) sees a party member with line of sight, or someone hurts a fighter of the other side. Preparing the ground (oil, water, moving barrels) does not. Enemy sight areas are tinted red while exploring. Everyone fights from their current positions, so exploration setup carries directly into combat; after a win the world goes back to real time.
 - **Transition (v1):** when combat starts, the **whole world switches to turn-based** and all players join. (Divinity/BG3 allow split real-time/turn-based; deferred — see Open Questions.)
 
 ---
@@ -167,7 +167,7 @@ Needed for pickpocketing, crime and abusing systems:
 - **Side-based turns:** the whole player side acts, in any order, then the enemy side. Co-op partners plan combos together without waiting on each other.
 - **Divinity-style AP pool:** each unit gains 4 AP per turn and can bank up to 6. Moving costs 1 AP per 2 m (diagonals 1.4 m, steps up/down extra); attacks and abilities have fixed costs.
 - **The world advances between sides:** each side's end of turn runs a fixed number of sim ticks (4), so fire spreads and liquids flow while the other side reacts.
-- **Combat movement on the sim grid:** units occupy cells and walk deterministic integer A* paths (8 directions, one-level steps), animated smoothly. Paths avoid fire and ice when a short detour exists. Walking through fire burns; stepping on ice makes you slip and lose the rest of your turn. Navmesh movement is for real-time exploration (M3).
+- **Combat movement on the sim grid:** units occupy cells and walk deterministic integer A* paths (8 directions, one-level steps), animated smoothly. Paths avoid fire and ice when a short detour exists. Walking through fire burns; stepping on ice makes you slip and lose the rest of your turn. Exploration uses the same grid movement in real time (see §4).
 - **Previews:** hovering an action runs it on a copy of the sim and shows its outcome: path, AP cost, damage now and by end of turn, new fire and surfaces.
 - **Optional undo** of the last action (setting) to encourage experimentation.
 - **Objectives beyond "kill all":** assassinate, steal, rescue, survive, escape, protect.
@@ -258,11 +258,23 @@ The sim layer must be runnable headless and in isolation — this enables previe
 - **Transport:** Godot high-level multiplayer (ENet). For dev/online play before Steam: direct IP over Tailscale/ZeroTier. Steam networking later.
 - **Co-op testing:** run multiple instances from the editor (Debug → Customize Run Instances).
 
+### 8.5.1 Levels
+
+Levels are built freely in Godot and baked into the sim (`GameLevel.bake()`, runs at load in ~0.1 s):
+
+- **Ground:** Terrain3D (1.0.2). Cells below the rounded terrain height are solid; `WorldSpace` keeps the real height so characters, surfaces and effects sit on the ground instead of 1 m steps. Steep slopes become cliffs (unclimbable, shove-off-able), gentle ones walkable.
+- **Structures:** anything with collision on layer 1 (CSG blockout now, kit meshes later). Vertical rays find the surfaces each column crosses; cells inside closed meshes are solid. Terrain3D collision lives on layer 2 so it is not probed.
+- **Gameplay markers:** `LevelSpawn` (role, name, team), `LevelBarrel`, `LevelSurface` nodes; they land on the floor below them.
+- The sim grid is the level's footprint with the origin at its corner (start area: 64 × 12 × 64).
+- **Nothing about the world is generated in code.** Every level is a scene a human edits: sculpt, paint and scatter grass with Terrain3D's editor tools (data in `levels/<name>/terrain/`, look in `terrain_assets.tres` / `terrain_material.tres`), place CSG/meshes and markers by hand. Each level owns its WorldEnvironment and Sun.
+- **Look (start area):** CC0 ambientCG grass ground, rock on slopes via Terrain3D's auto-shader, ~10k grass cards on flat, dry ground. Grass is visual only for now; ground markers draw on top of it. Burnable grass is a natural next step for the sim.
+- **Arena** (`levels/arena`): a CSG greybox level with `start_in_combat` set; it is both the M1 combat arena and the sim debug sandbox's level.
+
 ### 8.6 Data Layout (performance in GDScript)
 
 - Structure-of-arrays: one `PackedInt32Array` (or `PackedByteArray`) per cell field, flat index `x + z*w + y*w*d`, y up — see `SimGrid.index()`.
 - No per-cell objects.
-- Process only active/dirty cells per tick.
+- Process only active cells per tick: rules find the cells that hold liquid, gas or fire with the packed arrays' native search, so a tick costs ~0.6 ms on the 49k-cell start area.
 - Keep zones bounded (e.g. ~64×64×8 cells).
 
 ---
@@ -274,7 +286,7 @@ The sim layer must be runnable headless and in isolation — this enables previe
 | **M0** | Repo, docs, folder layout, GUT, first grid + material model with tests, debug grid renderer | 2–3 weeks |
 | **M1** | Combat greybox: 1 arena, 4 materials, 5 verbs, turn system, previews — all via commands | ~2 months |
 | **M2** | Online co-op on that arena — **first session together** (feasibility gate) | ~1.5 months |
-| **M3** | Real-time exploration, combat transition, NPC perception, pickpocketing, crime | ~2–3 months |
+| **M3** | Real-time exploration, combat transition, NPC perception, pickpocketing, crime (exploration + transition prototype done early, before M2) | ~2–3 months |
 | **M4** | Fact/quest system, dialogue, vertical slice of one zone (~1 hour) | ~3 months |
 | **M5** | Prologue content production | remainder |
 
@@ -308,4 +320,5 @@ The sim layer must be runnable headless and in isolation — this enables previe
 | 2026-10-17 | VFX are event-driven: BinbunVFX_Vol2 pack effects where available, procedural fallbacks otherwise. |
 | 2026-10-17 | Turn presentation: animated world advance, telegraphed enemy actions with camera follow and captions, AI on a worker thread. |
 | 2026-10-17 | Abilities have cooldowns (in turns, per user, combat only); fixes endless heal-vs-damage duels. |
+| 2026-10-17 | Exploration prototype before co-op: real-time walking on the sim grid (not navmesh) in both modes; combat starts on sight or hostility; levels are Terrain3D + collision structures + markers, baked to the sim grid at load. |
 | 2026-10-17 | Scope: Prologue (1 hub + 1 zone, 2–3 h co-op) targeted at 12–18 months, 6–8 h/week, Claude Code writes the code. |

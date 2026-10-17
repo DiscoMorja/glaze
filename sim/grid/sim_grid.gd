@@ -126,6 +126,33 @@ func clear_gas(i: int) -> void:
 	gas_amount[i] = 0
 
 
+## Ascending indices of cells whose value is one of `kinds`. Uses the arrays'
+## native search, so the cost grows with the number of matches, not the grid.
+static func indices_of(values: PackedByteArray, kinds: Array) -> PackedInt32Array:
+	var result := PackedInt32Array()
+	for kind: int in kinds:
+		var i := values.find(kind)
+		while i != -1:
+			result.append(i)
+			i = values.find(kind, i + 1)
+	result.sort()
+	return result
+
+
+## Ascending indices of cells whose value is between 1 and max_value.
+static func indices_in_range(values: PackedInt32Array, max_value: int) -> PackedInt32Array:
+	var result := PackedInt32Array()
+	if values.count(0) == values.size():
+		return result
+	for kind in range(1, max_value + 1):
+		var i := values.find(kind)
+		while i != -1:
+			result.append(i)
+			i = values.find(kind, i + 1)
+	result.sort()
+	return result
+
+
 func total_surface(type: int) -> int:
 	var total := 0
 	for i in cell_count:

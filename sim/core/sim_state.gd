@@ -9,6 +9,8 @@ var entities: Array[SimEntity] = []
 var combat := SimCombat.new()
 var rng: SimRng
 var tick: int = 0
+## Set when a fighter is hurt by the other side outside combat; starts combat.
+var provoked := false
 
 var _next_entity_id := 1
 var _events: Array[SimEvent] = []
@@ -25,6 +27,7 @@ func apply_command(command: SimCommand) -> bool:
 		return false
 	command.execute(self)
 	CombatRules.check_end(self)
+	CombatRules.check_start(self)
 	return true
 
 
@@ -36,6 +39,7 @@ func step() -> void:
 	ThermalRules.step(self)
 	EntityRules.step(self)
 	tick += 1
+	CombatRules.check_start(self)
 
 
 func step_ticks(count: int) -> void:
@@ -94,6 +98,7 @@ func duplicate_state() -> SimState:
 	copy.combat = combat.duplicate_combat()
 	copy.rng.state = rng.state
 	copy.tick = tick
+	copy.provoked = provoked
 	copy._next_entity_id = _next_entity_id
 	return copy
 
@@ -106,5 +111,5 @@ func checksum() -> String:
 	for e in entities:
 		ctx.update(var_to_bytes(e.to_dict()))
 	ctx.update(var_to_bytes(combat.to_dict()))
-	ctx.update(PackedInt64Array([tick, rng.state, _next_entity_id]).to_byte_array())
+	ctx.update(PackedInt64Array([tick, rng.state, _next_entity_id, 1 if provoked else 0]).to_byte_array())
 	return ctx.finish().hex_encode()

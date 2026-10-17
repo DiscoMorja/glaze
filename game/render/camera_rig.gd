@@ -115,6 +115,23 @@ func _glide(target: Vector3, to_yaw: float, to_zoom: float, seconds: float) -> v
 	_move_tween.tween_property(self, "zoom", to_zoom, seconds)
 
 
+## Entry and exit distances of a ray through the box from the origin to `size`
+## (x > y means it misses). Slab method.
+static func _ray_box(origin: Vector3, dir: Vector3, size: Vector3) -> Vector2:
+	var t_min := 0.0
+	var t_max := 1e9
+	for axis in 3:
+		if absf(dir[axis]) < 1e-6:
+			if origin[axis] < 0.0 or origin[axis] > size[axis]:
+				return Vector2(1, 0)
+			continue
+		var a := (0.0 - origin[axis]) / dir[axis]
+		var b := (size[axis] - origin[axis]) / dir[axis]
+		t_min = maxf(t_min, minf(a, b))
+		t_max = minf(t_max, maxf(a, b))
+	return Vector2(t_min, t_max)
+
+
 ## Brief camera shake; strength is in metres and fades out.
 func shake(strength: float) -> void:
 	_shake = maxf(_shake, strength)
@@ -136,18 +153,28 @@ func _update_camera() -> void:
 
 ## Ray-marches from the screen point and returns the cell under the cursor: a
 ## living entity's cell if the ray hits one, otherwise the open cell on top of
-## the first solid cell. Returns null when nothing is hit.
+## the first solid cell (or, in levels with terrain, the walk cell of the
+## terrain the ray reaches). Returns null when nothing is hit.
 func pick_cell(state: SimState, screen_pos: Vector2) -> Variant:
 	var origin := camera.project_ray_origin(screen_pos)
 	var dir := camera.project_ray_normal(screen_pos)
 	var grid := state.grid
-	var t := 0.0
-	while t < 300.0:
+	var span := _ray_box(origin, dir, Vector3(grid.size))
+	if span.x > span.y:
+		return null
+	var t := span.x
+	while t <= span.y:
 		var p := origin + dir * t
 		var c := Vector3i(floori(p.x), floori(p.y), floori(p.z))
 		if grid.in_bounds(c):
 			if state.entity_at(c) != null:
 				return c
+			var ground := WorldSpace.terrain_height(c.x, c.z)
+			if p.y <= ground:
+				var walk := Vector3i(c.x, WorldSpace.terrain_floor(c.x, c.z), c.z)
+				while grid.in_bounds(walk) and grid.is_solid(walk):
+					walk += Vector3i.UP
+				return walk if grid.in_bounds(walk) else null
 			if grid.is_solid(c):
 				var above := c + Vector3i.UP
 				return above if grid.in_bounds(above) and not grid.is_solid(above) else null

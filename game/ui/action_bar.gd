@@ -55,7 +55,8 @@ func _ready() -> void:
 	add_child(_tip_panel)
 
 
-func show_actions(actor: SimEntity, aimed: int, usable: bool) -> void:
+## needs_ap: in combat actions cost AP; outside combat they don't.
+func show_actions(actor: SimEntity, aimed: int, usable: bool, needs_ap: bool = true) -> void:
 	var actions: Array[int] = []
 	if actor != null:
 		actions = ActionInfo.actions_for(actor)
@@ -68,7 +69,7 @@ func show_actions(actor: SimEntity, aimed: int, usable: bool) -> void:
 		_tips.append(ActionInfo.tooltip(action, actor))
 		var wait := ActionInfo.remaining(action, actor)
 		button.text = _label(i, action, wait)
-		button.disabled = not usable or actor.ap < ActionInfo.cost(action) or wait > 0
+		button.disabled = not usable or (needs_ap and actor.ap < ActionInfo.cost(action)) or wait > 0
 		button.set_pressed_no_signal(action == aimed)
 	visible = not _actions.is_empty()
 	if not visible:

@@ -8,6 +8,8 @@ extends RefCounted
 ## Trickster moves people (and their stuff) where they shouldn't be.
 
 const A := SimAbilities.Ability
+## Cells an enemy notices the party from, outside combat (roles can override).
+const ENEMY_SIGHT := 6
 
 const ROLES := {
 	# --- Party ---
@@ -69,6 +71,8 @@ static func make(role: String, p_name: String, faction: SimEntity.Faction, cell:
 	e.archetype = role
 	e.mass = data.mass
 	e.can_be_disarmed = faction != SimEntity.Faction.PLAYERS
+	if faction == SimEntity.Faction.ENEMIES:
+		e.sight = data.get("sight", ENEMY_SIGHT)
 	return e
 
 

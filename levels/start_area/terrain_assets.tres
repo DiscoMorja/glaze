@@ -1,0 +1,50 @@
+[gd_resource type="Terrain3DAssets" format=3 uid="uid://dsxit8ugnhe2f"]
+
+[ext_resource type="Texture2D" uid="uid://w1jgqvuqbc52" path="res://levels/shared/terrain/grass_blades.png" id="1_s5b1p"]
+[ext_resource type="Texture2D" uid="uid://cfofxscm67r6j" path="res://levels/shared/terrain/ground037_alb_ht.png" id="2_1rgrb"]
+[ext_resource type="Texture2D" uid="uid://cppy8vbshva2e" path="res://levels/shared/terrain/ground037_nrm_rgh.png" id="3_bh4ul"]
+[ext_resource type="Texture2D" uid="uid://lh6ahj4aa3hn" path="res://levels/shared/terrain/rock023_alb_ht.png" id="4_ql8am"]
+[ext_resource type="Texture2D" uid="uid://chupc64qs3sxt" path="res://levels/shared/terrain/rock023_nrm_rgh.png" id="5_25vcw"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ptahw"]
+transparency = 2
+alpha_scissor_threshold = 0.4
+alpha_antialiasing_mode = 0
+cull_mode = 2
+vertex_color_use_as_albedo = true
+albedo_texture = ExtResource("1_s5b1p")
+roughness = 0.9
+backlight_enabled = true
+backlight = Color(0.35, 0.45, 0.2, 1)
+
+[sub_resource type="Terrain3DMeshAsset" id="Terrain3DMeshAsset_e5y2e"]
+name = "Grass"
+generated_type = 1
+height_offset = 0.5
+cast_shadows = 0
+material_override = SubResource("StandardMaterial3D_ptahw")
+generated_size = Vector2(1.1, 0.6)
+last_lod = 0
+last_shadow_lod = 0
+lod0_range = 70.0
+
+[sub_resource type="Terrain3DTextureAsset" id="Terrain3DTextureAsset_5j0sy"]
+name = "Grass"
+albedo_color = Color(0.72, 0.8, 0.66, 1)
+albedo_texture = ExtResource("2_1rgrb")
+normal_texture = ExtResource("3_bh4ul")
+ao_strength = 2.0
+uv_scale = 0.2
+detiling_rotation = 0.16
+
+[sub_resource type="Terrain3DTextureAsset" id="Terrain3DTextureAsset_t4bxx"]
+name = "Rock"
+id = 1
+albedo_texture = ExtResource("4_ql8am")
+normal_texture = ExtResource("5_25vcw")
+ao_strength = 2.0
+uv_scale = 0.15
+
+[resource]
+mesh_list = Array[Terrain3DMeshAsset]([SubResource("Terrain3DMeshAsset_e5y2e")])
+texture_list = Array[Terrain3DTextureAsset]([SubResource("Terrain3DTextureAsset_5j0sy"), SubResource("Terrain3DTextureAsset_t4bxx")])

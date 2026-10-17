@@ -36,7 +36,7 @@ func sync(grid: SimGrid) -> void:
 		burning[i] = true
 		if not _flames.has(i):
 			var c := grid.coord(i)
-			_flames[i] = _light(Vector3(c.x + 0.5, c.y + 0.05, c.z + 0.5))
+			_flames[i] = _light(WorldSpace.cell_to_world(c) + Vector3(0, 0.05, 0))
 		var flame: Node3D = _flames[i]
 		if flame is GPUParticles3D:
 			var heat := fire[i] / float(SimMaterials.FIRE_MAX)

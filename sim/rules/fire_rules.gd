@@ -16,14 +16,15 @@ static func ignite(state: SimState, c: Vector3i) -> void:
 static func step(state: SimState) -> void:
 	var grid := state.grid
 	var fire := grid.fire
+	var burning := SimGrid.indices_in_range(fire, SimMaterials.FIRE_MAX)
+	if burning.is_empty():
+		return
 	var types := grid.surface_type.duplicate()
 	var amounts := grid.surface_amount.duplicate()
 	var next_fire := fire.duplicate()
 
-	for i in grid.cell_count:
+	for i in burning:
 		var f: int = fire[i]
-		if f <= 0:
-			continue
 		var c := grid.coord(i)
 		var t: int = types[i]
 

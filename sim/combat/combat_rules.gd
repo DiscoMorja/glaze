@@ -9,10 +9,15 @@ const TICKS_PER_SIDE_TURN := 4
 ## Movement cost units per AP (10 = one straight cell, so 2 cells per AP).
 const MOVE_COST_PER_AP := 20
 const ATTACK_AP := 2
+## Outside combat, this many ticks count as one turn for cooldowns (2 s at 4 Hz).
+const REALTIME_TICKS_PER_TURN := 8
 
 
 static func start(state: SimState) -> void:
 	var combat := state.combat
+	state.provoked = false
+	for e in state.entities:
+		e.travel.clear()
 	combat.active = true
 	combat.side = SimEntity.Faction.PLAYERS
 	combat.round_number = 1
@@ -31,6 +36,34 @@ static func end_side_turn(state: SimState) -> void:
 		combat.side = SimEntity.Faction.PLAYERS
 		combat.round_number += 1
 	_begin_side(state)
+
+
+## Outside combat: starts combat when someone hurt a fighter of the other side
+## (state.provoked), or when a watchful entity (sight > 0) sees an opponent
+## within its sight range. Returns true if combat started.
+static func check_start(state: SimState) -> bool:
+	if state.combat.active:
+		return false
+	if fighters(state, SimEntity.Faction.PLAYERS).is_empty() or fighters(state, SimEntity.Faction.ENEMIES).is_empty():
+		state.provoked = false
+		return false
+	var spotted := false
+	for watcher in state.entities:
+		if spotted:
+			break
+		if watcher.sight <= 0 or not watcher.is_alive() or not watcher.takes_turns():
+			continue
+		for other in fighters(state, opponent_of(watcher.faction)):
+			if SimAbilities.in_range(watcher.cell, other.cell, watcher.sight) \
+					and absi(other.cell.y - watcher.cell.y) <= watcher.sight \
+					and SimLos.has_line_of_sight(state.grid, watcher.cell, other.cell):
+				state.emit_event(SimEvent.Type.SPOTTED, other.cell, other.id, watcher.id)
+				spotted = true
+				break
+	if not spotted and not state.provoked:
+		return false
+	start(state)
+	return true
 
 
 ## Ends combat when one side has no living fighters. Returns true if it ended.

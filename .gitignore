@@ -7,3 +7,6 @@
 
 # Third-party asset packs (licensed, kept out of git)
 assetlibs/
+
+# Terrain3D demo (shipped with the addon, not used)
+/demo/

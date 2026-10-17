@@ -24,5 +24,7 @@ static func from_dict(data: Dictionary) -> SimCommand:
 			return EndTurnCommand.from_dict(data)
 		StartCombatCommand.TYPE:
 			return StartCombatCommand.from_dict(data)
+		TravelCommand.TYPE:
+			return TravelCommand.from_dict(data)
 	push_error("Unknown sim command type: %s" % data.get("type"))
 	return null

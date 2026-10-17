@@ -32,6 +32,10 @@ var inventory: Array[String] = []
 var abilities: Array[int] = []
 ## Turns left until each ability (by SimAbilities.Ability value) is ready again.
 var cooldowns := PackedInt32Array()
+## Cells still to walk in real time (exploration), one per tick.
+var travel: Array[Vector3i] = []
+## How far (cells) this entity notices opponents outside combat; 0 = never.
+var sight := 0
 
 
 func _init() -> void:
@@ -71,6 +75,8 @@ func to_dict() -> Dictionary:
 		"inventory": inventory.duplicate(),
 		"abilities": abilities.duplicate(),
 		"cooldowns": cooldowns.duplicate(),
+		"travel": travel.duplicate(),
+		"sight": sight,
 	}
 
 
@@ -95,6 +101,8 @@ static func from_dict(data: Dictionary) -> SimEntity:
 	e.inventory.assign(data.inventory)
 	e.abilities.assign(data.abilities)
 	e.cooldowns = PackedInt32Array(data.cooldowns)
+	e.travel.assign(data.travel)
+	e.sight = data.sight
 	return e
 
 

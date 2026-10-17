@@ -1,6 +1,8 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://game/combat/combat_arena.gd" id="1_arena"]
+[ext_resource type="PackedScene" path="res://levels/arena/arena.tscn" id="2_level"]
 
 [node name="CombatArena" type="Node3D"]
 script = ExtResource("1_arena")
+level_scene = ExtResource("2_level")

@@ -19,6 +19,8 @@ const GAS_COLORS := {
 
 ## Draw fire as greybox boxes. Scenes with a FireField turn this off.
 var show_fire := true
+## Draw solid cells. Levels with real geometry turn this off.
+var show_solids := true
 
 var _solid_layer: MultiMeshInstance3D
 var _surface_layer: MultiMeshInstance3D
@@ -35,7 +37,11 @@ func _ready() -> void:
 
 
 func render(grid: SimGrid) -> void:
-	if grid.solid != _drawn_solids:
+	if not show_solids:
+		if not _drawn_solids.is_empty():
+			_Batch.new().apply(_solid_layer)
+			_drawn_solids = PackedByteArray()
+	elif grid.solid != _drawn_solids:
 		_render_solids(grid)
 		_drawn_solids = grid.solid.duplicate()
 
@@ -56,10 +62,11 @@ func render(grid: SimGrid) -> void:
 		var c := grid.coord(i)
 		var x := c.x + 0.5
 		var z := c.z + 0.5
+		var floor_y := WorldSpace.floor_y(c)
 		if surface != 0:
 			var fill := clampf(grid.surface_amount[i] / full, 0.0, 1.0)
 			var thickness := 0.04 + 0.3 * fill
-			surfaces.add(Vector3(x, c.y + thickness / 2.0, z), Vector3(1, thickness, 1), SURFACE_COLORS[surface])
+			surfaces.add(Vector3(x, floor_y + thickness / 2.0, z), Vector3(1, thickness, 1), SURFACE_COLORS[surface])
 		if gas != 0:
 			var color: Color = GAS_COLORS[gas]
 			color.a = clampf(grid.gas_amount[i] / full, 0.05, 0.6)
@@ -67,7 +74,7 @@ func render(grid: SimGrid) -> void:
 		if flame != 0:
 			var heat := flame / float(SimMaterials.FIRE_MAX)
 			var height := 0.3 + 0.7 * heat
-			fires.add(Vector3(x, c.y + 0.35 * height, z), Vector3(1, height, 1), Color(1.0, 0.35 + 0.5 * heat, 0.05))
+			fires.add(Vector3(x, floor_y + 0.35 * height, z), Vector3(1, height, 1), Color(1.0, 0.35 + 0.5 * heat, 0.05))
 
 	surfaces.apply(_surface_layer)
 	gases.apply(_gas_layer)
