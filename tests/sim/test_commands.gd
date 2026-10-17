@@ -10,6 +10,11 @@ func _all_commands() -> Array[SimCommand]:
 		SpawnGasCommand.new(Vector3i(2, Y, 3), SimMaterials.Gas.SMOKE, 25, 1),
 		IgniteCommand.new(Vector3i(4, Y, 4), 1),
 		ChillCommand.new(Vector3i(5, Y, 1), 3),
+		MoveCommand.new(3, Vector3i(1, Y, 7)),
+		AttackCommand.new(3, 4),
+		CastCommand.new(3, SimAbilities.Ability.TELEPORT, Vector3i(2, Y, 2), Vector3i(6, Y + 2, 6)),
+		EndTurnCommand.new(SimEntity.Faction.ENEMIES),
+		StartCombatCommand.new(),
 	]
 
 

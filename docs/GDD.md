@@ -143,12 +143,14 @@ Needed for pickpocketing, crime and abusing systems:
 
 ### 5.5 Combat
 
-- Turn-based, units on navmesh, movement cost per distance (Divinity-like), positions mapped to grid cells for rules.
-- **Previews:** hovering an action shows its first-order chain ("ignites 4 cells, 2 enemies, 1 ally").
+- **Side-based turns:** the whole player side acts, in any order, then the enemy side. Co-op partners plan combos together without waiting on each other.
+- **Divinity-style AP pool:** each unit gains 4 AP per turn and can bank up to 6. Moving costs 1 AP per 2 m (diagonals 1.4 m, steps up/down extra); attacks and abilities have fixed costs.
+- **The world advances between sides:** each side's end of turn runs a fixed number of sim ticks (4), so fire spreads and liquids flow while the other side reacts.
+- **Combat movement on the sim grid:** units occupy cells and walk deterministic integer A* paths (8 directions, one-level steps), animated smoothly. Paths avoid fire and ice when a short detour exists. Walking through fire burns; stepping on ice makes you slip and lose the rest of your turn. Navmesh movement is for real-time exploration (M3).
+- **Previews:** hovering an action runs it on a copy of the sim and shows its outcome: path, AP cost, damage now and by end of turn, new fire and surfaces.
 - **Optional undo** of the last action (setting) to encourage experimentation.
 - **Objectives beyond "kill all":** assassinate, steal, rescue, survive, escape, protect.
 - **AI:** utility scoring over simulated outcomes — enemies "see" hazards because they run the same sim on a copy of the state. Candidate positions sampled from grid cells.
-- *Open:* action economy and initiative model (see Open Questions).
 
 ### 5.6 Generated Narration
 
@@ -247,8 +249,6 @@ The sim layer must be runnable headless and in isolation — this enables previe
 
 ## 10. Open Questions
 
-- Action economy: Divinity-style AP vs BG3-style action/bonus/move?
-- Initiative: individual vs side-based (players act together)?
 - Split combat (one player in combat, the other exploring) — post-Prologue?
 - Dialogue tool choice (M4).
 - Setting, tone and the four player characters.
@@ -266,4 +266,5 @@ The sim layer must be runnable headless and in isolation — this enables previe
 | 2026-10-17 | Online co-op only, 2 players × 2 characters; host-authoritative; command pattern from day one. |
 | 2026-10-17 | Fine square grid (not hex) for simulation; navmesh movement. |
 | 2026-10-17 | GDScript only (dropped C#/.NET); GDExtension as a later performance escape hatch. |
+| 2026-10-17 | Combat: Divinity-style AP pool (4/turn, cap 6), side-based turns, movement on the sim grid (navmesh only for exploration). |
 | 2026-10-17 | Scope: Prologue (1 hub + 1 zone, 2–3 h co-op) targeted at 12–18 months, 6–8 h/week, Claude Code writes the code. |

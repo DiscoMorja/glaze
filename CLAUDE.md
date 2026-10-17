@@ -50,11 +50,12 @@ Run the sim tests headless (GUT 9.7.1, config in `.gutconfig.json`) after every 
 
 Leak/RID errors printed after "All tests passed!" are engine shutdown noise.
 
-If the editor reports `Identifier "SomeSimClass" not declared` for a class that exists, its class list is stale: touch the scripts and run `filesystem_manage(op="scan")`, or restart the editor.
+Don't run `--import` headless while the editor is open: it rewrites the class cache under the editor and the editor's class list goes stale. If the editor reports `Identifier "SomeSimClass" not declared` for a class that exists, touch the scripts and run `filesystem_manage(op="scan")`, or restart the editor.
 
-## Debug view
+## Scenes
 
-`res://game/debug/sim_debug.tscn` (main scene) renders the sim grid and applies tools through commands. Keys are listed in the script header.
+- `res://game/combat/combat_arena.tscn` (main scene): M1 combat greybox. Controls are listed in the script header.
+- `res://game/debug/sim_debug.tscn`: material sim sandbox (real-time ticking, paint water/oil/fire/chill/steam).
 
 ## Tools
 

@@ -23,12 +23,8 @@ func validate(state: SimState) -> bool:
 
 
 func execute(state: SimState) -> void:
-	var grid := state.grid
-	for c in grid.disc_cells(center, radius):
-		var i := grid.index(c)
-		if grid.fire[i] == 0:
-			state.emit_event(SimEvent.Type.IGNITED, c)
-		grid.fire[i] = SimMaterials.FIRE_MAX
+	for c in state.grid.disc_cells(center, radius):
+		FireRules.ignite(state, c)
 
 
 func to_dict() -> Dictionary:

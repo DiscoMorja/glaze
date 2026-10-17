@@ -46,6 +46,36 @@ func test_duplicate_state_evolves_independently() -> void:
 	assert_ne(preview.checksum(), original.checksum())
 
 
+func _run_combat(state: SimState) -> void:
+	state.add_entity(SimEntity.barrel("Oil barrel", Vector3i(7, Y, 7), SimMaterials.Surface.OIL, 100))
+	state.apply_command(CastCommand.new(1, SimAbilities.Ability.FIREBOLT, Vector3i(7, Y, 7)))
+	state.apply_command(MoveCommand.new(1, Vector3i(4, Y, 4)))
+	for _round in 3:
+		state.apply_command(EndTurnCommand.new(SimEntity.Faction.PLAYERS))
+		var guard := 0
+		while state.combat.side == SimEntity.Faction.ENEMIES and state.combat.active and guard < 20:
+			state.apply_command(SimpleAi.next_command(state))
+			guard += 1
+
+
+func test_combat_is_deterministic() -> void:
+	var a := Fixtures.duel_state()
+	var b := Fixtures.duel_state()
+	_run_combat(a)
+	_run_combat(b)
+	assert_eq(a.checksum(), b.checksum())
+	assert_gt(a.tick, 0)
+
+
+func test_duplicate_state_copies_entities() -> void:
+	var original := Fixtures.duel_state()
+	var copy := original.duplicate_state()
+	assert_eq(copy.checksum(), original.checksum())
+	copy.apply_command(MoveCommand.new(1, Vector3i(3, Y, 3)))
+	assert_eq(Fixtures.hero(original).cell, Vector3i(2, Y, 2))
+	assert_ne(copy.checksum(), original.checksum())
+
+
 func test_rng_is_deterministic() -> void:
 	var a := SimRng.new(42)
 	var b := SimRng.new(42)

@@ -5,6 +5,14 @@ extends RefCounted
 ## Spread decisions read a snapshot taken at the start of the pass.
 
 
+## Sets a cell on fire at full intensity.
+static func ignite(state: SimState, c: Vector3i) -> void:
+	var i := state.grid.index(c)
+	if state.grid.fire[i] == 0:
+		state.emit_event(SimEvent.Type.IGNITED, c)
+	state.grid.fire[i] = SimMaterials.FIRE_MAX
+
+
 static func step(state: SimState) -> void:
 	var grid := state.grid
 	var fire := grid.fire
