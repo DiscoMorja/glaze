@@ -13,10 +13,11 @@ static func flat_state(size: Vector3i = Vector3i(9, 4, 9), seed_value: int = 123
 	return SimState.new(grid, seed_value)
 
 
-## Flat 12x5x12 arena with a hero at (2, 1, 2) and a bandit at (9, 1, 9), in combat.
+## Flat 12x5x12 arena with a hero (all abilities) at (2, 1, 2) and a plain
+## bandit at (9, 1, 9), in combat.
 static func duel_state() -> SimState:
 	var state := flat_state(Vector3i(12, 5, 12))
-	state.add_entity(SimEntity.character("Hero", PLAYERS, Vector3i(2, FLOOR_Y, 2), 20, "Sword", 4))
+	state.add_entity(SimEntity.character("Hero", PLAYERS, Vector3i(2, FLOOR_Y, 2), 20, "Sword", 4, [], SimAbilities.all()))
 	state.add_entity(SimEntity.character("Bandit", ENEMIES, Vector3i(9, FLOOR_Y, 9), 12, "Club", 3, ["Gold"]))
 	state.apply_command(StartCombatCommand.new())
 	state.drain_events()

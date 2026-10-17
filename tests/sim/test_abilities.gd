@@ -75,7 +75,7 @@ func test_shove_off_a_ledge() -> void:
 	var state := Fixtures.flat_state(Vector3i(10, 7, 6))
 	state.grid.fill_solid(Vector3i(0, Y, 0), Vector3i(4, Y + 2, 5))  # platform, top at y = 4
 	var top := Y + 3
-	var hero := state.add_entity(SimEntity.character("Hero", Fixtures.PLAYERS, Vector3i(3, top, 2), 20))
+	var hero := state.add_entity(SimEntity.character("Hero", Fixtures.PLAYERS, Vector3i(3, top, 2), 20, "", 0, [], [A.SHOVE]))
 	var bandit := state.add_entity(SimEntity.character("Bandit", Fixtures.ENEMIES, Vector3i(4, top, 2), 12))
 	state.apply_command(StartCombatCommand.new())
 	assert_true(state.apply_command(CastCommand.new(hero.id, A.SHOVE, bandit.cell)))
@@ -100,3 +100,9 @@ func test_adjacent_abilities_need_adjacency() -> void:
 	var state := _near_duel()
 	assert_false(state.apply_command(CastCommand.new(1, A.SHOVE, Fixtures.bandit(state).cell)))
 	assert_false(state.apply_command(CastCommand.new(1, A.STEAL, Fixtures.bandit(state).cell)))
+
+
+func test_unknown_ability_is_rejected() -> void:
+	var state := _near_duel()
+	Fixtures.hero(state).abilities.assign([A.SHOVE])
+	assert_false(state.apply_command(CastCommand.new(1, A.FIREBOLT, Fixtures.bandit(state).cell)))

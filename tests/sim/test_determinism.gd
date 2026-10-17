@@ -54,7 +54,7 @@ func _run_combat(state: SimState) -> void:
 		state.apply_command(EndTurnCommand.new(SimEntity.Faction.PLAYERS))
 		var guard := 0
 		while state.combat.side == SimEntity.Faction.ENEMIES and state.combat.active and guard < 20:
-			state.apply_command(SimpleAi.next_command(state))
+			state.apply_command(UtilityAi.next_command(state))
 			guard += 1
 
 

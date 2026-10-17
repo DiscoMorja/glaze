@@ -4,3 +4,6 @@
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Third-party asset packs (licensed, kept out of git)
+assetlibs/

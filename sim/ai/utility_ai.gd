@@ -1,0 +1,282 @@
+class_name UtilityAi
+extends RefCounted
+## Enemy AI that tries candidate actions on copies of the sim and picks the one
+## whose outcome scores best for its side (GDD §5.5). It "sees" hazards and
+## chain reactions because it runs the same rules as everyone else: each
+## candidate is applied to a copy and compared against doing nothing. Casts
+## change the world, so for them both sides of the comparison are advanced to
+## the end of the turn first; moves and attacks are compared right away, with a
+## hazard check on where the unit ends up.
+##
+## Returns one command at a time, so the host can replicate and animate each
+## action. Ends the turn when nothing scores at least MIN_SCORE.
+
+const W_DAMAGE := 10  ## per HP taken from an opponent
+const W_KILL := 40
+const W_FRIENDLY := 14  ## per HP lost on our own side, self included
+const W_DISARM := 15  ## per point of attack damage taken off an opponent (lasts all fight)
+const W_HAZARD := 30  ## ending up standing in fire
+const W_DISTANCE := 1  ## per cell away from where the unit wants to be
+## Cells from the nearest opponent that ranged units try to keep.
+const PREFERRED_RANGE := 5
+const MIN_SCORE := 1
+
+const MAX_MOVE_CANDIDATES := 12
+const MAX_FIRE_TARGETS := 10
+const MAX_DROP_SPOTS := 4
+
+
+static func next_command(state: SimState) -> SimCommand:
+	var side := state.combat.side
+	var baseline := state.duplicate_state()
+	baseline.step_ticks(CombatRules.TICKS_PER_SIDE_TURN)
+	var best: SimCommand = null
+	var best_score := MIN_SCORE - 1
+	for e in CombatRules.fighters(state, side):
+		if e.ap <= 0:
+			continue
+		for candidate in candidates(state, e):
+			if not candidate.validate(state):
+				continue
+			var value := score(state, baseline, e, candidate)
+			if value > best_score:
+				best = candidate
+				best_score = value
+	if best == null:
+		return EndTurnCommand.new(side)
+	return best
+
+
+## How much better the world looks for e's side after `command` than after
+## doing nothing. `baseline` is the current state advanced to the turn's end.
+## `command` must already be valid for `state`.
+static func score(state: SimState, baseline: SimState, e: SimEntity, command: SimCommand) -> int:
+	var after := state.duplicate_state()
+	command.execute(after)  # validated by the caller; skips a second path search
+	CombatRules.check_end(after)
+	if command is MoveCommand:
+		_follow_up(after, after.get_entity(e.id))
+	var reference := state
+	if command is CastCommand:
+		after.step_ticks(CombatRules.TICKS_PER_SIDE_TURN)
+		reference = baseline
+	return _compare(reference, after, e)
+
+
+static func _compare(reference: SimState, after: SimState, e: SimEntity) -> int:
+	var baseline := reference
+
+	var opponent := CombatRules.opponent_of(e.faction)
+	var value := 0
+	for before in baseline.entities:
+		var now := after.get_entity(before.id)
+		var lost := before.hp - now.hp
+		if before.faction == opponent:
+			value += lost * W_DAMAGE
+			value += (before.attack_damage() - now.attack_damage()) * W_DISARM
+			if before.is_alive() and not now.is_alive():
+				value += W_KILL
+		elif before.faction == e.faction:
+			value -= lost * W_FRIENDLY
+			if before.is_alive() and not now.is_alive():
+				value -= W_KILL
+	value += _position_value(after, after.get_entity(e.id)) - _position_value(baseline, baseline.get_entity(e.id))
+	return value
+
+
+## Whether standing at c is asking to get burned: on fire, or on fuel with fire nearby.
+@warning_ignore("integer_division")
+static func _hazard_at(state: SimState, c: Vector3i) -> int:
+	var grid := state.grid
+	var i := grid.index(c)
+	if grid.fire[i] > 0:
+		return W_HAZARD
+	if not SimMaterials.is_flammable(grid.surface_type[i]):
+		return 0
+	for dz in range(-2, 3):
+		for dx in range(-2, 3):
+			var n := c + Vector3i(dx, 0, dz)
+			if grid.in_bounds(n) and grid.fire[grid.index(n)] > 0:
+				return W_HAZARD / 2
+	return 0
+
+
+## The actions worth trying for one unit.
+static func candidates(state: SimState, e: SimEntity) -> Array[SimCommand]:
+	var result: Array[SimCommand] = []
+	var opponents := CombatRules.fighters(state, CombatRules.opponent_of(e.faction))
+	for o in opponents:
+		if SimAbilities.is_adjacent(e.cell, o.cell):
+			result.append(AttackCommand.new(e.id, o.id))
+	for ability in e.abilities:
+		match ability:
+			SimAbilities.Ability.FIREBOLT:
+				for c in _fire_targets(state, e, opponents):
+					result.append(CastCommand.new(e.id, ability, c))
+			SimAbilities.Ability.SHOVE, SimAbilities.Ability.STEAL:
+				for o in opponents:
+					if SimAbilities.is_adjacent(e.cell, o.cell):
+						result.append(CastCommand.new(e.id, ability, o.cell))
+			SimAbilities.Ability.TELEPORT:
+				for o in opponents:
+					for spot in _drop_spots(state, e, o):
+						result.append(CastCommand.new(e.id, ability, o.cell, spot))
+	for c in _move_targets(state, e, opponents):
+		result.append(MoveCommand.new(e.id, c))
+	return result
+
+
+static func is_ranged(e: SimEntity) -> bool:
+	return e.abilities.has(SimAbilities.Ability.FIREBOLT) or e.abilities.has(SimAbilities.Ability.TELEPORT)
+
+
+## After a move, spend leftover AP the obvious way (hit the weakest adjacent
+## opponent, or firebolt the nearest visible one), so a move is valued by the
+## actions it sets up.
+static func _follow_up(state: SimState, e: SimEntity) -> void:
+	while e.is_alive() and e.ap >= CombatRules.ATTACK_AP:
+		var target: SimEntity = null
+		for o in CombatRules.fighters(state, CombatRules.opponent_of(e.faction)):
+			if SimAbilities.is_adjacent(e.cell, o.cell) and (target == null or o.hp < target.hp):
+				target = o
+		if target != null:
+			if not state.apply_command(AttackCommand.new(e.id, target.id)):
+				return
+			continue
+		if not e.abilities.has(SimAbilities.Ability.FIREBOLT):
+			return
+		var bolted := false
+		for o in CombatRules.fighters(state, CombatRules.opponent_of(e.faction)):
+			if state.apply_command(CastCommand.new(e.id, SimAbilities.Ability.FIREBOLT, o.cell)):
+				bolted = true
+				break
+		if not bolted:
+			return
+
+
+## Higher is better: out of fire, and at the distance the unit likes to fight from.
+static func _position_value(state: SimState, e: SimEntity) -> int:
+	if not e.is_alive():
+		return 0
+	var value := -_hazard_at(state, e.cell)
+	var distance := _nearest_opponent_distance(state, e)
+	if distance >= 0:
+		var wanted := PREFERRED_RANGE if is_ranged(e) else 1
+		value -= absi(distance - wanted) * W_DISTANCE
+	return value
+
+
+## Distance in cells to the nearest living opponent, or -1 if there is none.
+@warning_ignore("integer_division")
+static func _nearest_opponent_distance(state: SimState, e: SimEntity) -> int:
+	var best := -1
+	for o in CombatRules.fighters(state, CombatRules.opponent_of(e.faction)):
+		var d := SimPathfinder.distance(e.cell, o.cell) / SimPathfinder.COST_STRAIGHT
+		if best < 0 or d < best:
+			best = d
+	return best
+
+
+## Firebolt targets: opponents themselves, fuel next to them (oil, oil barrels)
+## and anything already in range near them. Closest to an opponent first.
+static func _fire_targets(state: SimState, e: SimEntity, opponents: Array[SimEntity]) -> Array[Vector3i]:
+	var grid := state.grid
+	var ability := SimAbilities.Ability.FIREBOLT
+	var seen := {}
+	var result: Array[Vector3i] = []
+	for o in opponents:
+		var spots: Array[Vector3i] = [o.cell]
+		for dz in range(-2, 3):
+			for dx in range(-2, 3):
+				for dy in range(-1, 2):
+					var c := o.cell + Vector3i(dx, dy, dz)
+					if not grid.in_bounds(c) or grid.is_solid(c):
+						continue
+					var fuel: bool = SimMaterials.is_flammable(grid.surface_type[grid.index(c)])
+					var occupant := state.entity_at(c)
+					var barrel: bool = occupant != null and not occupant.takes_turns() and SimMaterials.is_flammable(occupant.contents_surface)
+					if fuel or barrel:
+						spots.append(c)
+		for c in spots:
+			if seen.has(c) or not SimAbilities.can_reach(ability, e.cell, c) or not SimLos.has_line_of_sight(grid, e.cell, c):
+				continue
+			seen[c] = true
+			result.append(c)
+			if result.size() >= MAX_FIRE_TARGETS:
+				return result
+	return result
+
+
+## Teleport destinations that hurt: burning cells, and high in the air above
+## the target (it falls back down).
+static func _drop_spots(state: SimState, e: SimEntity, target: SimEntity) -> Array[Vector3i]:
+	var grid := state.grid
+	var result: Array[Vector3i] = []
+	var top := Vector3i(target.cell.x, grid.size.y - 1, target.cell.z)
+	if top.y - target.cell.y >= 2 and EntityOps.is_free(state, top):
+		result.append(top)
+	var reach: int = SimAbilities.RANGE[SimAbilities.Ability.TELEPORT]
+	for i in grid.cell_count:
+		if result.size() >= MAX_DROP_SPOTS:
+			break
+		if grid.fire[i] == 0:
+			continue
+		var c := grid.coord(i)
+		if SimAbilities.in_range(e.cell, c, reach) and EntityOps.is_free(state, c):
+			result.append(c)
+	return result
+
+
+## Move destinations: cells next to opponents, a step along the path to the
+## nearest one, a safe cell if standing in fire, and (for ranged units) cells
+## at a good distance with sight of an opponent.
+static func _move_targets(state: SimState, e: SimEntity, opponents: Array[SimEntity]) -> Array[Vector3i]:
+	var budget := e.ap * CombatRules.MOVE_COST_PER_AP if state.combat.active else 1 << 20
+	var reach := SimPathfinder.reachable(state, e.cell, budget, e.id)
+	var grid := state.grid
+	var scored := []  # [priority, cell]
+	for c: Vector3i in reach:
+		var nearest := 1 << 30
+		var sees := false
+		for o in opponents:
+			nearest = mini(nearest, SimPathfinder.distance(c, o.cell))
+			if not sees and SimLos.has_line_of_sight(grid, c, o.cell):
+				sees = true
+		var in_fire := grid.fire[grid.index(c)] > 0
+		var priority: int
+		if is_ranged(e):
+			if not sees:
+				continue
+			priority = absi(nearest - PREFERRED_RANGE * SimPathfinder.COST_STRAIGHT)
+		else:
+			priority = nearest
+		if in_fire:
+			priority += 1000
+		scored.append([priority, reach[c], c])
+	scored.sort_custom(func(a: Array, b: Array) -> bool:
+		if a[0] != b[0]:
+			return a[0] < b[0]
+		if a[1] != b[1]:
+			return a[1] < b[1]
+		return grid.index(a[2]) < grid.index(b[2]))
+
+	var result: Array[Vector3i] = []
+	for entry in scored:
+		if result.size() >= MAX_MOVE_CANDIDATES:
+			break
+		result.append(entry[2])
+
+	# Toward the nearest opponent when nobody is reachable this turn.
+	var target: SimEntity = null
+	var best_distance := 1 << 30
+	for o in opponents:
+		var d := SimPathfinder.distance(e.cell, o.cell)
+		if d < best_distance:
+			target = o
+			best_distance = d
+	if target != null:
+		var path := SimPathfinder.find_path(state, e.cell, target.cell, e.id, true)
+		var step := SimPathfinder.affordable_prefix(e.cell, path, budget)
+		if not step.is_empty() and not result.has(step.back()):
+			result.append(step.back())
+	return result

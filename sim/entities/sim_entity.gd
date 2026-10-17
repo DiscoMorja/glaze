@@ -24,6 +24,8 @@ var weapon: String = ""
 var weapon_damage: int = 0
 var unarmed_damage: int = 1
 var inventory: Array[String] = []
+## SimAbilities.Ability values this entity can use.
+var abilities: Array[int] = []
 
 
 func is_alive() -> bool:
@@ -45,6 +47,7 @@ func to_dict() -> Dictionary:
 		"contents_surface": contents_surface, "contents_amount": contents_amount,
 		"weapon": weapon, "weapon_damage": weapon_damage, "unarmed_damage": unarmed_damage,
 		"inventory": inventory.duplicate(),
+		"abilities": abilities.duplicate(),
 	}
 
 
@@ -65,6 +68,7 @@ static func from_dict(data: Dictionary) -> SimEntity:
 	e.weapon_damage = data.weapon_damage
 	e.unarmed_damage = data.unarmed_damage
 	e.inventory.assign(data.inventory)
+	e.abilities.assign(data.abilities)
 	return e
 
 
@@ -75,7 +79,8 @@ func duplicate_entity() -> SimEntity:
 ## A turn-taking character.
 static func character(
 		p_name: String, p_faction: Faction, p_cell: Vector3i, p_hp: int,
-		p_weapon: String = "", p_weapon_damage: int = 0, p_inventory: Array[String] = []) -> SimEntity:
+		p_weapon: String = "", p_weapon_damage: int = 0, p_inventory: Array[String] = [],
+		p_abilities: Array[int] = []) -> SimEntity:
 	var e := SimEntity.new()
 	e.name = p_name
 	e.faction = p_faction
@@ -86,6 +91,7 @@ static func character(
 	e.weapon = p_weapon
 	e.weapon_damage = p_weapon_damage
 	e.inventory.assign(p_inventory)
+	e.abilities.assign(p_abilities)
 	return e
 
 

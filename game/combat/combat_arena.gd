@@ -193,7 +193,7 @@ func _run_enemy_turn() -> void:
 	_update_preview()
 	while state.combat.active and state.combat.side == SimEntity.Faction.ENEMIES:
 		await get_tree().create_timer(ENEMY_ACTION_DELAY).timeout
-		if not state.apply_command(SimpleAi.next_command(state)):
+		if not state.apply_command(UtilityAi.next_command(state)):
 			push_error("AI produced an invalid command")
 			break
 		_consume_events()

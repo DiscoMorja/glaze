@@ -150,7 +150,8 @@ Needed for pickpocketing, crime and abusing systems:
 - **Previews:** hovering an action runs it on a copy of the sim and shows its outcome: path, AP cost, damage now and by end of turn, new fire and surfaces.
 - **Optional undo** of the last action (setting) to encourage experimentation.
 - **Objectives beyond "kill all":** assassinate, steal, rescue, survive, escape, protect.
-- **AI:** utility scoring over simulated outcomes — enemies "see" hazards because they run the same sim on a copy of the state. Candidate positions sampled from grid cells.
+- **AI (utility, `UtilityAi`):** for each enemy it generates candidate actions (attacks, its own abilities on sensible targets, a short list of move destinations), applies each to a copy of the sim and scores the outcome against doing nothing. Damage, kills and disarms on opponents score up; damage to its own side scores down; ending in fire or on fuel next to fire scores down; units want to be adjacent (melee) or ~5 cells away with sight (casters). Casts are compared after advancing the world to the end of the turn, so the AI sees chain reactions. Moves are valued with the attacks or casts they set up. Decisions take up to ~100 ms on the M1 arena.
+- **Per-character verbs:** each character has its own ability list (players currently all five; enemies a few each), checked by the sim.
 
 ### 5.6 Generated Narration
 
@@ -267,4 +268,5 @@ The sim layer must be runnable headless and in isolation — this enables previe
 | 2026-10-17 | Fine square grid (not hex) for simulation; navmesh movement. |
 | 2026-10-17 | GDScript only (dropped C#/.NET); GDExtension as a later performance escape hatch. |
 | 2026-10-17 | Combat: Divinity-style AP pool (4/turn, cap 6), side-based turns, movement on the sim grid (navmesh only for exploration). |
+| 2026-10-17 | Enemy AI is utility scoring over simulated outcomes; abilities are per character and enemies use them on the same rules. |
 | 2026-10-17 | Scope: Prologue (1 hub + 1 zone, 2–3 h co-op) targeted at 12–18 months, 6–8 h/week, Claude Code writes the code. |

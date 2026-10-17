@@ -18,6 +18,13 @@ const SHOVE_MAX_MASS := 120
 const SHOVE_DISTANCE := 2
 
 
+static func all() -> Array[int]:
+	var result: Array[int] = []
+	for ability in NAMES.size():
+		result.append(ability)
+	return result
+
+
 static func is_adjacent(a: Vector3i, b: Vector3i) -> bool:
 	return a != b and absi(a.x - b.x) <= 1 and absi(a.z - b.z) <= 1 and absi(a.y - b.y) <= 1
 
@@ -40,7 +47,7 @@ static func needs_line_of_sight(ability: int) -> bool:
 
 
 static func validate(state: SimState, caster: SimEntity, ability: int, target: Vector3i, destination: Vector3i) -> bool:
-	if ability < 0 or ability >= NAMES.size():
+	if ability < 0 or ability >= NAMES.size() or not caster.abilities.has(ability):
 		return false
 	if not CombatRules.can_act(state, caster, AP_COST[ability]):
 		return false
