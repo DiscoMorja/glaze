@@ -223,7 +223,7 @@ The sim layer must be runnable headless and in isolation — this enables previe
 
 ### 8.6 Data Layout (performance in GDScript)
 
-- Structure-of-arrays: one `PackedInt32Array` (or `PackedByteArray`) per cell field, flat index `x + y*w + z*w*h`.
+- Structure-of-arrays: one `PackedInt32Array` (or `PackedByteArray`) per cell field, flat index `x + z*w + y*w*d`, y up — see `SimGrid.index()`.
 - No per-cell objects.
 - Process only active/dirty cells per tick.
 - Keep zones bounded (e.g. ~64×64×8 cells).
