@@ -22,7 +22,7 @@ func validate(state: SimState) -> bool:
 	var e := state.get_entity(entity_id)
 	if not CombatRules.can_act(state, e, 0) or e.cell == destination:
 		return false
-	var path := SimPathfinder.find_path(state, e.cell, destination, e.id)
+	var path := path_for(state, e, destination)
 	if path.is_empty():
 		return false
 	return not state.combat.active or ap_cost(e.cell, path) <= e.ap
@@ -30,7 +30,7 @@ func validate(state: SimState) -> bool:
 
 func execute(state: SimState) -> void:
 	var e := state.get_entity(entity_id)
-	var path := SimPathfinder.find_path(state, e.cell, destination, e.id)
+	var path := path_for(state, e, destination)
 	CombatRules.spend(state, e, ap_cost(e.cell, path))
 	var walked: Array[Vector3i] = []
 	var start := e.cell
@@ -49,6 +49,16 @@ func execute(state: SimState) -> void:
 	var moved := state.emit_event(SimEvent.Type.MOVED, e.cell, e.id)
 	moved.cells = walked
 	moved.amount = SimPathfinder.movement_cost(start, walked)
+
+
+## The path a move takes: around hazards when that is affordable, otherwise
+## the cheapest path straight through them.
+static func path_for(state: SimState, e: SimEntity, to: Vector3i) -> Array[Vector3i]:
+	var safe := SimPathfinder.find_path(state, e.cell, to, e.id)
+	if not state.combat.active or (not safe.is_empty() and ap_cost(e.cell, safe) <= e.ap):
+		return safe
+	var direct := SimPathfinder.find_path(state, e.cell, to, e.id, false, false)
+	return direct if not direct.is_empty() else safe
 
 
 static func ap_cost(from: Vector3i, path: Array[Vector3i]) -> int:

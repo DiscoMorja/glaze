@@ -34,12 +34,19 @@ static func can_reach(ability: int, from: Vector3i, to: Vector3i) -> bool:
 	return is_adjacent(from, to) if reach == 1 else in_range(from, to, reach)
 
 
+## Ranged abilities need to see their target; adjacent ones don't.
+static func needs_line_of_sight(ability: int) -> bool:
+	return RANGE[ability] > 1
+
+
 static func validate(state: SimState, caster: SimEntity, ability: int, target: Vector3i, destination: Vector3i) -> bool:
 	if ability < 0 or ability >= NAMES.size():
 		return false
 	if not CombatRules.can_act(state, caster, AP_COST[ability]):
 		return false
 	if not state.grid.in_bounds(target) or not can_reach(ability, caster.cell, target):
+		return false
+	if needs_line_of_sight(ability) and not SimLos.has_line_of_sight(state.grid, caster.cell, target):
 		return false
 	var victim := state.entity_at(target)
 	var other_victim := victim != null and victim.id != caster.id
@@ -50,7 +57,8 @@ static func validate(state: SimState, caster: SimEntity, ability: int, target: V
 			return (other_victim
 					and victim.mass <= TELEPORT_MAX_MASS
 					and in_range(caster.cell, destination, RANGE[Ability.TELEPORT])
-					and EntityOps.is_free(state, destination))
+					and EntityOps.is_free(state, destination)
+					and SimLos.has_line_of_sight(state.grid, caster.cell, destination))
 		Ability.SHOVE:
 			return other_victim and victim.mass <= SHOVE_MAX_MASS
 		Ability.STEAL:

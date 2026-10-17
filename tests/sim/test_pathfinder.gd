@@ -73,3 +73,13 @@ func test_affordable_prefix_respects_budget() -> void:
 	var path: Array[Vector3i] = [Vector3i(1, Y, 0), Vector3i(2, Y, 0), Vector3i(3, Y, 0)]
 	assert_eq(SimPathfinder.affordable_prefix(from, path, 25).size(), 2)
 	assert_eq(SimPathfinder.affordable_prefix(from, path, 5).size(), 0)
+
+
+func test_reachable_respects_budget() -> void:
+	var state := Fixtures.flat_state()
+	var from := Vector3i(4, Y, 4)
+	var cells := SimPathfinder.reachable(state, from, 20)
+	assert_true(cells.has(Vector3i(6, Y, 4)), "two straight steps cost 20")
+	assert_false(cells.has(Vector3i(7, Y, 4)))
+	assert_false(cells.has(from))
+	assert_eq(cells[Vector3i(5, Y, 5)], SimPathfinder.COST_DIAGONAL)

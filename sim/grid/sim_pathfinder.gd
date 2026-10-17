@@ -84,8 +84,9 @@ static func affordable_prefix(from: Vector3i, path: Array[Vector3i], budget: int
 
 
 ## Path from `from` to `to`, excluding `from`. With stop_adjacent the path ends
-## next to `to` instead of on it. Returns [] when there is no path or no move is needed.
-static func find_path(state: SimState, from: Vector3i, to: Vector3i, mover_id: int = -1, stop_adjacent: bool = false) -> Array[Vector3i]:
+## next to `to` instead of on it. With avoid_hazards the search pays extra to
+## route around fire and ice. Returns [] when there is no path or no move is needed.
+static func find_path(state: SimState, from: Vector3i, to: Vector3i, mover_id: int = -1, stop_adjacent: bool = false, avoid_hazards: bool = true) -> Array[Vector3i]:
 	var grid := state.grid
 	var none: Array[Vector3i] = []
 	if not grid.in_bounds(from) or not grid.in_bounds(to):
@@ -113,12 +114,42 @@ static func find_path(state: SimState, from: Vector3i, to: Vector3i, mover_id: i
 			var ni := grid.index(n)
 			if closed.has(ni):
 				continue
-			var cost := base_cost + step_cost(c, n) + _hazard_cost(grid, ni)
+			var cost := base_cost + step_cost(c, n)
+			if avoid_hazards:
+				cost += _hazard_cost(grid, ni)
 			if not g.has(ni) or cost < g[ni]:
 				g[ni] = cost
 				came_from[ni] = idx
 				_push(heap, cost + distance(n, to), ni)
 	return none
+
+
+## Every cell reachable from `from` within a movement budget (no hazard
+## penalties), mapped to its cheapest movement cost. Excludes `from`.
+static func reachable(state: SimState, from: Vector3i, budget: int, mover_id: int = -1) -> Dictionary:
+	var grid := state.grid
+	var start := grid.index(from)
+	var g := {start: 0}
+	var closed := {}
+	var result := {}
+	var heap := PackedInt64Array()
+	_push(heap, 0, start)
+	while not heap.is_empty():
+		var idx := _pop(heap) & _INDEX_MASK
+		if closed.has(idx):
+			continue
+		closed[idx] = true
+		var c := grid.coord(idx)
+		var base_cost: int = g[idx]
+		if idx != start:
+			result[c] = base_cost
+		for n in neighbors(state, c, mover_id):
+			var ni := grid.index(n)
+			var cost := base_cost + step_cost(c, n)
+			if cost <= budget and not closed.has(ni) and (not g.has(ni) or cost < g[ni]):
+				g[ni] = cost
+				_push(heap, cost, ni)
+	return result
 
 
 static func _is_goal(c: Vector3i, to: Vector3i, stop_adjacent: bool) -> bool:
