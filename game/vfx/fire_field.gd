@@ -30,9 +30,7 @@ func prewarm(count: int = PREWARM) -> void:
 func sync(grid: SimGrid) -> void:
 	var burning := {}
 	var fire := grid.fire
-	for i in grid.cell_count:
-		if fire[i] == 0:
-			continue
+	for i in grid.burning_cells():
 		burning[i] = true
 		if not _flames.has(i):
 			var c := grid.coord(i)

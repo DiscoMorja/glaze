@@ -82,3 +82,24 @@ func test_rng_is_deterministic() -> void:
 	for _i in 100:
 		assert_eq(a.next_u32(), b.next_u32())
 	assert_true(a.range_int(10) < 10)
+
+
+## Copies share arrays until written (copy-on-write): a whole scenario of
+## surfaces, fire, gas, chill and frost on a copy must leave the original alone,
+## and the original keeps working afterwards.
+func test_copies_never_write_into_the_original() -> void:
+	var original := Fixtures.duel_state()
+	original.apply_command(SpawnSurfaceCommand.new(Vector3i(3, Y, 3), SimMaterials.Surface.WATER, 60, 1))
+	original.step_ticks(3)
+	var before := original.checksum()
+	var copy := original.duplicate_state()
+	_run_scenario(copy)
+	copy.apply_command(CastCommand.new(1, SimAbilities.Ability.FROST, Vector3i(3, Y, 3)))
+	copy.step_ticks(4)
+	assert_ne(copy.checksum(), before)
+	assert_eq(original.checksum(), before, "the original is untouched")
+
+	var twin := original.duplicate_state()
+	_run_scenario(original)
+	_run_scenario(twin)
+	assert_eq(original.checksum(), twin.checksum(), "and both sides still evolve the same")

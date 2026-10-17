@@ -251,11 +251,9 @@ static func _drop_spots(state: SimState, e: SimEntity, target: SimEntity) -> Arr
 	if top.y - target.cell.y >= 2 and EntityOps.is_free(state, top):
 		result.append(top)
 	var reach: int = SimAbilities.RANGE[SimAbilities.Ability.TELEPORT]
-	for i in grid.cell_count:
+	for i in grid.burning_cells():
 		if result.size() >= MAX_DROP_SPOTS:
 			break
-		if grid.fire[i] == 0:
-			continue
 		var c := grid.coord(i)
 		if SimAbilities.in_range(e.cell, c, reach) and EntityOps.is_free(state, c):
 			result.append(c)

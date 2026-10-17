@@ -36,6 +36,11 @@ var cooldowns := PackedInt32Array()
 var travel: Array[Vector3i] = []
 ## How far (cells) this entity notices opponents outside combat; 0 = never.
 var sight := 0
+## Entities sharing a pack (> 0) join fights together; 0 = on its own.
+var pack := 0
+## Taking part in the current fight. Outside combat it marks an entity that
+## was hurt (or hurt someone) and joins the fight that this starts.
+var in_combat := false
 
 
 func _init() -> void:
@@ -77,6 +82,8 @@ func to_dict() -> Dictionary:
 		"cooldowns": cooldowns.duplicate(),
 		"travel": travel.duplicate(),
 		"sight": sight,
+		"pack": pack,
+		"in_combat": in_combat,
 	}
 
 
@@ -103,6 +110,8 @@ static func from_dict(data: Dictionary) -> SimEntity:
 	e.cooldowns = PackedInt32Array(data.cooldowns)
 	e.travel.assign(data.travel)
 	e.sight = data.sight
+	e.pack = data.pack
+	e.in_combat = data.in_combat
 	return e
 
 

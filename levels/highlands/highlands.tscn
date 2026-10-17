@@ -1,0 +1,1081 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://game/level/game_level.gd" id="1_level"]
+[ext_resource type="Script" path="res://game/level/level_spawn.gd" id="2_spawn"]
+[ext_resource type="Script" path="res://game/level/level_barrel.gd" id="3_barrel"]
+[ext_resource type="Terrain3DAssets" path="res://levels/highlands/terrain_assets.tres" id="4_assets"]
+[ext_resource type="Terrain3DMaterial" path="res://levels/highlands/terrain_material.tres" id="5_material"]
+
+[sub_resource type="ProceduralSkyMaterial" id="Sky_mat"]
+sky_horizon_color = Color(0.66, 0.7, 0.72, 1)
+ground_horizon_color = Color(0.66, 0.7, 0.72, 1)
+
+[sub_resource type="Sky" id="Sky_day"]
+sky_material = SubResource("Sky_mat")
+
+[sub_resource type="Environment" id="Env_day"]
+background_mode = 2
+sky = SubResource("Sky_day")
+ambient_light_source = 3
+ambient_light_energy = 0.8
+tonemap_mode = 2
+fog_enabled = true
+fog_light_color = Color(0.66, 0.7, 0.72, 1)
+fog_density = 0.004
+
+[node name="Highlands" type="Node3D"]
+script = ExtResource("1_level")
+grid_size = Vector3i(256, 40, 256)
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Env_day")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.86602527, 0.4095762, -0.2867884, 0, 0.5735765, 0.819152, 0.50000024, -0.7094063, 0.49673176, 0, 0, 0)
+light_energy = 1.1
+shadow_enabled = true
+directional_shadow_max_distance = 80.0
+
+[node name="Terrain3D" type="Terrain3D" parent="."]
+data_directory = "res://levels/highlands/terrain"
+material = ExtResource("5_material")
+assets = ExtResource("4_assets")
+collision_layer = 2
+
+[node name="Party" type="Node3D" parent="."]
+
+[node name="Ari" type="Marker3D" parent="Party"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 125.0, 13.5, 232.0)
+script = ExtResource("2_spawn")
+role = "vanguard"
+entity_name = "Ari"
+team = 0
+inventory = Array[String](["Gold"])
+
+[node name="Bram" type="Marker3D" parent="Party"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 127.0, 13.5, 233.0)
+script = ExtResource("2_spawn")
+role = "pyromancer"
+entity_name = "Bram"
+team = 0
+inventory = Array[String](["Gold"])
+
+[node name="Cel" type="Marker3D" parent="Party"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 129.0, 13.5, 232.0)
+script = ExtResource("2_spawn")
+role = "trickster"
+entity_name = "Cel"
+team = 0
+inventory = Array[String](["Gold"])
+
+[node name="Dov" type="Marker3D" parent="Party"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 131.0, 13.5, 233.0)
+script = ExtResource("2_spawn")
+role = "tidecaller"
+entity_name = "Dov"
+team = 0
+inventory = Array[String](["Gold"])
+
+[node name="Bandits" type="Node3D" parent="."]
+
+[node name="Pack01" type="Node3D" parent="Bandits"]
+
+[node name="Firecaller1" type="Marker3D" parent="Bandits/Pack01"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 225.5, 13.7, 128.5)
+script = ExtResource("2_spawn")
+role = "firecaller"
+team = 1
+
+[node name="Thug2" type="Marker3D" parent="Bandits/Pack01"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 224.5, 13.7, 125.5)
+script = ExtResource("2_spawn")
+role = "thug"
+team = 1
+
+[node name="Firecaller3" type="Marker3D" parent="Bandits/Pack01"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 228.5, 13.4, 128.5)
+script = ExtResource("2_spawn")
+role = "firecaller"
+team = 1
+
+[node name="Firecaller4" type="Marker3D" parent="Bandits/Pack01"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 225.5, 13.6, 127.5)
+script = ExtResource("2_spawn")
+role = "firecaller"
+team = 1
+
+[node name="Shaman5" type="Marker3D" parent="Bandits/Pack01"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 226.5, 13.5, 123.5)
+script = ExtResource("2_spawn")
+role = "shaman"
+team = 1
+
+[node name="Pack02" type="Node3D" parent="Bandits"]
+
+[node name="Pikeman1" type="Marker3D" parent="Bandits/Pack02"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 54.5, 18.1, 97.5)
+script = ExtResource("2_spawn")
+role = "pikeman"
+team = 1
+
+[node name="Brute2" type="Marker3D" parent="Bandits/Pack02"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 60.5, 17.2, 98.5)
+script = ExtResource("2_spawn")
+role = "brute"
+team = 1
+
+[node name="Pikeman3" type="Marker3D" parent="Bandits/Pack02"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 59.5, 17.3, 97.5)
+script = ExtResource("2_spawn")
+role = "pikeman"
+team = 1
+
+[node name="Pikeman4" type="Marker3D" parent="Bandits/Pack02"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 57.5, 17.3, 98.5)
+script = ExtResource("2_spawn")
+role = "pikeman"
+team = 1
+
+[node name="Shaman5" type="Marker3D" parent="Bandits/Pack02"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56.5, 17.4, 93.5)
+script = ExtResource("2_spawn")
+role = "shaman"
+team = 1
+
+[node name="Pikeman6" type="Marker3D" parent="Bandits/Pack02"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 54.5, 17.5, 93.5)
+script = ExtResource("2_spawn")
+role = "pikeman"
+team = 1
+
+[node name="Pack03" type="Node3D" parent="Bandits"]
+
+[node name="Thug1" type="Marker3D" parent="Bandits/Pack03"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 173.5, 9.6, 65.5)
+script = ExtResource("2_spawn")
+role = "thug"
+team = 1
+
+[node name="Brute2" type="Marker3D" parent="Bandits/Pack03"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 173.5, 9.0, 61.5)
+script = ExtResource("2_spawn")
+role = "brute"
+team = 1
+
+[node name="Thug3" type="Marker3D" parent="Bandits/Pack03"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 170.5, 9.0, 59.5)
+script = ExtResource("2_spawn")
+role = "thug"
+team = 1
+
+[node name="Shaman4" type="Marker3D" parent="Bandits/Pack03"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 174.5, 9.6, 65.5)
+script = ExtResource("2_spawn")
+role = "shaman"
+team = 1
+
+[node name="Skirmisher5" type="Marker3D" parent="Bandits/Pack03"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 171.5, 8.8, 59.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Pack04" type="Node3D" parent="Bandits"]
+
+[node name="Pikeman1" type="Marker3D" parent="Bandits/Pack04"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 124.5, 13.3, 180.5)
+script = ExtResource("2_spawn")
+role = "pikeman"
+team = 1
+
+[node name="Skirmisher2" type="Marker3D" parent="Bandits/Pack04"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 125.5, 13.3, 182.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Shaman3" type="Marker3D" parent="Bandits/Pack04"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 125.5, 13.3, 181.5)
+script = ExtResource("2_spawn")
+role = "shaman"
+team = 1
+
+[node name="Thug4" type="Marker3D" parent="Bandits/Pack04"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 127.5, 13.4, 182.5)
+script = ExtResource("2_spawn")
+role = "thug"
+team = 1
+
+[node name="Shaman5" type="Marker3D" parent="Bandits/Pack04"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 126.5, 13.4, 182.5)
+script = ExtResource("2_spawn")
+role = "shaman"
+team = 1
+
+[node name="Firecaller6" type="Marker3D" parent="Bandits/Pack04"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 124.5, 13.3, 179.5)
+script = ExtResource("2_spawn")
+role = "firecaller"
+team = 1
+
+[node name="Pack05" type="Node3D" parent="Bandits"]
+
+[node name="Shaman1" type="Marker3D" parent="Bandits/Pack05"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 129.5, 13.7, 115.5)
+script = ExtResource("2_spawn")
+role = "shaman"
+team = 1
+
+[node name="Firecaller2" type="Marker3D" parent="Bandits/Pack05"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 132.5, 13.5, 114.5)
+script = ExtResource("2_spawn")
+role = "firecaller"
+team = 1
+
+[node name="Pikeman3" type="Marker3D" parent="Bandits/Pack05"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 133.5, 14.4, 110.5)
+script = ExtResource("2_spawn")
+role = "pikeman"
+team = 1
+
+[node name="Pikeman4" type="Marker3D" parent="Bandits/Pack05"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 129.5, 13.7, 114.5)
+script = ExtResource("2_spawn")
+role = "pikeman"
+team = 1
+
+[node name="Thug5" type="Marker3D" parent="Bandits/Pack05"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 131.5, 13.8, 112.5)
+script = ExtResource("2_spawn")
+role = "thug"
+team = 1
+
+[node name="Thug6" type="Marker3D" parent="Bandits/Pack05"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 129.5, 13.8, 113.5)
+script = ExtResource("2_spawn")
+role = "thug"
+team = 1
+
+[node name="Pack06" type="Node3D" parent="Bandits"]
+
+[node name="Thug1" type="Marker3D" parent="Bandits/Pack06"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 124.5, 9.5, 85.5)
+script = ExtResource("2_spawn")
+role = "thug"
+team = 1
+
+[node name="Shaman2" type="Marker3D" parent="Bandits/Pack06"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 126.5, 9.3, 88.5)
+script = ExtResource("2_spawn")
+role = "shaman"
+team = 1
+
+[node name="Firecaller3" type="Marker3D" parent="Bandits/Pack06"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 123.5, 9.6, 84.5)
+script = ExtResource("2_spawn")
+role = "firecaller"
+team = 1
+
+[node name="Firecaller4" type="Marker3D" parent="Bandits/Pack06"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 127.5, 9.3, 85.5)
+script = ExtResource("2_spawn")
+role = "firecaller"
+team = 1
+
+[node name="Pack07" type="Node3D" parent="Bandits"]
+
+[node name="Skirmisher1" type="Marker3D" parent="Bandits/Pack07"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 117.5, 13.5, 44.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Skirmisher2" type="Marker3D" parent="Bandits/Pack07"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 117.5, 13.6, 46.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Skirmisher3" type="Marker3D" parent="Bandits/Pack07"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 120.5, 14.3, 44.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Pack08" type="Node3D" parent="Bandits"]
+
+[node name="Pikeman1" type="Marker3D" parent="Bandits/Pack08"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 163.5, 9.6, 33.5)
+script = ExtResource("2_spawn")
+role = "pikeman"
+team = 1
+
+[node name="Thug2" type="Marker3D" parent="Bandits/Pack08"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 158.5, 9.6, 32.5)
+script = ExtResource("2_spawn")
+role = "thug"
+team = 1
+
+[node name="Shaman3" type="Marker3D" parent="Bandits/Pack08"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 158.5, 9.6, 30.5)
+script = ExtResource("2_spawn")
+role = "shaman"
+team = 1
+
+[node name="Skirmisher4" type="Marker3D" parent="Bandits/Pack08"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 160.5, 9.7, 29.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Pack09" type="Node3D" parent="Bandits"]
+
+[node name="Pikeman1" type="Marker3D" parent="Bandits/Pack09"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 88.5, 13.3, 51.5)
+script = ExtResource("2_spawn")
+role = "pikeman"
+team = 1
+
+[node name="Thug2" type="Marker3D" parent="Bandits/Pack09"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 87.5, 13.2, 50.5)
+script = ExtResource("2_spawn")
+role = "thug"
+team = 1
+
+[node name="Thug3" type="Marker3D" parent="Bandits/Pack09"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 85.5, 13.8, 55.5)
+script = ExtResource("2_spawn")
+role = "thug"
+team = 1
+
+[node name="Brute4" type="Marker3D" parent="Bandits/Pack09"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 91.5, 13.6, 54.5)
+script = ExtResource("2_spawn")
+role = "brute"
+team = 1
+
+[node name="Shaman5" type="Marker3D" parent="Bandits/Pack09"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 87.5, 13.4, 54.5)
+script = ExtResource("2_spawn")
+role = "shaman"
+team = 1
+
+[node name="Thug6" type="Marker3D" parent="Bandits/Pack09"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 90.5, 13.3, 51.5)
+script = ExtResource("2_spawn")
+role = "thug"
+team = 1
+
+[node name="Pack10" type="Node3D" parent="Bandits"]
+
+[node name="Firecaller1" type="Marker3D" parent="Bandits/Pack10"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 184.5, 17.5, 198.5)
+script = ExtResource("2_spawn")
+role = "firecaller"
+team = 1
+
+[node name="Brute2" type="Marker3D" parent="Bandits/Pack10"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 185.5, 17.7, 200.5)
+script = ExtResource("2_spawn")
+role = "brute"
+team = 1
+
+[node name="Firecaller3" type="Marker3D" parent="Bandits/Pack10"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 184.5, 17.6, 195.5)
+script = ExtResource("2_spawn")
+role = "firecaller"
+team = 1
+
+[node name="Pack11" type="Node3D" parent="Bandits"]
+
+[node name="Brute1" type="Marker3D" parent="Bandits/Pack11"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 52.5, 17.4, 223.5)
+script = ExtResource("2_spawn")
+role = "brute"
+team = 1
+
+[node name="Firecaller2" type="Marker3D" parent="Bandits/Pack11"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 48.5, 17.3, 225.5)
+script = ExtResource("2_spawn")
+role = "firecaller"
+team = 1
+
+[node name="Firecaller3" type="Marker3D" parent="Bandits/Pack11"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 50.5, 17.4, 219.5)
+script = ExtResource("2_spawn")
+role = "firecaller"
+team = 1
+
+[node name="Firecaller4" type="Marker3D" parent="Bandits/Pack11"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 48.5, 17.3, 224.5)
+script = ExtResource("2_spawn")
+role = "firecaller"
+team = 1
+
+[node name="Pack12" type="Node3D" parent="Bandits"]
+
+[node name="Skirmisher1" type="Marker3D" parent="Bandits/Pack12"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 161.5, 17.7, 179.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Brute2" type="Marker3D" parent="Bandits/Pack12"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 159.5, 17.5, 181.5)
+script = ExtResource("2_spawn")
+role = "brute"
+team = 1
+
+[node name="Firecaller3" type="Marker3D" parent="Bandits/Pack12"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 160.5, 17.6, 177.5)
+script = ExtResource("2_spawn")
+role = "firecaller"
+team = 1
+
+[node name="Brute4" type="Marker3D" parent="Bandits/Pack12"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 163.5, 17.5, 182.5)
+script = ExtResource("2_spawn")
+role = "brute"
+team = 1
+
+[node name="Pack13" type="Node3D" parent="Bandits"]
+
+[node name="Thug1" type="Marker3D" parent="Bandits/Pack13"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 28.5, 9.4, 185.5)
+script = ExtResource("2_spawn")
+role = "thug"
+team = 1
+
+[node name="Thug2" type="Marker3D" parent="Bandits/Pack13"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27.5, 8.9, 182.5)
+script = ExtResource("2_spawn")
+role = "thug"
+team = 1
+
+[node name="Shaman3" type="Marker3D" parent="Bandits/Pack13"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 29.5, 9.5, 186.5)
+script = ExtResource("2_spawn")
+role = "shaman"
+team = 1
+
+[node name="Skirmisher4" type="Marker3D" parent="Bandits/Pack13"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26.5, 9.4, 184.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Shaman5" type="Marker3D" parent="Bandits/Pack13"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 31.5, 9.5, 187.5)
+script = ExtResource("2_spawn")
+role = "shaman"
+team = 1
+
+[node name="Pack14" type="Node3D" parent="Bandits"]
+
+[node name="Pikeman1" type="Marker3D" parent="Bandits/Pack14"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 90.5, 13.4, 106.5)
+script = ExtResource("2_spawn")
+role = "pikeman"
+team = 1
+
+[node name="Pikeman2" type="Marker3D" parent="Bandits/Pack14"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 91.5, 13.4, 106.5)
+script = ExtResource("2_spawn")
+role = "pikeman"
+team = 1
+
+[node name="Skirmisher3" type="Marker3D" parent="Bandits/Pack14"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 89.5, 13.3, 107.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Pack15" type="Node3D" parent="Bandits"]
+
+[node name="Thug1" type="Marker3D" parent="Bandits/Pack15"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 189.5, 14.1, 163.5)
+script = ExtResource("2_spawn")
+role = "thug"
+team = 1
+
+[node name="Firecaller2" type="Marker3D" parent="Bandits/Pack15"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 185.5, 13.7, 161.5)
+script = ExtResource("2_spawn")
+role = "firecaller"
+team = 1
+
+[node name="Skirmisher3" type="Marker3D" parent="Bandits/Pack15"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 185.5, 14.0, 164.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Shaman4" type="Marker3D" parent="Bandits/Pack15"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 184.5, 13.7, 162.5)
+script = ExtResource("2_spawn")
+role = "shaman"
+team = 1
+
+[node name="Pack16" type="Node3D" parent="Bandits"]
+
+[node name="Firecaller1" type="Marker3D" parent="Bandits/Pack16"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 59.5, 19.7, 52.5)
+script = ExtResource("2_spawn")
+role = "firecaller"
+team = 1
+
+[node name="Skirmisher2" type="Marker3D" parent="Bandits/Pack16"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56.5, 17.6, 52.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Pikeman3" type="Marker3D" parent="Bandits/Pack16"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56.5, 17.6, 50.5)
+script = ExtResource("2_spawn")
+role = "pikeman"
+team = 1
+
+[node name="Thug4" type="Marker3D" parent="Bandits/Pack16"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 58.5, 17.6, 54.5)
+script = ExtResource("2_spawn")
+role = "thug"
+team = 1
+
+[node name="Shaman5" type="Marker3D" parent="Bandits/Pack16"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 58.5, 18.6, 52.5)
+script = ExtResource("2_spawn")
+role = "shaman"
+team = 1
+
+[node name="Pack17" type="Node3D" parent="Bandits"]
+
+[node name="Skirmisher1" type="Marker3D" parent="Bandits/Pack17"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 194.5, 17.3, 120.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Firecaller2" type="Marker3D" parent="Bandits/Pack17"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 189.5, 17.2, 123.5)
+script = ExtResource("2_spawn")
+role = "firecaller"
+team = 1
+
+[node name="Skirmisher3" type="Marker3D" parent="Bandits/Pack17"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 194.5, 17.5, 118.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Pack18" type="Node3D" parent="Bandits"]
+
+[node name="Thug1" type="Marker3D" parent="Bandits/Pack18"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 156.5, 13.7, 130.5)
+script = ExtResource("2_spawn")
+role = "thug"
+team = 1
+
+[node name="Shaman2" type="Marker3D" parent="Bandits/Pack18"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 154.5, 13.6, 129.5)
+script = ExtResource("2_spawn")
+role = "shaman"
+team = 1
+
+[node name="Firecaller3" type="Marker3D" parent="Bandits/Pack18"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 159.5, 13.7, 130.5)
+script = ExtResource("2_spawn")
+role = "firecaller"
+team = 1
+
+[node name="Skirmisher4" type="Marker3D" parent="Bandits/Pack18"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 157.5, 13.7, 132.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Thug5" type="Marker3D" parent="Bandits/Pack18"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 156.5, 13.7, 133.5)
+script = ExtResource("2_spawn")
+role = "thug"
+team = 1
+
+[node name="Shaman6" type="Marker3D" parent="Bandits/Pack18"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 158.5, 13.9, 133.5)
+script = ExtResource("2_spawn")
+role = "shaman"
+team = 1
+
+[node name="Pack19" type="Node3D" parent="Bandits"]
+
+[node name="Pikeman1" type="Marker3D" parent="Bandits/Pack19"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 59.5, 17.5, 165.5)
+script = ExtResource("2_spawn")
+role = "pikeman"
+team = 1
+
+[node name="Pikeman2" type="Marker3D" parent="Bandits/Pack19"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56.5, 19.9, 165.5)
+script = ExtResource("2_spawn")
+role = "pikeman"
+team = 1
+
+[node name="Skirmisher3" type="Marker3D" parent="Bandits/Pack19"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 57.5, 18.0, 162.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Firecaller4" type="Marker3D" parent="Bandits/Pack19"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 61.5, 17.6, 164.5)
+script = ExtResource("2_spawn")
+role = "firecaller"
+team = 1
+
+[node name="Firecaller5" type="Marker3D" parent="Bandits/Pack19"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 60.5, 17.7, 163.5)
+script = ExtResource("2_spawn")
+role = "firecaller"
+team = 1
+
+[node name="Brute6" type="Marker3D" parent="Bandits/Pack19"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 56.5, 18.0, 162.5)
+script = ExtResource("2_spawn")
+role = "brute"
+team = 1
+
+[node name="Pack20" type="Node3D" parent="Bandits"]
+
+[node name="Brute1" type="Marker3D" parent="Bandits/Pack20"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 226.5, 13.4, 186.5)
+script = ExtResource("2_spawn")
+role = "brute"
+team = 1
+
+[node name="Shaman2" type="Marker3D" parent="Bandits/Pack20"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 224.5, 13.3, 187.5)
+script = ExtResource("2_spawn")
+role = "shaman"
+team = 1
+
+[node name="Brute3" type="Marker3D" parent="Bandits/Pack20"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 228.5, 13.4, 188.5)
+script = ExtResource("2_spawn")
+role = "brute"
+team = 1
+
+[node name="Pack21" type="Node3D" parent="Bandits"]
+
+[node name="Firecaller1" type="Marker3D" parent="Bandits/Pack21"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 207.5, 21.6, 228.5)
+script = ExtResource("2_spawn")
+role = "firecaller"
+team = 1
+
+[node name="Brute2" type="Marker3D" parent="Bandits/Pack21"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 209.5, 21.5, 229.5)
+script = ExtResource("2_spawn")
+role = "brute"
+team = 1
+
+[node name="Brute3" type="Marker3D" parent="Bandits/Pack21"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 208.5, 21.6, 231.5)
+script = ExtResource("2_spawn")
+role = "brute"
+team = 1
+
+[node name="Skirmisher4" type="Marker3D" parent="Bandits/Pack21"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 209.5, 21.5, 228.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Pack22" type="Node3D" parent="Bandits"]
+
+[node name="Firecaller1" type="Marker3D" parent="Bandits/Pack22"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 84.5, 13.5, 183.5)
+script = ExtResource("2_spawn")
+role = "firecaller"
+team = 1
+
+[node name="Skirmisher2" type="Marker3D" parent="Bandits/Pack22"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 87.5, 13.6, 185.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Skirmisher3" type="Marker3D" parent="Bandits/Pack22"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 82.5, 13.7, 183.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Shaman4" type="Marker3D" parent="Bandits/Pack22"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 86.5, 13.6, 185.5)
+script = ExtResource("2_spawn")
+role = "shaman"
+team = 1
+
+[node name="Pack23" type="Node3D" parent="Bandits"]
+
+[node name="Pikeman1" type="Marker3D" parent="Bandits/Pack23"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 165.5, 13.6, 96.5)
+script = ExtResource("2_spawn")
+role = "pikeman"
+team = 1
+
+[node name="Skirmisher2" type="Marker3D" parent="Bandits/Pack23"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 163.5, 13.7, 97.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Firecaller3" type="Marker3D" parent="Bandits/Pack23"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 162.5, 13.7, 94.5)
+script = ExtResource("2_spawn")
+role = "firecaller"
+team = 1
+
+[node name="Pikeman4" type="Marker3D" parent="Bandits/Pack23"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 166.5, 13.5, 92.5)
+script = ExtResource("2_spawn")
+role = "pikeman"
+team = 1
+
+[node name="Brute5" type="Marker3D" parent="Bandits/Pack23"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 165.5, 13.7, 92.5)
+script = ExtResource("2_spawn")
+role = "brute"
+team = 1
+
+[node name="Pack24" type="Node3D" parent="Bandits"]
+
+[node name="Shaman1" type="Marker3D" parent="Bandits/Pack24"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 219.5, 17.4, 75.5)
+script = ExtResource("2_spawn")
+role = "shaman"
+team = 1
+
+[node name="Pikeman2" type="Marker3D" parent="Bandits/Pack24"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 223.5, 17.8, 74.5)
+script = ExtResource("2_spawn")
+role = "pikeman"
+team = 1
+
+[node name="Shaman3" type="Marker3D" parent="Bandits/Pack24"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 220.5, 17.5, 74.5)
+script = ExtResource("2_spawn")
+role = "shaman"
+team = 1
+
+[node name="Shaman4" type="Marker3D" parent="Bandits/Pack24"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 221.5, 17.4, 70.5)
+script = ExtResource("2_spawn")
+role = "shaman"
+team = 1
+
+[node name="Thug5" type="Marker3D" parent="Bandits/Pack24"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 222.5, 17.6, 72.5)
+script = ExtResource("2_spawn")
+role = "thug"
+team = 1
+
+[node name="Pack25" type="Node3D" parent="Bandits"]
+
+[node name="Firecaller1" type="Marker3D" parent="Bandits/Pack25"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 95.5, 17.5, 210.5)
+script = ExtResource("2_spawn")
+role = "firecaller"
+team = 1
+
+[node name="Brute2" type="Marker3D" parent="Bandits/Pack25"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 98.5, 17.5, 210.5)
+script = ExtResource("2_spawn")
+role = "brute"
+team = 1
+
+[node name="Skirmisher3" type="Marker3D" parent="Bandits/Pack25"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 101.5, 17.7, 211.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Pack26" type="Node3D" parent="Bandits"]
+
+[node name="Thug1" type="Marker3D" parent="Bandits/Pack26"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 223.5, 25.5, 35.5)
+script = ExtResource("2_spawn")
+role = "thug"
+team = 1
+
+[node name="Shaman2" type="Marker3D" parent="Bandits/Pack26"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 224.5, 25.4, 34.5)
+script = ExtResource("2_spawn")
+role = "shaman"
+team = 1
+
+[node name="Skirmisher3" type="Marker3D" parent="Bandits/Pack26"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 224.5, 25.5, 33.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Firecaller4" type="Marker3D" parent="Bandits/Pack26"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 226.5, 25.4, 32.5)
+script = ExtResource("2_spawn")
+role = "firecaller"
+team = 1
+
+[node name="Skirmisher5" type="Marker3D" parent="Bandits/Pack26"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 227.5, 25.4, 33.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Pack27" type="Node3D" parent="Bandits"]
+
+[node name="Skirmisher1" type="Marker3D" parent="Bandits/Pack27"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 196.5, 13.3, 97.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Brute2" type="Marker3D" parent="Bandits/Pack27"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 201.5, 13.2, 96.5)
+script = ExtResource("2_spawn")
+role = "brute"
+team = 1
+
+[node name="Thug3" type="Marker3D" parent="Bandits/Pack27"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 199.5, 12.5, 96.5)
+script = ExtResource("2_spawn")
+role = "thug"
+team = 1
+
+[node name="Thug4" type="Marker3D" parent="Bandits/Pack27"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 198.5, 13.3, 94.5)
+script = ExtResource("2_spawn")
+role = "thug"
+team = 1
+
+[node name="Brute5" type="Marker3D" parent="Bandits/Pack27"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 197.5, 13.4, 93.5)
+script = ExtResource("2_spawn")
+role = "brute"
+team = 1
+
+[node name="Pack28" type="Node3D" parent="Bandits"]
+
+[node name="Brute1" type="Marker3D" parent="Bandits/Pack28"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 31.5, 16.4, 63.5)
+script = ExtResource("2_spawn")
+role = "brute"
+team = 1
+
+[node name="Pikeman2" type="Marker3D" parent="Bandits/Pack28"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 29.5, 16.5, 64.5)
+script = ExtResource("2_spawn")
+role = "pikeman"
+team = 1
+
+[node name="Brute3" type="Marker3D" parent="Bandits/Pack28"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 33.5, 17.2, 61.5)
+script = ExtResource("2_spawn")
+role = "brute"
+team = 1
+
+[node name="Pikeman4" type="Marker3D" parent="Bandits/Pack28"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 34.5, 17.0, 63.5)
+script = ExtResource("2_spawn")
+role = "pikeman"
+team = 1
+
+[node name="Brute5" type="Marker3D" parent="Bandits/Pack28"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30.5, 17.1, 59.5)
+script = ExtResource("2_spawn")
+role = "brute"
+team = 1
+
+[node name="Brute6" type="Marker3D" parent="Bandits/Pack28"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 34.5, 17.3, 60.5)
+script = ExtResource("2_spawn")
+role = "brute"
+team = 1
+
+[node name="Pack29" type="Node3D" parent="Bandits"]
+
+[node name="Shaman1" type="Marker3D" parent="Bandits/Pack29"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 102.5, 9.4, 129.5)
+script = ExtResource("2_spawn")
+role = "shaman"
+team = 1
+
+[node name="Shaman2" type="Marker3D" parent="Bandits/Pack29"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 101.5, 9.4, 127.5)
+script = ExtResource("2_spawn")
+role = "shaman"
+team = 1
+
+[node name="Brute3" type="Marker3D" parent="Bandits/Pack29"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 99.5, 9.2, 128.5)
+script = ExtResource("2_spawn")
+role = "brute"
+team = 1
+
+[node name="Skirmisher4" type="Marker3D" parent="Bandits/Pack29"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 98.5, 9.2, 129.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Skirmisher5" type="Marker3D" parent="Bandits/Pack29"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 104.5, 9.6, 128.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Pikeman6" type="Marker3D" parent="Bandits/Pack29"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 103.5, 9.4, 130.5)
+script = ExtResource("2_spawn")
+role = "pikeman"
+team = 1
+
+[node name="Pack30" type="Node3D" parent="Bandits"]
+
+[node name="Skirmisher1" type="Marker3D" parent="Bandits/Pack30"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 203.5, 17.6, 54.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Skirmisher2" type="Marker3D" parent="Bandits/Pack30"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 201.5, 17.4, 51.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Pikeman3" type="Marker3D" parent="Bandits/Pack30"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 204.5, 17.7, 50.5)
+script = ExtResource("2_spawn")
+role = "pikeman"
+team = 1
+
+[node name="Pack31" type="Node3D" parent="Bandits"]
+
+[node name="Thug1" type="Marker3D" parent="Bandits/Pack31"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 171.5, 13.0, 222.5)
+script = ExtResource("2_spawn")
+role = "thug"
+team = 1
+
+[node name="Pikeman2" type="Marker3D" parent="Bandits/Pack31"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 168.5, 13.0, 221.5)
+script = ExtResource("2_spawn")
+role = "pikeman"
+team = 1
+
+[node name="Firecaller3" type="Marker3D" parent="Bandits/Pack31"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 172.5, 13.1, 221.5)
+script = ExtResource("2_spawn")
+role = "firecaller"
+team = 1
+
+[node name="Firecaller4" type="Marker3D" parent="Bandits/Pack31"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 170.5, 13.3, 218.5)
+script = ExtResource("2_spawn")
+role = "firecaller"
+team = 1
+
+[node name="Skirmisher5" type="Marker3D" parent="Bandits/Pack31"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 171.5, 13.0, 221.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Pack32" type="Node3D" parent="Bandits"]
+
+[node name="Brute1" type="Marker3D" parent="Bandits/Pack32"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 218.5, 17.5, 158.5)
+script = ExtResource("2_spawn")
+role = "brute"
+team = 1
+
+[node name="Skirmisher2" type="Marker3D" parent="Bandits/Pack32"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 221.5, 17.6, 156.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Skirmisher3" type="Marker3D" parent="Bandits/Pack32"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 221.5, 17.7, 157.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Skirmisher4" type="Marker3D" parent="Bandits/Pack32"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 221.5, 18.0, 153.5)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+team = 1
+
+[node name="Pikeman5" type="Marker3D" parent="Bandits/Pack32"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 221.5, 18.0, 158.5)
+script = ExtResource("2_spawn")
+role = "pikeman"
+team = 1
+
+[node name="Pikeman6" type="Marker3D" parent="Bandits/Pack32"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 223.5, 18.0, 153.5)
+script = ExtResource("2_spawn")
+role = "pikeman"
+team = 1
+
+[node name="Props" type="Node3D" parent="."]
+
+[node name="OilBarrel04" type="Marker3D" parent="Props"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 129.5, 13.4, 182.5)
+script = ExtResource("3_barrel")
+
+[node name="OilBarrel06" type="Marker3D" parent="Props"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 128.5, 9.2, 85.5)
+script = ExtResource("3_barrel")
+
+[node name="OilBarrel07" type="Marker3D" parent="Props"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 122.5, 13.7, 46.5)
+script = ExtResource("3_barrel")
+
+[node name="OilBarrel08" type="Marker3D" parent="Props"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 164.5, 9.9, 30.5)
+script = ExtResource("3_barrel")
+
+[node name="OilBarrel10" type="Marker3D" parent="Props"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 189.5, 18.5, 198.5)
+script = ExtResource("3_barrel")
+
+[node name="OilBarrel12" type="Marker3D" parent="Props"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 165.5, 17.5, 180.5)
+script = ExtResource("3_barrel")
+
+[node name="OilBarrel13" type="Marker3D" parent="Props"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 32.5, 9.5, 185.5)
+script = ExtResource("3_barrel")
+
+[node name="OilBarrel15" type="Marker3D" parent="Props"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 190.5, 14.8, 161.5)
+script = ExtResource("3_barrel")
+
+[node name="OilBarrel21" type="Marker3D" parent="Props"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 214.5, 23.1, 229.5)
+script = ExtResource("3_barrel")
+
+[node name="OilBarrel22" type="Marker3D" parent="Props"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 89.5, 13.4, 184.5)
+script = ExtResource("3_barrel")
+
+[node name="OilBarrel23" type="Marker3D" parent="Props"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 168.5, 13.4, 94.5)
+script = ExtResource("3_barrel")
+
+[node name="OilBarrel32" type="Marker3D" parent="Props"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 225.5, 17.6, 155.5)
+script = ExtResource("3_barrel")

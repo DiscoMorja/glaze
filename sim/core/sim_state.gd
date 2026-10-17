@@ -50,7 +50,10 @@ func step_ticks(count: int) -> void:
 # --- Entities ------------------------------------------------------------------
 
 ## Adds an entity (level setup) and assigns its id. It settles onto the ground.
+## A fighter added during combat takes part in it.
 func add_entity(e: SimEntity) -> SimEntity:
+	if combat.active and e.takes_turns():
+		e.in_combat = true
 	e.id = _next_entity_id
 	_next_entity_id += 1
 	entities.append(e)

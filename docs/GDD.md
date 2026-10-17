@@ -73,7 +73,7 @@ Explore (real time) ──► interact with world, scheme, steal, set up ──�
 
 - **Exploration (real time):** move freely, talk, loot, pickpocket, sneak, move objects, prepare surfaces. This *is* the "prep phase" — there is no separate planning mode. The sim ticks live (4 Hz); characters walk the sim grid one cell per tick (paths around hazards, re-routing around anyone in the way). Right-click walks the party, the others following to the nearest free cells. Abilities need no AP outside combat, but cooldowns still run (8 ticks = one turn).
 - **Combat (turn-based):** starts when hostility is triggered: an enemy with sight (6 cells for enemy roles) sees a party member with line of sight, or someone hurts a fighter of the other side. Preparing the ground (oil, water, moving barrels) does not. Enemy sight areas are tinted red while exploring. Everyone fights from their current positions, so exploration setup carries directly into combat; after a win the world goes back to real time.
-- **Transition (v1):** when combat starts, the **whole world switches to turn-based** and all players join. (Divinity/BG3 allow split real-time/turn-based; deferred — see Open Questions.)
+- **Transition (v1):** when combat starts, the **whole world switches to turn-based** and all players join. The fight itself is **local**: the whole party, plus the enemies that spotted or were hurt (or hurt someone) and their **packs** (`LevelSpawn.pack`, by default the parent node, so a pack is a group of markers under one node). Other packs sit it out; a pack joins at the start of a side turn if it sees a fighter, or as soon as one of its members is hurt. Combat ends when the joined enemies are down. (Divinity/BG3 allow split real-time/turn-based; deferred — see Open Questions.)
 
 ---
 
@@ -274,8 +274,9 @@ Levels are built freely in Godot and baked into the sim (`GameLevel.bake()`, run
 
 - Structure-of-arrays: one `PackedInt32Array` (or `PackedByteArray`) per cell field, flat index `x + z*w + y*w*d`, y up — see `SimGrid.index()`.
 - No per-cell objects.
-- Process only active cells per tick: rules find the cells that hold liquid, gas or fire with the packed arrays' native search, so a tick costs ~0.6 ms on the 49k-cell start area.
-- Keep zones bounded (e.g. ~64×64×8 cells).
+- Process only active cells per tick: liquids and gases are found with the packed arrays' native search (skipped entirely while a field is known empty), fire and temperature keep sparse cell sets (`fire_cells`, `heat_cells`).
+- **Copies are copy-on-write:** `duplicate_state()` shares the grid's arrays until one side writes, so previews and AI lookahead don't pay for the world's size. Grid writes go through `edit_*()` / `set_fire()` / `set_temperature()`.
+- Measured on `levels/highlands` (256 × 40 × 256 = 2.6M cells, 164 entities, 32 packs): bake ~1–2 s, idle tick ~0.7 ms, state copy ~1.4 ms, enemy decision ~0.3 s, 240 FPS exploring (vsync), ~95 FPS with the whole map in view. Remaining costs that grow with size: the first write after a copy copies that whole field (~10 MB per int field), long A* paths (~30 ms for 100 cells), and the bake. Chunked storage is the next step if zones grow beyond this.
 
 ---
 
@@ -321,4 +322,5 @@ Levels are built freely in Godot and baked into the sim (`GameLevel.bake()`, run
 | 2026-10-17 | Turn presentation: animated world advance, telegraphed enemy actions with camera follow and captions, AI on a worker thread. |
 | 2026-10-17 | Abilities have cooldowns (in turns, per user, combat only); fixes endless heal-vs-damage duels. |
 | 2026-10-17 | Exploration prototype before co-op: real-time walking on the sim grid (not navmesh) in both modes; combat starts on sight or hostility; levels are Terrain3D + collision structures + markers, baked to the sim grid at load. |
+| 2026-10-18 | Fights are local: the party plus spotting/provoked enemies and their packs; other packs sit out. Sim grid copies are copy-on-write; fire and heat keep sparse cell sets. Stress level `levels/highlands` (256 m, 32 packs). |
 | 2026-10-17 | Scope: Prologue (1 hub + 1 zone, 2–3 h co-op) targeted at 12–18 months, 6–8 h/week, Claude Code writes the code. |

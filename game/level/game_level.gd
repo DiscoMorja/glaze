@@ -71,6 +71,7 @@ func _bake_terrain(grid: SimGrid) -> void:
 
 func _bake_structures(grid: SimGrid) -> void:
 	var space := get_world_3d().direct_space_state
+	grid.edit_solid()
 	for bounds in _structure_bounds():
 		var lo := Vector3i(floori(bounds.position.x), floori(bounds.position.y), floori(bounds.position.z))
 		var hi := Vector3i(ceili(bounds.end.x), ceili(bounds.end.y), ceili(bounds.end.z))
@@ -154,6 +155,7 @@ func _place_markers(state: SimState) -> void:
 				var floor_cell: Variant = _floor_cell(state, marker.global_position + Vector3(dx, 0, dz))
 				if floor_cell != null:
 					state.grid.add_surface(floor_cell, marker.surface(), marker.amount)
+	var packs := {}
 	for node in find_children("*", "LevelSpawn", true, false):
 		var spawn := node as LevelSpawn
 		var cell: Variant = _floor_cell(state, spawn.global_position)
@@ -163,6 +165,11 @@ func _place_markers(state: SimState) -> void:
 		var inventory: Array[String] = []
 		inventory.assign(spawn.inventory)
 		var e := SimArchetypes.make(spawn.role, spawn.entity_name if spawn.entity_name != "" else SimArchetypes.title(spawn.role), spawn.faction(), cell, inventory)
+		var pack_name := spawn.pack_name()
+		if pack_name != "":
+			if not packs.has(pack_name):
+				packs[pack_name] = packs.size() + 1
+			e.pack = packs[pack_name]
 		state.add_entity(e)
 	for node in find_children("*", "LevelBarrel", true, false):
 		var barrel := node as LevelBarrel

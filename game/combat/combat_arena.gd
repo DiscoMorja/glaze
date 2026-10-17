@@ -41,6 +41,8 @@ const LOG_LINES := 10
 ## Real-time sim rate outside combat (one cell of walking per tick).
 const EXPLORE_TICKS_PER_SECOND := 4.0
 const COLOR_DANGER := Color(1.0, 0.2, 0.15, 0.13)
+## Only enemies this close (cells, per axis) to the party show their sight.
+const DANGER_SHOW_RADIUS := 40
 
 const COLOR_CURSOR := Color(1, 1, 1, 0.45)
 const COLOR_INVALID := Color(1, 0.15, 0.1, 0.5)
@@ -58,6 +60,8 @@ const COLOR_ENEMY_TARGET := Color(1.0, 0.55, 0.1, 0.6)
 
 ## Level to explore. Empty = the combat arena.
 @export var level_scene: PackedScene
+## Prints the perf readout to the output every 2 s (stress-test levels).
+@export var log_perf := false
 
 var state: SimState
 var _level: GameLevel
@@ -91,6 +95,10 @@ var _session := 0
 var _frame_worst := 0.0
 var _frame_worst_shown := 0.0
 var _frame_window := 0.0
+## Last cost (ms) of the expensive steps, for the HUD: bake, tick, ai, preview, range.
+var _perf := {}
+## [watcher id, cell] -> floor cells that watcher sees (see _danger_cells).
+var _danger_cache := {}
 
 var _grid_renderer: SimGridRenderer
 var _fire_field: FireField
@@ -137,6 +145,8 @@ func _process(delta: float) -> void:
 		_frame_worst = 0.0
 		_frame_window = 0.0
 		_refresh()
+		if log_perf:
+			print("perf: ", _perf_text())
 
 
 func _update_hover() -> void:
@@ -200,10 +210,13 @@ func _restart() -> void:
 		_level.queue_free()
 	_level = level_scene.instantiate() as GameLevel
 	add_child(_level)
+	var bake_start := Time.get_ticks_usec()
 	var baked: SimState = await _level.bake()
+	_perf["bake"] = (Time.get_ticks_usec() - bake_start) / 1000.0
 	if session != _session:
 		return
 	state = baked
+	_danger_cache.clear()
 	_grid_renderer.show_solids = false
 	_rig.position = Vector3(state.grid.size.x / 2.0, 2.0, state.grid.size.z / 2.0)
 	_tick_accumulator = 0.0
@@ -233,7 +246,9 @@ func _exploring() -> bool:
 
 ## One real-time tick. If it starts combat (someone was spotted), switch over.
 func _explore_tick() -> void:
+	var t0 := Time.get_ticks_usec()
 	state.step()
+	_perf["tick"] = (Time.get_ticks_usec() - t0) / 1000.0
 	_present(state, state.drain_events())
 	if state.combat.active:
 		_tick_accumulator = 0.0
@@ -431,10 +446,11 @@ func _finish_side(faction: int) -> void:
 	var ghost := state.duplicate_state()
 	_view = ghost
 	for _i in CombatRules.TICKS_PER_SIDE_TURN:
-		var before := _visible_world(ghost)
+		# A copy-on-write snapshot: the tick writes to fresh arrays.
+		var before := ghost.grid.duplicate_grid()
 		ghost.step()
 		var events := ghost.drain_events()
-		if events.is_empty() and _visible_world(ghost) == before:
+		if events.is_empty() and _looks_same(ghost.grid, before):
 			continue
 		_present(ghost, events)
 		await get_tree().create_timer(WORLD_TICK_SECONDS).timeout
@@ -448,12 +464,12 @@ func _finish_side(faction: int) -> void:
 			flow.append(e)
 	_present(state, flow)
 	if not state.combat.active:
-		_show_banner("Victory!" if CombatRules.fighters(state, SimEntity.Faction.ENEMIES).is_empty() else "Defeat")
+		_show_banner("Defeat" if CombatRules.fighters(state, SimEntity.Faction.PLAYERS).is_empty() else "Victory!")
 
 
-## What the player can see of the world, to skip ticks where nothing changes.
-static func _visible_world(s: SimState) -> Array:
-	return [s.grid.surface_type.duplicate(), s.grid.surface_amount.duplicate(), s.grid.gas_type.duplicate(), s.grid.fire.duplicate()]
+## Whether the player would see any difference, to skip ticks where nothing changes.
+static func _looks_same(a: SimGrid, b: SimGrid) -> bool:
+	return a.surface_type == b.surface_type and a.surface_amount == b.surface_amount 			and a.gas_type == b.gas_type and a.fire == b.fire
 
 
 ## Enemy side: each action is thought out off the main thread, telegraphed
@@ -514,6 +530,13 @@ func _begin_player_turn() -> void:
 ## coming while it thinks. The sim is plain data, so the copy is safe to use
 ## off the main thread.
 func _think() -> SimCommand:
+	var t0 := Time.get_ticks_usec()
+	var command: SimCommand = await _think_on_worker()
+	_perf["ai"] = (Time.get_ticks_usec() - t0) / 1000.0
+	return command
+
+
+func _think_on_worker() -> SimCommand:
 	var snapshot := state.duplicate_state()
 	var result: Array = [null]
 	var task := WorkerThreadPool.add_task(func() -> void: result[0] = UtilityAi.next_command(snapshot))
@@ -787,6 +810,12 @@ func _target_reason(command: SimCommand) -> String:
 ## there is no line of sight) and the entities it can target. When moving,
 ## shows reachable cells.
 func _update_range() -> void:
+	var t0 := Time.get_ticks_usec()
+	_update_range_now()
+	_perf["range"] = (Time.get_ticks_usec() - t0) / 1000.0
+
+
+func _update_range_now() -> void:
 	if state == null:
 		return
 	var cells: Array[Vector3i] = []
@@ -826,31 +855,59 @@ func _update_range() -> void:
 	_refresh()
 
 
-## Floor cells some watchful enemy can see: walking in starts combat.
+## Floor cells some watchful enemy near the party can see: walking in starts
+## combat. Each watcher's cells are cached until it moves.
 func _danger_cells() -> Array[Vector3i]:
+	var party := CombatRules.fighters(state, SimEntity.Faction.PLAYERS)
+	var occupied := SimPathfinder.occupancy(state)
 	var result: Array[Vector3i] = []
 	var seen := {}
 	for watcher in CombatRules.fighters(state, SimEntity.Faction.ENEMIES):
-		if watcher.sight <= 0:
+		if watcher.sight <= 0 or not _near_any(watcher.cell, party, DANGER_SHOW_RADIUS):
 			continue
-		for c in _floor_cells_near(watcher.cell, watcher.sight):
-			if seen.has(c) or absi(c.y - watcher.cell.y) > watcher.sight:
-				continue
-			if SimAbilities.in_range(watcher.cell, c, watcher.sight) and SimLos.has_line_of_sight(state.grid, watcher.cell, c):
+		var key := [watcher.id, watcher.cell]
+		if not _danger_cache.has(key):
+			_danger_cache[key] = _cells_seen_by(watcher, occupied)
+		for c: Vector3i in _danger_cache[key]:
+			if not seen.has(c):
 				seen[c] = true
 				result.append(c)
 	return result
 
 
-## Open cells within `radius` columns that stand on solid ground or hold an entity.
+static func _near_any(c: Vector3i, others: Array[SimEntity], radius: int) -> bool:
+	for o in others:
+		if absi(o.cell.x - c.x) <= radius and absi(o.cell.z - c.z) <= radius:
+			return true
+	return false
+
+
+## Open cells within `radius` columns that stand on solid ground or hold an
+## entity, at any height (ability ranges ignore height).
 func _floor_cells_near(center: Vector3i, radius: int) -> Array[Vector3i]:
 	var grid := state.grid
+	var occupied := SimPathfinder.occupancy(state)
 	var result: Array[Vector3i] = []
 	for z in range(center.z - radius, center.z + radius + 1):
 		for x in range(center.x - radius, center.x + radius + 1):
 			for y in grid.size.y:
 				var c := Vector3i(x, y, z)
-				if grid.in_bounds(c) and not grid.is_solid(c) and (grid.is_supported(c) or state.entity_at(c) != null):
+				if grid.in_bounds(c) and not grid.is_solid(c) and (grid.is_supported(c) or occupied.has(c)):
+					result.append(c)
+	return result
+
+
+func _cells_seen_by(watcher: SimEntity, occupied: Dictionary) -> Array[Vector3i]:
+	var grid := state.grid
+	var r := watcher.sight
+	var result: Array[Vector3i] = []
+	for z in range(watcher.cell.z - r, watcher.cell.z + r + 1):
+		for x in range(watcher.cell.x - r, watcher.cell.x + r + 1):
+			for y in range(maxi(watcher.cell.y - r, 0), mini(watcher.cell.y + r + 1, grid.size.y)):
+				var c := Vector3i(x, y, z)
+				if not grid.in_bounds(c) or grid.is_solid(c) or not (grid.is_supported(c) or occupied.has(c)):
+					continue
+				if SimAbilities.in_range(watcher.cell, c, r) and SimLos.has_line_of_sight(grid, watcher.cell, c):
 					result.append(c)
 	return result
 
@@ -860,6 +917,12 @@ func _floor_cells_near(center: Vector3i, radius: int) -> Array[Vector3i]:
 ## Runs the hovered command on a copy of the sim and shows what would happen:
 ## immediately, and by the end of the turn once the world has advanced.
 func _update_preview() -> void:
+	var t0 := Time.get_ticks_usec()
+	_update_preview_now()
+	_perf["preview"] = (Time.get_ticks_usec() - t0) / 1000.0
+
+
+func _update_preview_now() -> void:
 	if state == null:
 		return
 	var hovered := state.entity_at(_hover) if _hover != null else null
@@ -915,6 +978,13 @@ func _update_preview() -> void:
 
 
 func _preview_outcome(command: SimCommand, actor: SimEntity, cells: Array[Vector3i], colors: Array[Color], texts: Dictionary) -> void:
+	# A walk in real time changes nothing until the world ticks: just show the
+	# route (found while validating) without copying the world.
+	if command is TravelCommand:
+		for c in (command as TravelCommand).route(state):
+			cells.append(c)
+			colors.append(COLOR_PATH)
+		return
 	# The caller has validated the command, so run it straight on the copy (no
 	# second validation) and read the path from what it did, rather than
 	# searching for it again.
@@ -925,8 +995,6 @@ func _preview_outcome(command: SimCommand, actor: SimEntity, cells: Array[Vector
 	for e in after.drain_events():
 		if e.type == SimEvent.Type.MOVED and e.entity_id == actor.id:
 			moved_cells = e.cells
-	if command is TravelCommand:
-		moved_cells = after.get_entity(actor.id).travel
 	for c in moved_cells:
 		cells.append(c)
 		colors.append(COLOR_PATH)
@@ -947,7 +1015,7 @@ func _preview_outcome(command: SimCommand, actor: SimEntity, cells: Array[Vector
 	var grid := state.grid
 	var marked := {}
 	if forecast.grid.fire != grid.fire:
-		for i in SimGrid.indices_in_range(forecast.grid.fire, SimMaterials.FIRE_MAX):
+		for i in forecast.grid.burning_cells():
 			if grid.fire[i] == 0:
 				marked[i] = true
 				cells.append(grid.coord(i))
@@ -1082,6 +1150,26 @@ func _make_label(parent: Node, pos: Vector2) -> Label:
 	return label
 
 
+func _perf_text() -> String:
+	var fighting := 0
+	for e in state.entities:
+		if e.in_combat:
+			fighting += 1
+	var parts: Array[String] = [
+		"FPS %d   worst frame %d ms" % [Engine.get_frames_per_second(), int(_frame_worst_shown * 1000.0)],
+		"%d entities (%d fighting)" % [state.entities.size(), fighting],
+		"cpu %.1f ms   %d draws   %d objects   %dk prims" % [
+			Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
+			Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),
+			Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME),
+			Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME) / 1000],
+	]
+	for key: String in ["bake", "tick", "ai", "preview", "range"]:
+		if _perf.has(key):
+			parts.append("%s %.1f ms" % [key, _perf[key]])
+	return "   ".join(parts)
+
+
 func _refresh() -> void:
 	if _hud == null or state == null:
 		return
@@ -1102,6 +1190,7 @@ func _refresh() -> void:
 		lines.append("%s the %s   weapon: %s   carrying: %s" % [actor.name, SimArchetypes.title(actor.archetype), actor.weapon if actor.weapon != "" else "none", items])
 	lines.append("%s   %s" % [_mode_name(), _preview_text])
 	lines.append("RMB move   LMB use / select   1-9 actions   Esc cancel   F1-F4 / Tab select   Enter end turn   Space (hold) fast-forward   R restart")
-	lines.append("WASD pan   Q/E rotate   wheel zoom      FPS %d   worst frame %d ms" % [Engine.get_frames_per_second(), int(_frame_worst_shown * 1000.0)])
+	lines.append("WASD pan   Q/E rotate   wheel zoom")
+	lines.append(_perf_text())
 	_hud.text = "\n".join(lines)
 	_log_label.text = "\n".join(_log)

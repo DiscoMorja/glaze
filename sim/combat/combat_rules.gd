@@ -13,9 +13,25 @@ const ATTACK_AP := 2
 const REALTIME_TICKS_PER_TURN := 8
 
 
-static func start(state: SimState) -> void:
+## Starts a fight. With everyone, every fighter in the level takes part (the
+## arena, StartCombatCommand). Otherwise the fight is local: entities already
+## marked in_combat (provoked or spotting) and their packs, plus the whole
+## party. Returns false (and starts nothing) if no opponent of the party joins.
+static func start(state: SimState, everyone: bool = true) -> bool:
 	var combat := state.combat
 	state.provoked = false
+	var joined: Array[SimEntity] = []
+	for e in state.entities:
+		if e.is_alive() and e.takes_turns() and (everyone or e.in_combat or e.faction == SimEntity.Faction.PLAYERS):
+			joined.append(e)
+	for e in state.entities:
+		e.in_combat = false
+	for e in joined:
+		_join_pack(state, e)
+	if not _has_fighters(state, SimEntity.Faction.ENEMIES, true):
+		for e in state.entities:
+			e.in_combat = false
+		return false
 	for e in state.entities:
 		e.travel.clear()
 	combat.active = true
@@ -23,6 +39,23 @@ static func start(state: SimState) -> void:
 	combat.round_number = 1
 	state.emit_event(SimEvent.Type.COMBAT_STARTED)
 	_begin_side(state)
+	return true
+
+
+## Pulls an entity and its pack into the running fight (they act from their
+## side's next turn).
+static func join(state: SimState, e: SimEntity) -> void:
+	if state.combat.active:
+		_join_pack(state, e)
+
+
+static func _join_pack(state: SimState, e: SimEntity) -> void:
+	e.in_combat = true
+	if e.pack <= 0:
+		return
+	for other in state.entities:
+		if other.pack == e.pack and other.faction == e.faction and other.is_alive() and other.takes_turns():
+			other.in_combat = true
 
 
 static func end_side_turn(state: SimState) -> void:
@@ -38,32 +71,52 @@ static func end_side_turn(state: SimState) -> void:
 	_begin_side(state)
 
 
-## Outside combat: starts combat when someone hurt a fighter of the other side
-## (state.provoked), or when a watchful entity (sight > 0) sees an opponent
-## within its sight range. Returns true if combat started.
+## Outside combat: starts a local fight when someone hurt a fighter of the
+## other side (state.provoked), or when watchful entities (sight > 0) see an
+## opponent within their sight range. Those entities and their packs fight;
+## the rest of the world waits. Returns true if combat started.
 static func check_start(state: SimState) -> bool:
 	if state.combat.active:
 		return false
 	if fighters(state, SimEntity.Faction.PLAYERS).is_empty() or fighters(state, SimEntity.Faction.ENEMIES).is_empty():
 		state.provoked = false
+		for e in state.entities:
+			e.in_combat = false
 		return false
+	var spotted := _mark_spotters(state, false)
+	if not spotted and not state.provoked:
+		return false
+	return start(state, false)
+
+
+## Marks every watcher that sees an opponent (one taking part in the fight, if
+## a fight is on) as in_combat; the first sighting emits SPOTTED. Returns
+## whether anyone was spotted.
+static func _mark_spotters(state: SimState, fighting: bool) -> bool:
 	var spotted := false
+	var targets := {}
+	for faction: SimEntity.Faction in [SimEntity.Faction.PLAYERS, SimEntity.Faction.ENEMIES]:
+		var list: Array[SimEntity] = []
+		for e in state.entities:
+			if e.faction == faction and e.is_alive() and e.takes_turns() and (e.in_combat or not fighting):
+				list.append(e)
+		targets[faction] = list
 	for watcher in state.entities:
-		if spotted:
-			break
-		if watcher.sight <= 0 or not watcher.is_alive() or not watcher.takes_turns():
+		if watcher.sight <= 0 or watcher.in_combat or not watcher.is_alive() or not watcher.takes_turns():
 			continue
-		for other in fighters(state, opponent_of(watcher.faction)):
+		var opponent := opponent_of(watcher.faction)
+		if not targets.has(opponent):
+			continue
+		for other: SimEntity in targets[opponent]:
 			if SimAbilities.in_range(watcher.cell, other.cell, watcher.sight) \
 					and absi(other.cell.y - watcher.cell.y) <= watcher.sight \
 					and SimLos.has_line_of_sight(state.grid, watcher.cell, other.cell):
-				state.emit_event(SimEvent.Type.SPOTTED, other.cell, other.id, watcher.id)
+				if not spotted:
+					state.emit_event(SimEvent.Type.SPOTTED, other.cell, other.id, watcher.id)
 				spotted = true
+				watcher.in_combat = true
 				break
-	if not spotted and not state.provoked:
-		return false
-	start(state)
-	return true
+	return spotted
 
 
 ## Ends combat when one side has no living fighters. Returns true if it ended.
@@ -76,6 +129,8 @@ static func check_end(state: SimState) -> bool:
 	if players_alive and enemies_alive:
 		return false
 	combat.active = false
+	for e in state.entities:
+		e.in_combat = false
 	var winner := SimEntity.Faction.PLAYERS if players_alive else SimEntity.Faction.ENEMIES
 	state.emit_event(SimEvent.Type.COMBAT_ENDED, Vector3i.ZERO, -1, -1, winner)
 	return true
@@ -100,13 +155,22 @@ static func move_ap_cost(movement_cost: int) -> int:
 	return (movement_cost + MOVE_COST_PER_AP - 1) / MOVE_COST_PER_AP
 
 
-## Living, turn-taking entities of a faction, in id order.
+## Living, turn-taking entities of a faction, in id order. During combat only
+## those taking part in the fight.
 static func fighters(state: SimState, faction: SimEntity.Faction) -> Array[SimEntity]:
 	var result: Array[SimEntity] = []
+	var fighting := state.combat.active
 	for e in state.entities:
-		if e.faction == faction and e.is_alive() and e.takes_turns():
+		if e.faction == faction and e.is_alive() and e.takes_turns() and (e.in_combat or not fighting):
 			result.append(e)
 	return result
+
+
+static func _has_fighters(state: SimState, faction: SimEntity.Faction, joined_only: bool) -> bool:
+	for e in state.entities:
+		if e.faction == faction and e.is_alive() and e.takes_turns() and (e.in_combat or not joined_only):
+			return true
+	return false
 
 
 static func opponent_of(faction: SimEntity.Faction) -> SimEntity.Faction:
@@ -120,6 +184,11 @@ static func opponent_of(faction: SimEntity.Faction) -> SimEntity.Faction:
 
 static func _begin_side(state: SimState) -> void:
 	var combat := state.combat
+	# Packs that see the fight join it (and act from their side's next turn).
+	if _mark_spotters(state, true):
+		for e in state.entities:
+			if e.in_combat:
+				_join_pack(state, e)
 	for e in fighters(state, combat.side):
 		e.ap = mini(e.ap + e.max_ap, AP_CAP)
 		e.tick_cooldowns()

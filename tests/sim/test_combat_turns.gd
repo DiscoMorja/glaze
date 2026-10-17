@@ -101,7 +101,7 @@ func test_move_goes_through_fire_when_detour_is_too_expensive() -> void:
 	var hero := Fixtures.hero(state)
 	# Fire wall with a gap far away: the detour costs more AP than the hero has.
 	for z in range(0, 11):
-		state.grid.fire[state.grid.index(Vector3i(4, Y, z))] = SimMaterials.FIRE_MAX
+		state.grid.set_fire(state.grid.index(Vector3i(4, Y, z)), SimMaterials.FIRE_MAX)
 	assert_true(state.apply_command(MoveCommand.new(1, Vector3i(6, Y, 2))))
 	assert_eq(hero.cell, Vector3i(6, Y, 2))
 	assert_eq(hero.hp, 20 - EntityOps.FIRE_DAMAGE_PER_TICK)

@@ -19,16 +19,31 @@ func get_type() -> String:
 	return TYPE
 
 
+## Last route found, so validate() and execute() (or a preview) search once.
+## Keyed by the state, its tick and the walker's cell.
+var _route: Array[Vector3i] = []
+var _route_key: Array = []
+
+
 func validate(state: SimState) -> bool:
 	var e := state.get_entity(entity_id)
 	if state.combat.active or not CombatRules.can_act(state, e, 0) or e.cell == destination:
 		return false
-	return not SimPathfinder.find_path(state, e.cell, destination, e.id).is_empty()
+	return not route(state).is_empty()
 
 
 func execute(state: SimState) -> void:
+	state.get_entity(entity_id).travel.assign(route(state))
+
+
+## The cells the walk will take (empty if there is no way there).
+func route(state: SimState) -> Array[Vector3i]:
 	var e := state.get_entity(entity_id)
-	e.travel.assign(SimPathfinder.find_path(state, e.cell, destination, e.id))
+	var key := [state.get_instance_id(), state.tick, e.cell]
+	if key != _route_key:
+		_route = SimPathfinder.find_path(state, e.cell, destination, e.id)
+		_route_key = key
+	return _route.duplicate()
 
 
 func to_dict() -> Dictionary:

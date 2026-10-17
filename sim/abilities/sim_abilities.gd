@@ -186,13 +186,15 @@ static func _steal(state: SimState, caster: SimEntity, victim: SimEntity) -> voi
 ## anyone standing there.
 static func _frost(state: SimState, caster: SimEntity, target: Vector3i) -> void:
 	var grid := state.grid
+	grid.edit_heat()
 	for c in grid.disc_cells(target, FROST_RADIUS):
 		var i := grid.index(c)
-		grid.temperature[i] = mini(grid.temperature[i], SimMaterials.CHILL_TEMPERATURE)
+		grid.set_temperature(i, mini(grid.temperature[i], SimMaterials.CHILL_TEMPERATURE))
 		if grid.fire[i] > 0:
-			grid.fire[i] = 0
+			grid.set_fire(i, 0)
 			state.emit_event(SimEvent.Type.EXTINGUISHED, c)
 		if grid.surface_type[i] == SimMaterials.Surface.WATER:
+			grid.edit_surfaces()
 			grid.surface_type[i] = SimMaterials.Surface.ICE
 			state.emit_event(SimEvent.Type.FROZE, c)
 		var occupant := state.entity_at(c)

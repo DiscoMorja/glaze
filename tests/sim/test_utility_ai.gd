@@ -84,7 +84,7 @@ func test_enemy_steps_out_of_fire() -> void:
 	var state := Fixtures.duel_state()
 	var bandit := Fixtures.bandit(state)
 	state.apply_command(EndTurnCommand.new(PLAYERS))
-	state.grid.fire[state.grid.index(bandit.cell)] = SimMaterials.FIRE_MAX
+	state.grid.set_fire(state.grid.index(bandit.cell), SimMaterials.FIRE_MAX)
 	var start := bandit.cell
 	var command := UtilityAi.next_command(state)
 	assert_true(command is MoveCommand)

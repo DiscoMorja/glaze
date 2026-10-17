@@ -38,6 +38,7 @@ addons/   third-party plugins (godot_ai, GUT)
 - GDScript style: static typing everywhere (`var x: int`, typed arrays, return types). `class_name` for sim types.
 - snake_case files and functions, PascalCase classes.
 - Keep sim classes small and testable; prefer pure functions for rules.
+- Grid copies are copy-on-write: before writing a `SimGrid` array call its `edit_*()` (then re-read the array), and write fire/temperature with `set_fire()` / `set_temperature()`. A direct write to a shared array silently corrupts previews or the authoritative state.
 - Performance: profile before optimizing. GDExtension porting is a later escape hatch, not a default.
 
 ## Running tests
@@ -55,8 +56,9 @@ Don't run `--import` headless while the editor is open: it rewrites the class ca
 ## Scenes & levels
 
 - `res://game/world/world.tscn` (main scene): explore `levels/start_area` in real time; combat starts on sight or hostility. Same controller as the arena (`game/combat/combat_arena.gd`, controls in its header) with `level_scene` set.
+- `res://game/world/highlands.tscn`: stress test — the same controller on `levels/highlands` (256 × 256 m, big height differences, 32 enemy packs), with `log_perf` printing the perf readout every 2 s.
 - `res://game/combat/combat_arena.tscn`: same controller on `levels/arena` (a level with `start_in_combat`), straight into a fight.
-- Levels (`levels/<name>/<name>.tscn`, root script `GameLevel`): Terrain3D ground (collision layer 2), structures with collision on layer 1, and `LevelSpawn` / `LevelBarrel` / `LevelSurface` markers. `GameLevel.bake()` builds the sim grid at load; use `WorldSpace` (not raw `c.y`) to turn cells into world positions. Nothing about the world is built in code: terrain is sculpted/painted/foliage-scattered with Terrain3D's editor tools, and each level scene owns its WorldEnvironment and Sun. Don't add generator scripts for level content. Shared terrain textures live in `levels/shared/terrain/` (CC0, see its LICENSE.txt).
+- Levels (`levels/<name>/<name>.tscn`, root script `GameLevel`): Terrain3D ground (collision layer 2), structures with collision on layer 1, and `LevelSpawn` / `LevelBarrel` / `LevelSurface` markers. Group enemy markers under one node per pack (they fight together). `GameLevel.bake()` builds the sim grid at load; use `WorldSpace` (not raw `c.y`) to turn cells into world positions. Nothing about the world is built in code: terrain is sculpted/painted/foliage-scattered with Terrain3D's editor tools, and each level scene owns its WorldEnvironment and Sun. Don't add generator scripts for level content. Shared terrain textures live in `levels/shared/terrain/` (CC0, see its LICENSE.txt).
 - `res://game/debug/sim_debug.tscn`: material sim sandbox on `levels/arena` (real-time ticking, paint water/oil/fire/chill/steam; characters ignored).
 
 ## Third-party assets

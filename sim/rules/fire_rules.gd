@@ -10,18 +10,23 @@ static func ignite(state: SimState, c: Vector3i) -> void:
 	var i := state.grid.index(c)
 	if state.grid.fire[i] == 0:
 		state.emit_event(SimEvent.Type.IGNITED, c)
-	state.grid.fire[i] = SimMaterials.FIRE_MAX
+	state.grid.set_fire(i, SimMaterials.FIRE_MAX)
 
 
 static func step(state: SimState) -> void:
 	var grid := state.grid
-	var fire := grid.fire
-	var burning := SimGrid.indices_in_range(fire, SimMaterials.FIRE_MAX)
-	if burning.is_empty():
+	if grid.fire_cells.is_empty():
 		return
-	var types := grid.surface_type.duplicate()
-	var amounts := grid.surface_amount.duplicate()
-	var next_fire := fire.duplicate()
+	var fire := grid.fire
+	var burning := grid.burning_cells()
+	# Snapshot of the surfaces: keep the current arrays and make the grid write
+	# to fresh copies (copy-on-write) from here on.
+	var types := grid.surface_type
+	var amounts := grid.surface_amount
+	grid.detach_surfaces()
+	# Fire for next tick, sparse: cells absent here keep their current fire.
+	var next_fire := {}
+	grid.edit_heat()
 
 	for i in burning:
 		var f: int = fire[i]
@@ -34,6 +39,7 @@ static func step(state: SimState) -> void:
 			if left <= 0:
 				grid.clear_surface(i)
 			else:
+				grid.edit_surfaces()
 				grid.surface_amount[i] = left
 			grid.add_gas_at(i, SimMaterials.Gas.STEAM, SimMaterials.STEAM_PER_EXTINGUISH)
 			state.emit_event(SimEvent.Type.EXTINGUISHED, c)
@@ -43,6 +49,7 @@ static func step(state: SimState) -> void:
 			if fuel_left <= 0:
 				grid.clear_surface(i)
 			else:
+				grid.edit_surfaces()
 				grid.surface_amount[i] = fuel_left
 			grid.add_gas_at(i, SimMaterials.Gas.SMOKE, SimMaterials.SMOKE_PER_BURN_TICK)
 			for n: Vector3i in SimGrid.NEIGHBORS_6:
@@ -50,7 +57,7 @@ static func step(state: SimState) -> void:
 				if grid.is_solid(nc):
 					continue
 				var ni := grid.index(nc)
-				if next_fire[ni] > 0 or not SimMaterials.is_flammable(types[ni]) or amounts[ni] <= 0:
+				if next_fire.get(ni, fire[ni]) > 0 or not SimMaterials.is_flammable(types[ni]) or amounts[ni] <= 0:
 					continue
 				next_fire[ni] = SimMaterials.FIRE_MAX
 				state.emit_event(SimEvent.Type.IGNITED, nc)
@@ -60,7 +67,8 @@ static func step(state: SimState) -> void:
 			if remaining <= 0:
 				state.emit_event(SimEvent.Type.BURNED_OUT, c)
 
-		if next_fire[i] > 0:
-			grid.temperature[i] = maxi(grid.temperature[i], SimMaterials.FIRE_TEMPERATURE)
+		if next_fire.get(i, fire[i]) > 0:
+			grid.set_temperature(i, maxi(grid.temperature[i], SimMaterials.FIRE_TEMPERATURE))
 
-	grid.fire = next_fire
+	for i: int in next_fire:
+		grid.set_fire(i, next_fire[i])

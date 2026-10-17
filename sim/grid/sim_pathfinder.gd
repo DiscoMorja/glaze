@@ -21,32 +21,48 @@ const _INDEX_MASK := (1 << 24) - 1
 
 ## A cell a unit can stand in: open, on solid ground, not taken by another living entity.
 static func is_standable(state: SimState, c: Vector3i, mover_id: int = -1) -> bool:
-	var grid := state.grid
-	if not grid.in_bounds(c) or grid.is_solid(c) or not grid.is_supported(c):
-		return false
-	var occupant := state.entity_at(c)
-	return occupant == null or occupant.id == mover_id
+	return _standable(state.grid, occupancy(state), c, mover_id)
 
 
 static func neighbors(state: SimState, c: Vector3i, mover_id: int = -1) -> Array[Vector3i]:
-	var grid := state.grid
+	return _neighbors(state.grid, occupancy(state), c, mover_id)
+
+
+## Cell -> id of the living entity standing there. Searches build it once
+## instead of scanning every entity for every cell they look at.
+static func occupancy(state: SimState) -> Dictionary:
+	var result := {}
+	for e in state.entities:
+		if e.is_alive() and not result.has(e.cell):
+			result[e.cell] = e.id
+	return result
+
+
+static func _standable(grid: SimGrid, occupied: Dictionary, c: Vector3i, mover_id: int) -> bool:
+	if not grid.in_bounds(c) or grid.is_solid(c) or not grid.is_supported(c):
+		return false
+	var occupant: int = occupied.get(c, -1)
+	return occupant == -1 or occupant == mover_id
+
+
+static func _neighbors(grid: SimGrid, occupied: Dictionary, c: Vector3i, mover_id: int) -> Array[Vector3i]:
 	var result: Array[Vector3i] = []
 	for d: Vector3i in DIRS_8:
 		var diagonal := d.x != 0 and d.z != 0
 		if diagonal and (grid.is_solid(c + Vector3i(d.x, 0, 0)) or grid.is_solid(c + Vector3i(0, 0, d.z))):
 			continue  # no cutting corners
 		var n := c + d
-		if is_standable(state, n, mover_id):
+		if _standable(grid, occupied, n, mover_id):
 			result.append(n)
 		elif diagonal:
 			continue
 		elif grid.is_solid(n):
 			var up := n + Vector3i.UP
-			if not grid.is_solid(c + Vector3i.UP) and is_standable(state, up, mover_id):
+			if not grid.is_solid(c + Vector3i.UP) and _standable(grid, occupied, up, mover_id):
 				result.append(up)
 		elif not grid.is_supported(n):
 			var down := n + Vector3i.DOWN
-			if is_standable(state, down, mover_id):
+			if _standable(grid, occupied, down, mover_id):
 				result.append(down)
 	return result
 
@@ -91,7 +107,8 @@ static func find_path(state: SimState, from: Vector3i, to: Vector3i, mover_id: i
 	var none: Array[Vector3i] = []
 	if not grid.in_bounds(from) or not grid.in_bounds(to):
 		return none
-	if not stop_adjacent and not is_standable(state, to, mover_id):
+	var occupied := occupancy(state)
+	if not stop_adjacent and not _standable(grid, occupied, to, mover_id):
 		return none
 
 	var start := grid.index(from)
@@ -110,7 +127,7 @@ static func find_path(state: SimState, from: Vector3i, to: Vector3i, mover_id: i
 		if _is_goal(c, to, stop_adjacent):
 			return _reconstruct(grid, came_from, idx, start)
 		var base_cost: int = g[idx]
-		for n in neighbors(state, c, mover_id):
+		for n in _neighbors(grid, occupied, c, mover_id):
 			var ni := grid.index(n)
 			if closed.has(ni):
 				continue
@@ -128,6 +145,7 @@ static func find_path(state: SimState, from: Vector3i, to: Vector3i, mover_id: i
 ## penalties), mapped to its cheapest movement cost. Excludes `from`.
 static func reachable(state: SimState, from: Vector3i, budget: int, mover_id: int = -1) -> Dictionary:
 	var grid := state.grid
+	var occupied := occupancy(state)
 	var start := grid.index(from)
 	var g := {start: 0}
 	var closed := {}
@@ -143,7 +161,7 @@ static func reachable(state: SimState, from: Vector3i, budget: int, mover_id: in
 		var base_cost: int = g[idx]
 		if idx != start:
 			result[c] = base_cost
-		for n in neighbors(state, c, mover_id):
+		for n in _neighbors(grid, occupied, c, mover_id):
 			var ni := grid.index(n)
 			var cost := base_cost + step_cost(c, n)
 			if cost <= budget and not closed.has(ni) and (not g.has(ni) or cost < g[ni]):

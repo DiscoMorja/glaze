@@ -48,7 +48,7 @@ func test_slipping_on_ice_stops_the_walk() -> void:
 	# A strip of ice across the whole field, so the route has to cross it.
 	for z in 12:
 		state.grid.add_surface(Vector3i(3, Y, z), SimMaterials.Surface.ICE, 20)
-	state.grid.temperature.fill(SimMaterials.CHILL_TEMPERATURE)
+	state.grid.fill_temperature(SimMaterials.CHILL_TEMPERATURE)
 	state.apply_command(TravelCommand.new(1, Vector3i(6, Y, 5)))
 	state.step_ticks(2)
 	assert_eq(hero.cell, Vector3i(3, Y, 5))

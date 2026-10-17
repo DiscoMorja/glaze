@@ -24,11 +24,12 @@ func validate(state: SimState) -> bool:
 
 func execute(state: SimState) -> void:
 	var grid := state.grid
+	grid.edit_heat()
 	for c in grid.disc_cells(center, radius):
 		var i := grid.index(c)
-		grid.temperature[i] = mini(grid.temperature[i], SimMaterials.CHILL_TEMPERATURE)
+		grid.set_temperature(i, mini(grid.temperature[i], SimMaterials.CHILL_TEMPERATURE))
 		if grid.fire[i] > 0:
-			grid.fire[i] = 0
+			grid.set_fire(i, 0)
 			state.emit_event(SimEvent.Type.EXTINGUISHED, c)
 
 

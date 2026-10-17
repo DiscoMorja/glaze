@@ -17,10 +17,23 @@ static func damage(state: SimState, e: SimEntity, amount: int, source_id: int = 
 		return
 	e.hp = maxi(e.hp - amount, 0)
 	state.emit_event(SimEvent.Type.DAMAGED, e.cell, e.id, source_id, amount)
-	if not state.combat.active and e.takes_turns() and e.faction != SimEntity.Faction.NONE:
-		state.provoked = true
+	if e.takes_turns() and e.faction != SimEntity.Faction.NONE:
+		_provoke(state, e, state.get_entity(source_id) if source_id >= 0 else null)
 	if e.hp == 0:
 		_die(state, e)
+
+
+## Hurting a fighter pulls it (and whoever hurt it) into a fight: the next one
+## outside combat, the current one during combat.
+static func _provoke(state: SimState, victim: SimEntity, source: SimEntity) -> void:
+	for e: SimEntity in [victim, source]:
+		if e == null or not e.takes_turns() or e.faction == SimEntity.Faction.NONE or e.in_combat:
+			continue
+		if state.combat.active:
+			CombatRules.join(state, e)
+		else:
+			e.in_combat = true
+			state.provoked = true
 
 
 static func heal(state: SimState, e: SimEntity, amount: int, source_id: int = -1) -> void:
