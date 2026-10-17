@@ -13,6 +13,9 @@ const GAS_COLORS := {
 	SimMaterials.Gas.SMOKE: Color(0.2, 0.2, 0.2),
 }
 
+## Draw fire as greybox boxes. Scenes with a FireField turn this off.
+var show_fire := true
+
 var _solid_layer: MultiMeshInstance3D
 var _surface_layer: MultiMeshInstance3D
 var _gas_layer: MultiMeshInstance3D
@@ -54,7 +57,7 @@ func render(grid: SimGrid) -> void:
 			gases.add(Transform3D(Basis(), base + Vector3(0, 0.5, 0)), color)
 
 		var fire: int = grid.fire[i]
-		if fire > 0:
+		if fire > 0 and show_fire:
 			var heat := fire / float(SimMaterials.FIRE_MAX)
 			var height := 0.3 + 0.7 * heat
 			fires.add(Transform3D(Basis().scaled(Vector3(1, height, 1)), base + Vector3(0, 0.35 * height, 0)), Color(1.0, 0.35 + 0.5 * heat, 0.05))

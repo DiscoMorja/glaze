@@ -9,6 +9,7 @@ const ROTATE_SPEED := 90.0
 var camera: Camera3D
 var yaw := 45.0
 var zoom := 30.0
+var _shake := 0.0
 
 
 func _ready() -> void:
@@ -28,6 +29,20 @@ func _process(delta: float) -> void:
 	rotation_degrees.y = yaw
 	position += basis * pan * PAN_SPEED * delta
 	_update_camera()
+	_shake = move_toward(_shake, 0.0, delta * 1.5)
+	camera.h_offset = randf_range(-1.0, 1.0) * _shake
+	camera.v_offset = randf_range(-1.0, 1.0) * _shake
+
+
+## Glides the pivot to a world point (e.g. the selected character).
+func focus(target: Vector3, seconds: float = 0.35) -> void:
+	var tween := create_tween()
+	tween.tween_property(self, "position", Vector3(target.x, position.y, target.z), seconds).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+
+
+## Brief camera shake; strength is in metres and fades out.
+func shake(strength: float) -> void:
+	_shake = maxf(_shake, strength)
 
 
 func _unhandled_input(event: InputEvent) -> void:

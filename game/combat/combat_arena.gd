@@ -49,6 +49,8 @@ var _turn_start_ap := {}
 var _mouse_pos := Vector2.ZERO
 
 var _grid_renderer: SimGridRenderer
+var _fire_field: FireField
+var _vfx: VfxPlayer
 var _entity_renderer: SimEntityRenderer
 var _markers: CellMarkers
 var _range_markers: CellMarkers
@@ -115,6 +117,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _restart() -> void:
 	state = ArenaBuilder.build()
+	_fire_field.clear()
 	_log.clear()
 	_selected_id = -1
 	_busy = false
@@ -136,7 +139,7 @@ func _left_click() -> void:
 	var clicked := state.entity_at(cell)
 	var own_unit := clicked != null and clicked.faction == SimEntity.Faction.PLAYERS and clicked.takes_turns()
 	if own_unit and _action == ActionInfo.NONE:
-		_select(clicked.id)
+		_select(clicked.id, false)
 		return
 	if _action == SimAbilities.Ability.TELEPORT and _teleport_target == null:
 		if _can_teleport_target(clicked):
@@ -227,7 +230,9 @@ func _consume_events() -> void:
 	if _log.size() > LOG_LINES:
 		_log.resize(LOG_LINES)
 	_grid_renderer.render(state.grid)
+	_fire_field.sync(state.grid)
 	_entity_renderer.render(state, events)
+	_vfx.play(state, events)
 	_refresh()
 
 
@@ -273,8 +278,14 @@ func _mode_name() -> String:
 	return "Move" if _action == ActionInfo.NONE else ActionInfo.name_of(_action)
 
 
-func _select(id: int) -> void:
+## Selects a party member and centres the camera on them (unless they were
+## clicked in the world, where they are already on screen).
+func _select(id: int, focus_camera: bool = true) -> void:
+	var changed := id != _selected_id
 	_selected_id = id
+	var e := state.get_entity(id)
+	if e != null and changed and focus_camera:
+		_rig.focus(SimEntityRenderer.cell_position(e.cell))
 	_aim(ActionInfo.NONE)
 
 
@@ -561,7 +572,12 @@ func _build_scene() -> void:
 	add_child(sun)
 
 	_grid_renderer = SimGridRenderer.new()
+	_grid_renderer.show_fire = false
 	add_child(_grid_renderer)
+	_fire_field = FireField.new()
+	add_child(_fire_field)
+	_vfx = VfxPlayer.new()
+	add_child(_vfx)
 	_entity_renderer = SimEntityRenderer.new()
 	add_child(_entity_renderer)
 	_range_markers = CellMarkers.new()
@@ -571,8 +587,9 @@ func _build_scene() -> void:
 
 	_rig = CameraRig.new()
 	_rig.position = Vector3(ArenaBuilder.SIZE.x / 2.0, 2.0, ArenaBuilder.SIZE.z / 2.0)
-	_rig.zoom = 24.0
+	_rig.zoom = 18.0
 	add_child(_rig)
+	_vfx.shake_requested.connect(_rig.shake)
 
 	var canvas := CanvasLayer.new()
 	add_child(canvas)

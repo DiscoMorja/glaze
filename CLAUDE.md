@@ -57,6 +57,12 @@ Don't run `--import` headless while the editor is open: it rewrites the class ca
 - `res://game/combat/combat_arena.tscn` (main scene): M1 combat greybox. Controls are listed in the script header.
 - `res://game/debug/sim_debug.tscn`: material sim sandbox (real-time ticking, paint water/oil/fire/chill/steam).
 
+## Third-party assets
+
+`assetlibs/` holds licensed asset packs and is git-ignored, so it only exists on machines it was copied to. Code must keep working without it.
+
+- **BinbunVFX_Vol2** (`assetlibs/BinbunVFX_Vol2/`): effects used through `game/vfx/pack_vfx.gd`, which falls back to the procedural `VfxFactory` effects when the pack is missing. After copying a fresh pack in, run `bash tools/fix_binbun_vfx.sh` (it rewrites the pack's `res://assets/...` paths and drops stale UID hints), then rescan in the editor. Keep a single copy of the pack.
+
 ## Tools
 
 - The godot-ai MCP addon is installed — use it to inspect scenes, run the game and read logs.

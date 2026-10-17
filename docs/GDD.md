@@ -175,6 +175,10 @@ Needed for pickpocketing, crime and abusing systems:
 - **Per-character verbs:** each character's verbs come from its role (§5.3.1) and are checked by the sim.
 - **Controls (M1 greybox):** right-click always moves. The action bar (keys 1–9) holds Attack in slot 1, then the character's verbs; left-click a target to use the aimed action. Hovering a button shows its tooltip, its range (red where there's no line of sight) and makes every entity it can target glow. WASD is camera only.
 
+### 5.5.1 Effects
+
+Effects come from the BinbunVFX_Vol2 pack where it has one (`PackVfx`: spell casts, Firebolt and Frost projectiles, fire/water areas, flames on burning cells, ice, heal, teleport and hit/impact effects) and fall back to procedural particles (`VfxFactory`) otherwise, so the game runs without the pack. The pack lives in git-ignored `assetlibs/` (see CLAUDE.md). `VfxPlayer` turns sim events into effects: projectiles for Firebolt, Frost and Oil Flask (the hit waits for the bolt to land), bursts for hits, fire, steam, ice, spills, teleports and collisions, floating damage and heal numbers, impact flashes and light camera shake. `FireField` keeps a looping flame on every burning cell. Presets live in `VfxFactory.PRESETS`, so authored effects can replace them one at a time.
+
 ### 5.6 Generated Narration
 
 A combat/event log and barks built from simulation events — e.g. *"Gerald was teleported into the well. Gerald cannot swim."* Provides "funny story" value at near-zero writing cost.
@@ -293,4 +297,5 @@ The sim layer must be runnable headless and in isolation — this enables previe
 | 2026-10-17 | Enemy AI is utility scoring over simulated outcomes; abilities are per character and enemies use them on the same rules. |
 | 2026-10-17 | Roles: Vanguard, Pyromancer, Trickster, Tidecaller for the party; six enemy roles. Five new verbs (Frost, Oil Flask, Mend, Cleave, Blink). Player characters can't be disarmed. |
 | 2026-10-17 | Controls: right-click moves, Attack is an action-bar slot like any verb, action bar with instant tooltips and target highlights. |
+| 2026-10-17 | VFX are event-driven: BinbunVFX_Vol2 pack effects where available, procedural fallbacks otherwise. |
 | 2026-10-17 | Scope: Prologue (1 hub + 1 zone, 2–3 h co-op) targeted at 12–18 months, 6–8 h/week, Claude Code writes the code. |
