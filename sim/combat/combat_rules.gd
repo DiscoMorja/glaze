@@ -89,4 +89,5 @@ static func _begin_side(state: SimState) -> void:
 	var combat := state.combat
 	for e in fighters(state, combat.side):
 		e.ap = mini(e.ap + e.max_ap, AP_CAP)
+		e.tick_cooldowns()
 	state.emit_event(SimEvent.Type.TURN_STARTED, Vector3i.ZERO, -1, -1, combat.side)

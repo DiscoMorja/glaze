@@ -12,10 +12,22 @@ extends Node3D
 ## use. Actions that would hurt your own party need a second click to confirm.
 ## Teleport takes two clicks: the target, then where to put it.
 ## Enter: end turn (asks first if anyone has AP left)   Esc: cancel   R: restart
+## Enemy turns are paced so you can follow them; hold Space to fast-forward.
+## Hold Alt to show every health bar. Actions against a target swing the camera
+## to frame both sides, then back to the caster.
 
 const SLOT_KEYS := [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9]
-const ENEMY_ACTION_DELAY := 0.45
-const LOG_LINES := 14
+## Pause on an enemy's telegraphed action before it happens.
+const ENEMY_AIM_SECONDS := 0.55
+## Minimum time an enemy action gets to play out before the next one.
+const ENEMY_ACTION_SECONDS := 0.6
+## Time per visible world tick when the world advances between sides.
+const WORLD_TICK_SECONDS := 0.3
+const BANNER_SECONDS := 1.4
+const FAST_FORWARD := 3.0
+## Camera glide to frame a caster and target before the action lands.
+const CAMERA_FRAME_SECONDS := 0.42
+const LOG_LINES := 10
 
 const COLOR_CURSOR := Color(1, 1, 1, 0.45)
 const COLOR_INVALID := Color(1, 0.15, 0.1, 0.5)
@@ -28,6 +40,8 @@ const COLOR_TARGET := Color(1.0, 0.85, 0.2, 0.6)
 const COLOR_TARGETABLE := Color(1.0, 0.8, 0.15, 0.45)
 const COLOR_RANGE := Color(0.35, 0.6, 1.0, 0.16)
 const COLOR_NO_SIGHT := Color(1.0, 0.3, 0.25, 0.12)
+const COLOR_ENEMY_ACTOR := Color(1.0, 0.25, 0.2, 0.7)
+const COLOR_ENEMY_TARGET := Color(1.0, 0.55, 0.1, 0.6)
 
 var state: SimState
 
@@ -47,6 +61,14 @@ var _confirm_cell: Variant = null
 var _confirming_end_turn := false
 var _turn_start_ap := {}
 var _mouse_pos := Vector2.ZERO
+## State the HUD shows; a ghost copy while the world-advance is animating.
+var _view: SimState
+## Bumped on restart so running turn coroutines stop.
+var _session := 0
+## Frame timing for the HUD: worst frame in the current and previous 2 s window.
+var _frame_worst := 0.0
+var _frame_worst_shown := 0.0
+var _frame_window := 0.0
 
 var _grid_renderer: SimGridRenderer
 var _fire_field: FireField
@@ -61,15 +83,30 @@ var _party_bar: PartyBar
 var _action_bar: ActionBar
 var _dialog: PanelContainer
 var _dialog_label: Label
+var _banner: Label
+var _banner_tween: Tween
+var _caption: Label
 
 
 func _ready() -> void:
+	PackVfx.preload_all()
 	_build_scene()
+	_fire_field.prewarm()
 	_restart()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	_update_hover()
+	# Hold Space to fast-forward the enemy turn and world animation.
+	Engine.time_scale = FAST_FORWARD if _busy and Input.is_key_pressed(KEY_SPACE) else 1.0
+	_entity_renderer.show_all_bars = Input.is_key_pressed(KEY_ALT)
+	_frame_worst = maxf(_frame_worst, delta)
+	_frame_window += delta
+	if _frame_window >= 2.0:
+		_frame_worst_shown = _frame_worst
+		_frame_worst = 0.0
+		_frame_window = 0.0
+		_refresh()
 
 
 func _update_hover() -> void:
@@ -116,8 +153,11 @@ func _unhandled_input(event: InputEvent) -> void:
 # --- Flow ----------------------------------------------------------------------
 
 func _restart() -> void:
+	_session += 1
 	state = ArenaBuilder.build()
+	_view = null
 	_fire_field.clear()
+	_caption.text = ""
 	_log.clear()
 	_selected_id = -1
 	_busy = false
@@ -126,6 +166,7 @@ func _restart() -> void:
 	_capture_turn_start_ap()
 	_consume_events()
 	_select_next()
+	_show_banner("Round 1 — Your turn")
 
 
 func _can_command() -> bool:
@@ -154,10 +195,59 @@ func _left_click() -> void:
 		_confirm_cell = cell
 		_update_preview()
 		return
-	state.apply_command(command)
 	_action = ActionInfo.NONE
 	_teleport_target = null
-	_after_action()
+	_perform(command)
+
+
+## Applies a player command. Actions against a target first swing the camera
+## to frame caster and target, play out, then swing back to the caster.
+func _perform(command: SimCommand) -> void:
+	var session := _session
+	var actor := _actor_of(command)
+	var target: Variant = _target_point(command, actor)
+	if actor == null or target == null:
+		state.apply_command(command)
+		_after_action()
+		return
+	_busy = true
+	_update_range()
+	_update_preview()
+	_rig.frame_pair(_body_point(actor.cell), target, CAMERA_FRAME_SECONDS)
+	await get_tree().create_timer(CAMERA_FRAME_SECONDS).timeout
+	if session != _session:
+		return
+	state.apply_command(command)
+	var events := state.drain_events()
+	_present(state, events)
+	await get_tree().create_timer(_action_seconds(events)).timeout
+	if session != _session:
+		return
+	var caster := state.get_entity(actor.id)
+	_rig.restore(SimEntityRenderer.cell_position(caster.cell))
+	_busy = false
+	_confirm_cell = null
+	_update_range()
+	_update_preview()
+
+
+## Where an action lands, if it is aimed at something other than the actor.
+func _target_point(command: SimCommand, actor: SimEntity) -> Variant:
+	if actor == null:
+		return null
+	if command is AttackCommand:
+		var target := state.get_entity((command as AttackCommand).target_id)
+		return _body_point(target.cell) if target != null else null
+	if command is CastCommand:
+		var cast := command as CastCommand
+		if cast.target == actor.cell:
+			return null
+		return _body_point(cast.target)
+	return null
+
+
+static func _body_point(c: Vector3i) -> Vector3:
+	return Vector3(c.x + 0.5, c.y + 0.8, c.z + 0.5)
 
 
 ## Right-click always moves the selected character (and drops any aim).
@@ -188,8 +278,20 @@ func _end_turn(confirmed: bool = false) -> void:
 		_dialog.visible = true
 		return
 	_cancel_end_turn()
-	state.apply_command(EndTurnCommand.new(SimEntity.Faction.PLAYERS))
-	_after_action()
+	_play_round_rest()
+
+
+## Players are done: animate the world, run the enemy side, hand back control.
+func _play_round_rest() -> void:
+	var session := _session
+	await _finish_side(SimEntity.Faction.PLAYERS)
+	if session != _session:
+		return
+	if state.combat.active and state.combat.side == SimEntity.Faction.ENEMIES:
+		await _run_enemy_turn()
+		if session != _session:
+			return
+	_begin_player_turn()
 
 
 func _cancel_end_turn() -> void:
@@ -202,38 +304,194 @@ func _after_action() -> void:
 	_consume_events()
 	_update_range()
 	_update_preview()
-	if state.combat.active and state.combat.side == SimEntity.Faction.ENEMIES:
-		_run_enemy_turn()
 
 
-func _run_enemy_turn() -> void:
+## Plays the world advancing between sides one tick at a time, then applies the
+## real EndTurnCommand. The sim is deterministic, so the ghost copy being
+## animated ends exactly where the command does; the command's own tick events
+## are skipped so effects don't play twice.
+func _finish_side(faction: int) -> void:
+	var session := _session
 	_busy = true
 	_update_range()
 	_update_preview()
-	while state.combat.active and state.combat.side == SimEntity.Faction.ENEMIES:
-		await get_tree().create_timer(ENEMY_ACTION_DELAY).timeout
-		if not state.apply_command(UtilityAi.next_command(state)):
-			push_error("AI produced an invalid command")
-			break
-		_consume_events()
+	_markers.clear()
+	var ghost := state.duplicate_state()
+	_view = ghost
+	for _i in CombatRules.TICKS_PER_SIDE_TURN:
+		var before := _visible_world(ghost)
+		ghost.step()
+		var events := ghost.drain_events()
+		if events.is_empty() and _visible_world(ghost) == before:
+			continue
+		_present(ghost, events)
+		await get_tree().create_timer(WORLD_TICK_SECONDS).timeout
+		if session != _session:
+			return
+	_view = null
+	state.apply_command(EndTurnCommand.new(faction))
+	var flow: Array[SimEvent] = []
+	for e in state.drain_events():
+		if e.type in [SimEvent.Type.TURN_STARTED, SimEvent.Type.COMBAT_ENDED, SimEvent.Type.COMBAT_STARTED]:
+			flow.append(e)
+	_present(state, flow)
+	if not state.combat.active:
+		_show_banner("Victory!" if CombatRules.fighters(state, SimEntity.Faction.ENEMIES).is_empty() else "Defeat")
+
+
+## What the player can see of the world, to skip ticks where nothing changes.
+static func _visible_world(s: SimState) -> Array:
+	return [s.grid.surface_type.duplicate(), s.grid.surface_amount.duplicate(), s.grid.gas_type.duplicate(), s.grid.fire.duplicate()]
+
+
+## Enemy side: each action is thought out off the main thread, telegraphed
+## (camera, markers, caption), applied, and given time to play out.
+func _run_enemy_turn() -> void:
+	var session := _session
+	_busy = true
+	_show_banner("Enemy turn")
+	await get_tree().create_timer(0.5).timeout
+	while session == _session and state.combat.active and state.combat.side == SimEntity.Faction.ENEMIES:
+		var command: SimCommand = await _think()
+		if session != _session:
+			return
+		if command is EndTurnCommand:
+			_caption.text = ""
+			await _finish_side(SimEntity.Faction.ENEMIES)
+			return
+		var actor := _actor_of(command)
+		var target: Variant = _target_point(command, actor)
+		if actor != null:
+			if target != null:
+				_rig.frame_pair(_body_point(actor.cell), target, CAMERA_FRAME_SECONDS)
+			else:
+				_rig.restore(SimEntityRenderer.cell_position(actor.cell))
+			_telegraph(command, actor)
+			await get_tree().create_timer(ENEMY_AIM_SECONDS).timeout
+			if session != _session:
+				return
+		if not state.apply_command(command):
+			push_error("AI produced an invalid command: %s" % command.to_dict())
+			return
+		var events := state.drain_events()
+		_present(state, events)
+		_markers.clear()
+		var seconds := _action_seconds(events)
+		if command is MoveCommand and actor != null:
+			_rig.follow(_entity_renderer.view_of(actor.id), seconds)
+		await get_tree().create_timer(seconds).timeout
+		if target != null and actor != null and session == _session:
+			_rig.restore(SimEntityRenderer.cell_position(state.get_entity(actor.id).cell))
+	_caption.text = ""
+
+
+func _begin_player_turn() -> void:
 	_busy = false
+	_caption.text = ""
+	var selected := state.get_entity(_selected_id)
+	if selected != null:
+		_rig.restore(SimEntityRenderer.cell_position(selected.cell))
+	if state.combat.active:
+		_show_banner("Round %d — Your turn" % state.combat.round_number)
 	_select_next(true)
+	_update_range()
+	_update_preview()
+
+
+## Runs the AI on a worker thread against a copy of the sim, so frames keep
+## coming while it thinks. The sim is plain data, so the copy is safe to use
+## off the main thread.
+func _think() -> SimCommand:
+	var snapshot := state.duplicate_state()
+	var result: Array = [null]
+	var task := WorkerThreadPool.add_task(func() -> void: result[0] = UtilityAi.next_command(snapshot))
+	while not WorkerThreadPool.is_task_completed(task):
+		await get_tree().process_frame
+	WorkerThreadPool.wait_for_task_completion(task)
+	return result[0]
+
+
+func _actor_of(command: SimCommand) -> SimEntity:
+	if command is MoveCommand:
+		return state.get_entity((command as MoveCommand).entity_id)
+	if command is AttackCommand:
+		return state.get_entity((command as AttackCommand).attacker_id)
+	if command is CastCommand:
+		return state.get_entity((command as CastCommand).caster_id)
+	return null
+
+
+## Shows what an enemy is about to do: who, where, and a caption.
+func _telegraph(command: SimCommand, actor: SimEntity) -> void:
+	var cells: Array[Vector3i] = [actor.cell]
+	var colors: Array[Color] = [COLOR_ENEMY_ACTOR]
+	var text := actor.name
+	if command is MoveCommand:
+		for c in MoveCommand.path_for(state, actor, (command as MoveCommand).destination):
+			cells.append(c)
+			colors.append(COLOR_ENEMY_TARGET)
+		text += " moves"
+	elif command is AttackCommand:
+		var target := state.get_entity((command as AttackCommand).target_id)
+		cells.append(target.cell)
+		colors.append(COLOR_ENEMY_TARGET)
+		text += " attacks %s" % target.name
+	elif command is CastCommand:
+		var cast := command as CastCommand
+		cells.append(cast.target)
+		colors.append(COLOR_ENEMY_TARGET)
+		var victim := state.entity_at(cast.target)
+		text += ": %s" % SimAbilities.NAMES[cast.ability]
+		if victim != null and victim != actor:
+			text += " → %s" % victim.name
+		if cast.ability == SimAbilities.Ability.TELEPORT:
+			cells.append(cast.destination)
+			colors.append(COLOR_ENEMY_TARGET)
+	_markers.show_cells(cells, colors)
+	_caption.text = text
+
+
+## How long to let an action's animation and effects play.
+func _action_seconds(events: Array[SimEvent]) -> float:
+	var seconds := ENEMY_ACTION_SECONDS
+	for e in events:
+		match e.type:
+			SimEvent.Type.MOVED:
+				seconds = maxf(seconds, e.cells.size() * SimEntityRenderer.MOVE_SECONDS_PER_CELL + 0.35)
+			SimEvent.Type.CAST:
+				if VfxPlayer.ABILITY_PROJECTILES.has(e.amount):
+					seconds = maxf(seconds, VfxPlayer.PROJECTILE_SECONDS + 0.6)
+	return seconds
 
 
 func _consume_events() -> void:
-	var events := state.drain_events()
+	_present(state, state.drain_events())
+
+
+## Draws a state and plays its events: log, grid, flames, entities, effects.
+func _present(s: SimState, events: Array[SimEvent]) -> void:
 	for e in events:
 		if e.type == SimEvent.Type.TURN_STARTED and e.amount == SimEntity.Faction.PLAYERS:
 			_capture_turn_start_ap()
-	for line in Narrator.describe_all(state, events):
+	for line in Narrator.describe_all(s, events):
 		_log.push_front(line)
 	if _log.size() > LOG_LINES:
 		_log.resize(LOG_LINES)
-	_grid_renderer.render(state.grid)
-	_fire_field.sync(state.grid)
-	_entity_renderer.render(state, events)
-	_vfx.play(state, events)
+	_grid_renderer.render(s.grid)
+	_fire_field.sync(s.grid)
+	_entity_renderer.render(s, events)
+	_vfx.play(s, events)
 	_refresh()
+
+
+func _show_banner(text: String) -> void:
+	_banner.text = text
+	_banner.modulate.a = 1.0
+	if _banner_tween != null:
+		_banner_tween.kill()
+	_banner_tween = _banner.create_tween()
+	_banner_tween.tween_interval(BANNER_SECONDS)
+	_banner_tween.tween_property(_banner, "modulate:a", 0.0, 0.5)
 
 
 func _capture_turn_start_ap() -> void:
@@ -384,6 +642,8 @@ func _target_reason(command: SimCommand) -> String:
 		var cast := command as CastCommand
 		if actor.ap < SimAbilities.AP_COST[cast.ability]:
 			return "Not enough AP"
+		if actor.cooldown(cast.ability) > 0:
+			return "On cooldown (ready in %d)" % actor.cooldown(cast.ability)
 		if not SimAbilities.can_reach(cast.ability, actor.cell, cast.target) and not (cast.ability == SimAbilities.Ability.MEND and cast.target == actor.cell):
 			return "Out of range"
 		if SimAbilities.needs_line_of_sight(cast.ability) and not SimLos.has_line_of_sight(state.grid, actor.cell, cast.target):
@@ -457,6 +717,15 @@ func _floor_cells_near(center: Vector3i, radius: int) -> Array[Vector3i]:
 ## Runs the hovered command on a copy of the sim and shows what would happen:
 ## immediately, and by the end of the turn once the world has advanced.
 func _update_preview() -> void:
+	var hovered := state.entity_at(_hover) if _hover != null else null
+	_entity_renderer.set_hovered(hovered.id if hovered != null else -1)
+	if _busy:
+		# Enemy turn or world advancing: the markers belong to the telegraph.
+		_preview_text = ""
+		_preview_cost = 0
+		_entity_renderer.set_preview({})
+		_refresh()
+		return
 	_preview_text = ""
 	_preview_cost = 0
 	_preview_hurts_allies.clear()
@@ -533,18 +802,7 @@ func _preview_outcome(command: SimCommand, actor: SimEntity, cells: Array[Vector
 			continue
 		if e.faction == SimEntity.Faction.PLAYERS and now_hp < e.hp:
 			_preview_hurts_allies.append(e.name)
-		var parts: Array[String] = []
-		if now_hp == 0:
-			parts.append("dies")
-		elif now_hp > e.hp:
-			parts.append("+%d" % (now_hp - e.hp))
-		elif now_hp != e.hp:
-			parts.append("-%d" % (e.hp - now_hp))
-		if now_hp > 0 and later_hp == 0:
-			parts.append("dies by turn end")
-		elif later_hp < now_hp:
-			parts.append("-%d by turn end" % (now_hp - later_hp))
-		texts[e.id] = "  ".join(parts)
+		texts[e.id] = [now_hp, later_hp]
 
 	_preview_cost = actor.ap - after.get_entity(actor.id).ap
 	_preview_text = "%s: %d AP" % [_mode_name(), _preview_cost]
@@ -594,7 +852,14 @@ func _build_scene() -> void:
 	var canvas := CanvasLayer.new()
 	add_child(canvas)
 	_hud = _make_label(canvas, Vector2(12, 10))
-	_log_label = _make_label(canvas, Vector2(12, 150))
+	_log_label = _make_label(canvas, Vector2.ZERO)
+	# Combat log in the top-right corner, newest line first.
+	_log_label.anchor_left = 1.0
+	_log_label.anchor_right = 1.0
+	_log_label.offset_left = -460
+	_log_label.offset_right = -12
+	_log_label.offset_top = 280
+	_log_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 
 	_party_bar = PartyBar.new()
 	canvas.add_child(_party_bar)
@@ -611,6 +876,11 @@ func _build_scene() -> void:
 	canvas.add_child(_action_bar)
 	_action_bar.action_pressed.connect(_on_action_pressed)
 	_action_bar.action_hovered.connect(_on_action_hovered)
+
+	_banner = _make_centered_label(canvas, 160, 52)
+	_banner.modulate.a = 0.0
+	_caption = _make_centered_label(canvas, 228, 28)
+	_caption.add_theme_color_override("font_color", Color(1.0, 0.75, 0.5))
 
 	_dialog = PanelContainer.new()
 	_dialog.set_anchors_preset(Control.PRESET_CENTER)
@@ -630,6 +900,21 @@ func _build_scene() -> void:
 	canvas.add_child(_dialog)
 
 
+## A label spanning the top of the screen, text centred.
+func _make_centered_label(parent: Node, top: float, font_size: int) -> Label:
+	var label := Label.new()
+	label.anchor_left = 0.0
+	label.anchor_right = 1.0
+	label.offset_top = top
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_color_override("font_outline_color", Color.BLACK)
+	label.add_theme_constant_override("outline_size", 8)
+	parent.add_child(label)
+	return label
+
+
 func _make_label(parent: Node, pos: Vector2) -> Label:
 	var label := Label.new()
 	label.position = pos
@@ -643,7 +928,8 @@ func _refresh() -> void:
 	if _hud == null or state == null:
 		return
 	_entity_renderer.set_selected(_selected_id)
-	_party_bar.update_party(CombatRules.fighters(state, SimEntity.Faction.PLAYERS), _selected_id, _turn_start_ap, _preview_cost, _can_command())
+	var shown := _view if _view != null else state
+	_party_bar.update_party(CombatRules.fighters(shown, SimEntity.Faction.PLAYERS), _selected_id, _turn_start_ap, _preview_cost, _can_command())
 	var actor := state.get_entity(_selected_id)
 	_action_bar.show_actions(actor if actor != null and actor.is_alive() else null, _action, _can_command())
 	var lines: Array[String] = []
@@ -655,7 +941,7 @@ func _refresh() -> void:
 		var items := ", ".join(actor.inventory) if not actor.inventory.is_empty() else "nothing"
 		lines.append("%s the %s   weapon: %s   carrying: %s" % [actor.name, SimArchetypes.title(actor.archetype), actor.weapon if actor.weapon != "" else "none", items])
 	lines.append("%s   %s" % [_mode_name(), _preview_text])
-	lines.append("RMB move   LMB use / select   1-9 actions   Esc cancel   F1-F4 / Tab select   Enter end turn   R restart")
-	lines.append("WASD pan   Q/E rotate   wheel zoom")
+	lines.append("RMB move   LMB use / select   1-9 actions   Esc cancel   F1-F4 / Tab select   Enter end turn   Space (hold) fast-forward   R restart")
+	lines.append("WASD pan   Q/E rotate   wheel zoom      FPS %d   worst frame %d ms" % [Engine.get_frames_per_second(), int(_frame_worst_shown * 1000.0)])
 	_hud.text = "\n".join(lines)
 	_log_label.text = "\n".join(_log)

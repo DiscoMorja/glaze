@@ -134,7 +134,7 @@ Characters, barrels, chairs, doors, chests and potions share **one property mode
 | Cleave | 2 | adjacent | Weapon hit on everything adjacent, allies included |
 | Blink | 1 | 4 | Caster jumps to a free cell in sight |
 
-Ranged verbs need line of sight. Every verb works on properties and the
+Ranged verbs need line of sight. Every verb except Attack has a **cooldown** in combat: the number of the user's turns until it is ready again (Firebolt and Shove once per turn; Rain, Steal, Frost, Oil Flask, Cleave and Blink every 2 turns; Teleport and Mend every 3). Cooldowns count down at the start of the user's side turn and don't apply outside combat. Mend's cooldown keeps healers from out-healing damage forever. Every verb works on properties and the
 material sim, so roles combo with each other and with the environment.
 
 ### 5.3.1 Roles (`SimArchetypes`)
@@ -174,6 +174,14 @@ Needed for pickpocketing, crime and abusing systems:
 - **AI (utility, `UtilityAi`):** for each enemy it generates candidate actions (attacks, its own abilities on sensible targets, a short list of move destinations), applies each to a copy of the sim and scores the outcome against doing nothing. Damage, kills and disarms on opponents score up; damage to its own side scores down; ending in fire or on fuel next to fire scores down; units want to be adjacent (melee) or ~5 cells away with sight (casters). Casts are compared after advancing the world to the end of the turn, so the AI sees chain reactions. Moves are valued with the attacks or casts they set up. Decisions take up to ~100 ms on the M1 arena.
 - **Per-character verbs:** each character's verbs come from its role (§5.3.1) and are checked by the sim.
 - **Controls (M1 greybox):** right-click always moves. The action bar (keys 1–9) holds Attack in slot 1, then the character's verbs; left-click a target to use the aimed action. Hovering a button shows its tooltip, its range (red where there's no line of sight) and makes every entity it can target glow. WASD is camera only.
+
+### 5.5.0 Turn presentation
+
+- **World advance:** between sides the world's ticks are animated one at a time on a copy of the sim (fire spreading, barrels bursting, steam rising). The sim is deterministic, so the copy ends exactly where the real EndTurnCommand does; ticks where nothing visible changes are skipped.
+- **Enemy turns:** each action is decided on a worker thread (the sim is plain data), then telegraphed — the camera glides to the actor, its path or target is marked and a caption names the action — before it happens and is given time to play out. Hold Space to fast-forward.
+- **Banners** announce whose turn it is and victory/defeat.
+- **Camera:** actions against a target (attacks, spells on others) glide the camera to the midpoint of caster and target, then back to the caster. It never rotates, and only zooms out if the two would not fit on screen. Moving enemies are followed.
+- **Health bars** float over entities when they take damage or heal, when hovered, and while Alt is held. When an action is previewed they mark the predicted loss: bright for immediate damage, dim for damage by the end of the turn (fire), green for healing, flashing when lethal.
 
 ### 5.5.1 Effects
 
@@ -298,4 +306,6 @@ The sim layer must be runnable headless and in isolation — this enables previe
 | 2026-10-17 | Roles: Vanguard, Pyromancer, Trickster, Tidecaller for the party; six enemy roles. Five new verbs (Frost, Oil Flask, Mend, Cleave, Blink). Player characters can't be disarmed. |
 | 2026-10-17 | Controls: right-click moves, Attack is an action-bar slot like any verb, action bar with instant tooltips and target highlights. |
 | 2026-10-17 | VFX are event-driven: BinbunVFX_Vol2 pack effects where available, procedural fallbacks otherwise. |
+| 2026-10-17 | Turn presentation: animated world advance, telegraphed enemy actions with camera follow and captions, AI on a worker thread. |
+| 2026-10-17 | Abilities have cooldowns (in turns, per user, combat only); fixes endless heal-vs-damage duels. |
 | 2026-10-17 | Scope: Prologue (1 hub + 1 zone, 2–3 h co-op) targeted at 12–18 months, 6–8 h/week, Claude Code writes the code. |

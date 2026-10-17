@@ -13,6 +13,7 @@ var _tip_panel: PanelContainer
 var _tip: Label
 var _actions: Array[int] = []
 var _tips: Array[String] = []
+var _tip_index := -1
 
 
 func _ready() -> void:
@@ -65,11 +66,15 @@ func show_actions(actor: SimEntity, aimed: int, usable: bool) -> void:
 		var button: Button = _row.get_child(i)
 		var action := _actions[i]
 		_tips.append(ActionInfo.tooltip(action, actor))
-		button.disabled = not usable or actor.ap < ActionInfo.cost(action)
+		var wait := ActionInfo.remaining(action, actor)
+		button.text = _label(i, action, wait)
+		button.disabled = not usable or actor.ap < ActionInfo.cost(action) or wait > 0
 		button.set_pressed_no_signal(action == aimed)
 	visible = not _actions.is_empty()
 	if not visible:
 		_tip_panel.visible = false
+	elif _tip_panel.visible and _tip_index < _tips.size():
+		_tip.text = _tips[_tip_index]
 
 
 func _rebuild(actions: Array[int]) -> void:
@@ -83,7 +88,7 @@ func _rebuild(actions: Array[int]) -> void:
 		button.toggle_mode = true
 		button.focus_mode = Control.FOCUS_NONE
 		button.custom_minimum_size = Vector2(88, 56)
-		button.text = "%d  %s\n%d AP" % [i + 1, ActionInfo.name_of(action), ActionInfo.cost(action)]
+		button.text = _label(i, action, 0)
 		button.pressed.connect(func() -> void: action_pressed.emit(action))
 		button.mouse_entered.connect(func() -> void:
 			_show_tip(i)
@@ -94,9 +99,16 @@ func _rebuild(actions: Array[int]) -> void:
 		_row.add_child(button)
 
 
+## Key, name and AP cost; while cooling down, the turns left instead of the cost.
+static func _label(slot: int, action: int, wait: int) -> String:
+	var second := "ready in %d" % wait if wait > 0 else "%d AP" % ActionInfo.cost(action)
+	return "%d  %s\n%s" % [slot + 1, ActionInfo.name_of(action), second]
+
+
 func _show_tip(index: int) -> void:
 	if index >= _tips.size():
 		return
+	_tip_index = index
 	_tip.text = _tips[index]
 	_tip_panel.visible = true
 	_tip_panel.reset_size()

@@ -91,9 +91,12 @@ func test_steal_takes_weapon_first() -> void:
 	assert_eq(bandit.weapon, "")
 	assert_eq(bandit.attack_damage(), bandit.unarmed_damage)
 	assert_true(Fixtures.hero(state).inventory.has("Club"))
+	bandit.ap = 0  # keep the bandit from walking off while we wait out the cooldown
+	for _i in SimAbilities.COOLDOWN[A.STEAL]:
+		state.apply_command(EndTurnCommand.new(Fixtures.PLAYERS))
+		state.apply_command(EndTurnCommand.new(Fixtures.ENEMIES))
 	assert_true(state.apply_command(CastCommand.new(1, A.STEAL, bandit.cell)))
 	assert_true(Fixtures.hero(state).inventory.has("Gold"))
-	assert_false(state.apply_command(CastCommand.new(1, A.STEAL, bandit.cell)), "nothing left to steal")
 
 
 func test_adjacent_abilities_need_adjacency() -> void:

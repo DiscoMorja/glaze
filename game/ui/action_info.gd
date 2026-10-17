@@ -48,6 +48,16 @@ static func cost(action: int) -> int:
 	return CombatRules.ATTACK_AP if action == ATTACK else SimAbilities.AP_COST[action]
 
 
+## Turns until the action can be used again after use (0 = no cooldown).
+static func cooldown_of(action: int) -> int:
+	return 0 if action == ATTACK else SimAbilities.COOLDOWN[action]
+
+
+## Turns the actor still has to wait before using the action.
+static func remaining(action: int, actor: SimEntity) -> int:
+	return 0 if action == ATTACK or actor == null else actor.cooldown(action)
+
+
 static func range_of(action: int) -> int:
 	return 1 if action == ATTACK else SimAbilities.RANGE[action]
 
@@ -62,4 +72,12 @@ static func tooltip(action: int, actor: SimEntity) -> String:
 		lines.append(description(action))
 	if reach > 1:
 		lines.append("Needs line of sight.")
+	var cooldown := cooldown_of(action)
+	if cooldown > 1:
+		lines.append("Cooldown: usable every %d turns." % cooldown)
+	elif cooldown == 1:
+		lines.append("Cooldown: once per turn.")
+	var wait := remaining(action, actor)
+	if wait > 0:
+		lines.append("Ready in %d turn%s." % [wait, "" if wait == 1 else "s"])
 	return "\n".join(lines)

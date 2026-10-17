@@ -30,6 +30,24 @@ var unarmed_damage: int = 1
 var inventory: Array[String] = []
 ## SimAbilities.Ability values this entity can use.
 var abilities: Array[int] = []
+## Turns left until each ability (by SimAbilities.Ability value) is ready again.
+var cooldowns := PackedInt32Array()
+
+
+func _init() -> void:
+	cooldowns.resize(SimAbilities.NAMES.size())
+	cooldowns.fill(0)
+
+
+func cooldown(ability: int) -> int:
+	return cooldowns[ability]
+
+
+## Counts every cooldown down by one turn.
+func tick_cooldowns() -> void:
+	for i in cooldowns.size():
+		if cooldowns[i] > 0:
+			cooldowns[i] -= 1
 
 
 func is_alive() -> bool:
@@ -52,6 +70,7 @@ func to_dict() -> Dictionary:
 		"weapon": weapon, "can_be_disarmed": can_be_disarmed, "weapon_damage": weapon_damage, "unarmed_damage": unarmed_damage,
 		"inventory": inventory.duplicate(),
 		"abilities": abilities.duplicate(),
+		"cooldowns": cooldowns.duplicate(),
 	}
 
 
@@ -75,6 +94,7 @@ static func from_dict(data: Dictionary) -> SimEntity:
 	e.unarmed_damage = data.unarmed_damage
 	e.inventory.assign(data.inventory)
 	e.abilities.assign(data.abilities)
+	e.cooldowns = PackedInt32Array(data.cooldowns)
 	return e
 
 

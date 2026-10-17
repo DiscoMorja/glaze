@@ -43,6 +43,13 @@ const PARTICLE_SECONDS := 2.0
 static var _scenes := {}  # key -> PackedScene, or null when missing
 
 
+## Loads every pack effect up front (call during scene setup) so the first
+## use of an effect doesn't hitch mid-combat.
+static func preload_all() -> void:
+	for key: String in EFFECTS:
+		_scene(key)
+
+
 static func has(key: String) -> bool:
 	return _scene(key) != null
 
