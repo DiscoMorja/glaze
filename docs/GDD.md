@@ -1,0 +1,269 @@
+# glaze — Game Design Document
+
+Living document. Update it when a decision changes; record the change in the Decision Log at the bottom.
+
+---
+
+## 1. Vision
+
+A top-down 3D, turn-based party RPG for online co-op, inspired by Divinity: Original Sin 1 & 2 — but built around **systems, not content volume**.
+
+The fun we are chasing is the systemic moments those games produce: elemental and liquid interactions, moving any object in the world, pickpocketing and abusing systems, and setting up an encounter before it begins. We do not copy Divinity's mechanics; we keep what makes them fun and push further where a solo developer can win: simulation depth instead of content breadth.
+
+**North-star goal:** a Prologue / Act 1 that the developer and their partner — veterans of thousands of hours of Divinity and Baldur's Gate — play together online and have a blast.
+
+### Elevator pitch
+
+> A handcrafted co-op tactics RPG where the world is a deterministic material simulation. Explore in real time, fight in turns. Every quest checks outcomes, not methods — systems are always a valid solution.
+
+---
+
+## 2. Design Pillars
+
+1. **The world is the weapon.** Verbs act on the world, not just on enemies. Oil, water, gas, heat, height and mass are tools.
+2. **Same rules for everyone.** Enemies, allies, NPCs, animals and furniture all obey the same simulation. Fairness makes chaos funny instead of cheap.
+3. **Deterministic rules, chaotic chain reactions.** Every rule is predictable and previewable; the *combinations* produce surprise.
+4. **Outcomes, not methods.** Quests and objectives check world state. Pickpocket, teleport, burn, bribe or kill — all valid.
+5. **Readable chaos.** The player can always read the board. If a situation can't be understood, it isn't fun — fix the readability, don't cut the system.
+6. **Better together.** Co-op is the default way to play. Systems should reward splitting up, coordinating and occasionally betraying each other.
+
+### What we learned from Divinity (and want to improve)
+
+| Divinity strength | Keep | Divinity weakness | Our answer |
+|---|---|---|---|
+| World-reactive verbs | Yes | Late-game surface clutter, unreadable boards | Surfaces decay, limited states per cell, strong previews and overlays |
+| Same rules for all | Yes | Armor system blocks CC → kills creativity | Do not gate systemic effects behind armor pools |
+| Pre-combat setup | Yes, as real-time exploration | Dominant combos (rain + lightning) | Varied encounter gimmicks, enemy counters, objectives beyond "kill all" |
+| "Break the game" permission | Yes | Long, slow fights | Smaller encounters, fewer but deeper verbs, objective-based fights |
+| Elemental combos | Yes | Surfaces are flat 2D decals | Volumetric sim with height: liquids flow, gas rises and drifts |
+
+---
+
+## 3. Scope
+
+- **Solo developer, ~6–8 hours/week.** All code is written by Claude Code; the developer designs, directs, reviews, builds levels, writes, and playtests.
+- **Target: Prologue / Act 1** playable in co-op within ~12–18 months.
+
+| Content | Prologue target |
+|---|---|
+| Zones | 1 hub + 1 zone |
+| Bespoke encounters | 5–6, each with a memorable gimmick |
+| Quests & events | 8–12 (fact-driven) |
+| Player characters | 4 (2 per player), lightly-written origins |
+| Named NPCs with dialogue | ~10–20 |
+| Playtime | 2–3 hours co-op |
+
+Grow toward a fuller Act 1 only after the Prologue proves fun.
+
+**Scope rules**
+- No new system until the existing ones are fun.
+- Fewer verbs, each deep. Every verb must interact with materials.
+- Art is stylized low-poly using asset packs (Quaternius, Kenney, Synty) and shared humanoid rig + Mixamo animations.
+
+---
+
+## 4. Core Loop
+
+```
+Explore (real time) ──► interact with world, scheme, steal, set up ──► combat triggers
+        ▲                                                                   │
+        │                                                                   ▼
+   consequences ◄── quest facts updated ◄── resolve (turn-based) ◄── fight with your setup
+```
+
+- **Exploration (real time):** move freely, talk, loot, pickpocket, sneak, move objects, prepare surfaces. This *is* the "prep phase" — there is no separate planning mode.
+- **Combat (turn-based):** starts when hostility is triggered. Everyone fights from their current positions, so exploration setup carries directly into combat.
+- **Transition (v1):** when combat starts, the **whole world switches to turn-based** and all players join. (Divinity/BG3 allow split real-time/turn-based; deferred — see Open Questions.)
+
+---
+
+## 5. Systems
+
+### 5.1 World Grid & Material Simulation
+
+- **Square grid**, fine resolution (start at **1 m cells**, tunable), with **height levels**. The grid is mostly invisible; it drives simulation, not movement visuals.
+- Square was chosen over hex because handcrafted 3D architecture (walls, doors, corridors, rooms) is rectangular. Circular area masks and 8-neighbour spreading hide square artifacts.
+
+**Cell model (per cell)**
+- **Ground layer:** liquid/surface material (water, oil, blood, poison, ice, mud…) + amount/depth.
+- **Volume layer:** gas/cloud (steam, smoke, poison gas…) + density.
+- **Temperature** (integer).
+- **Fire** intensity (integer, 0 = none).
+- **Charge** (electrified, integer duration).
+- **Solid/occupancy:** blocked, object references.
+
+**Behaviour**
+- Liquids flow downhill and pool by depth.
+- Gases rise and drift (wind is a zone/encounter parameter).
+- Fire spreads along fuel; heat accumulates and transfers.
+- States decay over time to avoid board clutter.
+
+**Starter interaction table (draft, to be tuned)**
+
+| A | B | Result |
+|---|---|---|
+| Fire | Oil | Burning oil surface, spreads |
+| Fire | Water | Steam cloud, fire out |
+| Cold | Water | Ice (slippery) |
+| Fire | Ice | Water |
+| Lightning | Water | Electrified water (stun on contact) |
+| Lightning | Steam | Electrified cloud |
+| Fire | Poison gas | Explosion |
+| Water | Fire (on unit) | Extinguish |
+
+### 5.2 Object Model — "Everything is an object"
+
+Characters, barrels, chairs, doors, chests and potions share **one property model**:
+
+- mass, material, flammable, conductive, wet, frozen, contents, owner, faction, hp/durability.
+
+**Spells and verbs act on properties, never on types.** Teleport moves *anything* under a mass limit; freeze works on any liquid — including the potion in an enemy's pocket. New items cost one data entry; combinations emerge for free.
+
+### 5.3 Verbs (starter set)
+
+| Verb | Notes |
+|---|---|
+| Fire | Ignite cell/object/unit |
+| Water | Create water surface / douse |
+| Teleport | Move any object or unit under mass limit to target cell |
+| Push / Shove | Knockback into hazards, off heights |
+| Steal | Pickpocket in exploration *and* combat |
+
+Expand only after these five are deeply fun together.
+
+### 5.4 NPC Simulation (light)
+
+Needed for pickpocketing, crime and abusing systems:
+
+- **Perception:** sight cones, witnesses.
+- **Ownership:** every item has an owner; theft is a world event.
+- **Crime:** witnessed events propagate through factions → hostility, guards, prices.
+- **Needs/states:** greed (grab dropped loot), fear (flee fire), loyalty. Schedules minimal.
+- Throw gold → scramble. Enemies use the same rules as players.
+
+### 5.5 Combat
+
+- Turn-based, units on navmesh, movement cost per distance (Divinity-like), positions mapped to grid cells for rules.
+- **Previews:** hovering an action shows its first-order chain ("ignites 4 cells, 2 enemies, 1 ally").
+- **Optional undo** of the last action (setting) to encourage experimentation.
+- **Objectives beyond "kill all":** assassinate, steal, rescue, survive, escape, protect.
+- **AI:** utility scoring over simulated outcomes — enemies "see" hazards because they run the same sim on a copy of the state. Candidate positions sampled from grid cells.
+- *Open:* action economy and initiative model (see Open Questions).
+
+### 5.6 Generated Narration
+
+A combat/event log and barks built from simulation events — e.g. *"Gerald was teleported into the well. Gerald cannot swim."* Provides "funny story" value at near-zero writing cost.
+
+---
+
+## 6. Quests & Events — Outcomes, Not Methods
+
+- Quests are **predicates over world facts**, never step-by-step scripts.
+  - "Retrieve the ring" → `ring.holder in party`. Pickpocket, teleport the chest, kill the owner, buy it — all count.
+  - "Stop the raid" → bandits dead, fled, bribed, or bridge burned.
+- **Dynamic events** are small authored hooks that fire on world conditions:
+  - Granary catches fire → farmer asks for help.
+  - Guard captain dies → town faction state changes.
+- Dialogue reads/writes facts directly.
+- **Dialogue tool:** Dialogue Manager (Godot addon, GDScript-native) or Yarn Spinner — decide in M4.
+
+---
+
+## 7. Co-op Design
+
+- **Online only** (no split-screen). 2 players, each controls 2 characters (party of 4).
+- **Separate inventories** — players can steal from each other.
+- **Player disagreement** in dialogue (Divinity 1 rock-paper-scissors style — cheap and loved).
+- Systems reward co-op tricks: one distracts the merchant while the other steals; split up and set a pincer before combat.
+- Design for splitting up and regrouping.
+
+---
+
+## 8. Technical Architecture
+
+### 8.1 Engine & Language
+
+- **Godot 4.7**, Forward+, Jolt Physics.
+- **GDScript only** (no .NET). Rationale: no .NET build dependency, works natively with the godot-ai MCP addon, hot reload, simplest toolchain for AI-written code.
+- **Performance escape hatch:** the simulation is written so hot loops can be ported to a GDExtension (C++ or Rust) later *if profiling shows a need*. Do not port pre-emptively.
+
+### 8.2 Layering
+
+```
+sim/      Pure simulation. RefCounted classes + Packed arrays. No Nodes, no SceneTree,
+          no rendering/physics/input. Grid, materials, rules, objects, commands, facts, AI.
+game/     Godot layer: scenes, rendering of sim state, input → commands, UI, audio, VFX.
+net/      Networking glue: command transport, state/event replication.
+tests/    Headless unit tests for sim/ (GUT).
+```
+
+The sim layer must be runnable headless and in isolation — this enables previews, undo, AI lookahead, save/load, replays and automated tests from one design.
+
+### 8.3 Simulation Clock
+
+- The sim advances in discrete **ticks**.
+- **Real time:** ticks at a fixed rate (start ~4 Hz).
+- **Combat:** one round = N ticks, advanced in batches at turn/round boundaries.
+- Same rules in both modes; only the pacing differs.
+
+### 8.4 Determinism
+
+- **Integers / fixed-point for all rules.** No floats in sim logic.
+- Seeded RNG owned by the sim state; never global `randf()`/`randi()`.
+- No dependence on frame time, node order, or physics engine results inside sim rules.
+- State checksums for desync detection and debugging; command logs for replays.
+
+### 8.5 Commands & Networking
+
+- **Every action is a command** (`MoveTo`, `CastSpell`, `Pickpocket`, `UseItem`…), in single-player too. Single-player = host with no clients.
+- **Host-authoritative** (listen server): clients send commands; host validates, runs the sim, broadcasts cell/unit deltas + an event stream (`Ignited`, `Teleported`, `Stolen`) that drives VFX and narration.
+- Clients keep a local replica for previews; never mutate authoritative state locally.
+- **Transport:** Godot high-level multiplayer (ENet). For dev/online play before Steam: direct IP over Tailscale/ZeroTier. Steam networking later.
+- **Co-op testing:** run multiple instances from the editor (Debug → Customize Run Instances).
+
+### 8.6 Data Layout (performance in GDScript)
+
+- Structure-of-arrays: one `PackedInt32Array` (or `PackedByteArray`) per cell field, flat index `x + y*w + z*w*h`.
+- No per-cell objects.
+- Process only active/dirty cells per tick.
+- Keep zones bounded (e.g. ~64×64×8 cells).
+
+---
+
+## 9. Roadmap
+
+| Milestone | Goal | Approx. time |
+|---|---|---|
+| **M0** | Repo, docs, folder layout, GUT, first grid + material model with tests, debug grid renderer | 2–3 weeks |
+| **M1** | Combat greybox: 1 arena, 4 materials, 5 verbs, turn system, previews — all via commands | ~2 months |
+| **M2** | Online co-op on that arena — **first session together** (feasibility gate) | ~1.5 months |
+| **M3** | Real-time exploration, combat transition, NPC perception, pickpocketing, crime | ~2–3 months |
+| **M4** | Fact/quest system, dialogue, vertical slice of one zone (~1 hour) | ~3 months |
+| **M5** | Prologue content production | remainder |
+
+**M2 is the real feasibility gate:** if co-op combat in a greybox arena makes both players laugh, continue.
+
+---
+
+## 10. Open Questions
+
+- Action economy: Divinity-style AP vs BG3-style action/bonus/move?
+- Initiative: individual vs side-based (players act together)?
+- Split combat (one player in combat, the other exploring) — post-Prologue?
+- Dialogue tool choice (M4).
+- Setting, tone and the four player characters.
+- Save system scope (anywhere vs checkpoints) in co-op.
+
+---
+
+## 11. Decision Log
+
+| Date | Decision |
+|---|---|
+| 2026-10-17 | Small handcrafted campaign with bespoke encounters and fact-driven dynamic quests/events (not a roguelite). |
+| 2026-10-17 | Deterministic rules with chaotic chain reactions; previewable. |
+| 2026-10-17 | Real-time exploration doubles as prep; turn-based combat. Whole world goes turn-based on combat (v1). |
+| 2026-10-17 | Online co-op only, 2 players × 2 characters; host-authoritative; command pattern from day one. |
+| 2026-10-17 | Fine square grid (not hex) for simulation; navmesh movement. |
+| 2026-10-17 | GDScript only (dropped C#/.NET); GDExtension as a later performance escape hatch. |
+| 2026-10-17 | Scope: Prologue (1 hub + 1 zone, 2–3 h co-op) targeted at 12–18 months, 6–8 h/week, Claude Code writes the code. |
