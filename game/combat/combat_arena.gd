@@ -43,6 +43,8 @@ const EXPLORE_TICKS_PER_SECOND := 4.0
 const COLOR_DANGER := Color(1.0, 0.2, 0.15, 0.13)
 ## Only enemies this close (cells, per axis) to the party show their sight.
 const DANGER_SHOW_RADIUS := 40
+## Exploring: the walk preview waits this long after the hovered cell changes.
+const EXPLORE_PREVIEW_DELAY_MSEC := 60
 
 const COLOR_CURSOR := Color(1, 1, 1, 0.45)
 const COLOR_INVALID := Color(1, 0.15, 0.1, 0.5)
@@ -62,6 +64,8 @@ const COLOR_ENEMY_TARGET := Color(1.0, 0.55, 0.1, 0.6)
 @export var level_scene: PackedScene
 ## Prints the perf readout to the output every 2 s (stress-test levels).
 @export var log_perf := false
+## Start with the PSX look on (P toggles it).
+@export var psx_look := false
 
 var state: SimState
 var _level: GameLevel
@@ -99,8 +103,11 @@ var _frame_window := 0.0
 var _perf := {}
 ## [watcher id, cell] -> floor cells that watcher sees (see _danger_cells).
 var _danger_cache := {}
+## When to refresh the hover preview while exploring (0 = nothing pending).
+var _preview_due_msec := 0
 
 var _grid_renderer: SimGridRenderer
+var _psx: PsxLook
 var _fire_field: FireField
 var _vfx: VfxPlayer
 var _entity_renderer: SimEntityRenderer
@@ -129,6 +136,9 @@ func _process(delta: float) -> void:
 	if state == null:
 		return
 	_update_hover()
+	if _preview_due_msec > 0 and Time.get_ticks_msec() >= _preview_due_msec:
+		_preview_due_msec = 0
+		_update_preview()
 	if _exploring() and not _busy:
 		_tick_accumulator += delta
 		var tick_seconds := 1.0 / EXPLORE_TICKS_PER_SECOND
@@ -154,10 +164,19 @@ func _update_hover() -> void:
 	if view == _last_pick_view and not _force_pick:
 		return
 	_last_pick_view = view
+	var forced := _force_pick
 	_force_pick = false
 	var hover: Variant = _rig.pick_cell(state, _mouse_pos)
 	if typeof(hover) != typeof(_hover) or hover != _hover:
 		_hover = hover
+		if _exploring() and not forced:
+			# Route searches can take a few ms each: wait for the cursor to settle.
+			_preview_due_msec = Time.get_ticks_msec() + EXPLORE_PREVIEW_DELAY_MSEC
+		else:
+			_preview_due_msec = 0
+			_update_preview()
+	elif forced and _preview_due_msec > 0:
+		_preview_due_msec = 0
 		_update_preview()
 
 
@@ -183,6 +202,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_F4: _select_index(3)
 			KEY_ENTER, KEY_KP_ENTER: _end_turn()
 			KEY_R: _restart()
+			KEY_P:
+				_psx.toggle(_level)
+				_refresh()
 	elif event is InputEventMouseButton and event.pressed:
 		if _confirming_end_turn:
 			return
@@ -217,6 +239,10 @@ func _restart() -> void:
 		return
 	state = baked
 	_danger_cache.clear()
+	if psx_look and not _psx.enabled:
+		_psx.set_enabled(true, _level)
+	else:
+		_psx.apply(_level)
 	_grid_renderer.show_solids = false
 	_rig.position = Vector3(state.grid.size.x / 2.0, 2.0, state.grid.size.z / 2.0)
 	_tick_accumulator = 0.0
@@ -796,6 +822,9 @@ func _target_reason(command: SimCommand) -> String:
 			return "Not enough AP"
 		return "Too far to hit"
 	elif command is TravelCommand:
+		var walker := state.get_entity((command as TravelCommand).entity_id)
+		if walker != null and TravelCommand.too_far(walker.cell, (command as TravelCommand).destination):
+			return "Too far — walk closer first"
 		return "Can't get there"
 	elif command is MoveCommand:
 		if MoveCommand.path_for(state, actor, (command as MoveCommand).destination).is_empty():
@@ -1070,6 +1099,9 @@ func _build_scene() -> void:
 	_markers = CellMarkers.new()
 	add_child(_markers)
 
+	_psx = PsxLook.new()
+	add_child(_psx)
+
 	_rig = CameraRig.new()
 	_rig.zoom = 18.0
 	add_child(_rig)
@@ -1190,7 +1222,7 @@ func _refresh() -> void:
 		lines.append("%s the %s   weapon: %s   carrying: %s" % [actor.name, SimArchetypes.title(actor.archetype), actor.weapon if actor.weapon != "" else "none", items])
 	lines.append("%s   %s" % [_mode_name(), _preview_text])
 	lines.append("RMB move   LMB use / select   1-9 actions   Esc cancel   F1-F4 / Tab select   Enter end turn   Space (hold) fast-forward   R restart")
-	lines.append("WASD pan   Q/E rotate   wheel zoom")
+	lines.append("WASD pan   Q/E rotate   wheel zoom   P PSX look (%s)" % ("on" if _psx.enabled else "off"))
 	lines.append(_perf_text())
 	_hud.text = "\n".join(lines)
 	_log_label.text = "\n".join(_log)

@@ -101,8 +101,10 @@ static func affordable_prefix(from: Vector3i, path: Array[Vector3i], budget: int
 
 ## Path from `from` to `to`, excluding `from`. With stop_adjacent the path ends
 ## next to `to` instead of on it. With avoid_hazards the search pays extra to
-## route around fire and ice. Returns [] when there is no path or no move is needed.
-static func find_path(state: SimState, from: Vector3i, to: Vector3i, mover_id: int = -1, stop_adjacent: bool = false, avoid_hazards: bool = true) -> Array[Vector3i]:
+## route around fire and ice. With max_cells > 0 the search gives up after
+## settling that many cells, so a far or unreachable goal costs a bounded
+## amount. Returns [] when there is no path or no move is needed.
+static func find_path(state: SimState, from: Vector3i, to: Vector3i, mover_id: int = -1, stop_adjacent: bool = false, avoid_hazards: bool = true, max_cells: int = 0) -> Array[Vector3i]:
 	var grid := state.grid
 	var none: Array[Vector3i] = []
 	if not grid.in_bounds(from) or not grid.in_bounds(to):
@@ -123,6 +125,8 @@ static func find_path(state: SimState, from: Vector3i, to: Vector3i, mover_id: i
 		if closed.has(idx):
 			continue
 		closed[idx] = true
+		if max_cells > 0 and closed.size() > max_cells:
+			return none
 		var c := grid.coord(idx)
 		if _is_goal(c, to, stop_adjacent):
 			return _reconstruct(grid, came_from, idx, start)

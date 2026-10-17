@@ -58,7 +58,7 @@ Grow toward a fuller Act 1 only after the Prologue proves fun.
 **Scope rules**
 - No new system until the existing ones are fun.
 - Fewer verbs, each deep. Every verb must interact with materials.
-- Art is stylized low-poly using asset packs (Quaternius, Kenney, Synty) and shared humanoid rig + Mixamo animations.
+- Art is **low-poly, PSX-inspired**: few polygons, small low-resolution textures with nearest filtering, a limited palette, simple lighting with fog. Chosen because it is cheap to make and keeps a one-person content pipeline consistent: asset packs in that style (PSX packs, Kenney, Quaternius) mix well, and imperfections read as style. Shared humanoid rig + Mixamo animations. Not chasing high fidelity; a PSX presentation layer unifies mixed assets. Prototype: `PsxLook` (press P in game) renders 3D at 1/3 resolution with nearest upscale, 15-bit colour with ordered dithering, nearest texture filtering, and swaps opaque level materials for a shader with vertex snapping and per-vertex lighting (terrain gets nearest filtering only).
 
 ---
 
@@ -71,7 +71,7 @@ Explore (real time) ──► interact with world, scheme, steal, set up ──�
    consequences ◄── quest facts updated ◄── resolve (turn-based) ◄── fight with your setup
 ```
 
-- **Exploration (real time):** move freely, talk, loot, pickpocket, sneak, move objects, prepare surfaces. This *is* the "prep phase" — there is no separate planning mode. The sim ticks live (4 Hz); characters walk the sim grid one cell per tick (paths around hazards, re-routing around anyone in the way). Right-click walks the party, the others following to the nearest free cells. Abilities need no AP outside combat, but cooldowns still run (8 ticks = one turn).
+- **Exploration (real time):** move freely, talk, loot, pickpocket, sneak, move objects, prepare surfaces. This *is* the "prep phase" — there is no separate planning mode. The sim ticks live (4 Hz); characters walk the sim grid one cell per tick (paths around hazards, re-routing around anyone in the way). Right-click walks the party, the others following to the nearest free cells. One order reaches at most 40 cells along x or z (click again on the way); the walk preview waits for the cursor to settle. Abilities need no AP outside combat, but cooldowns still run (8 ticks = one turn).
 - **Combat (turn-based):** starts when hostility is triggered: an enemy with sight (6 cells for enemy roles) sees a party member with line of sight, or someone hurts a fighter of the other side. Preparing the ground (oil, water, moving barrels) does not. Enemy sight areas are tinted red while exploring. Everyone fights from their current positions, so exploration setup carries directly into combat; after a win the world goes back to real time.
 - **Transition (v1):** when combat starts, the **whole world switches to turn-based** and all players join. The fight itself is **local**: the whole party, plus the enemies that spotted or were hurt (or hurt someone) and their **packs** (`LevelSpawn.pack`, by default the parent node, so a pack is a group of markers under one node). Other packs sit it out; a pack joins at the start of a side turn if it sees a fighter, or as soon as one of its members is hurt. Combat ends when the joined enemies are down. (Divinity/BG3 allow split real-time/turn-based; deferred — see Open Questions.)
 
@@ -322,5 +322,6 @@ Levels are built freely in Godot and baked into the sim (`GameLevel.bake()`, run
 | 2026-10-17 | Turn presentation: animated world advance, telegraphed enemy actions with camera follow and captions, AI on a worker thread. |
 | 2026-10-17 | Abilities have cooldowns (in turns, per user, combat only); fixes endless heal-vs-damage duels. |
 | 2026-10-17 | Exploration prototype before co-op: real-time walking on the sim grid (not navmesh) in both modes; combat starts on sight or hostility; levels are Terrain3D + collision structures + markers, baked to the sim grid at load. |
+| 2026-10-18 | Art direction: low-poly, PSX-inspired look (not high fidelity), fitting a solo content pipeline. Engine stays Godot; a GDExtension port of `sim/` is the escape hatch if sim speed becomes the limit. |
 | 2026-10-18 | Fights are local: the party plus spotting/provoked enemies and their packs; other packs sit out. Sim grid copies are copy-on-write; fire and heat keep sparse cell sets. Stress level `levels/highlands` (256 m, 32 packs). |
 | 2026-10-17 | Scope: Prologue (1 hub + 1 zone, 2–3 h co-op) targeted at 12–18 months, 6–8 h/week, Claude Code writes the code. |

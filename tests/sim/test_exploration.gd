@@ -111,3 +111,19 @@ func test_back_to_real_time_after_a_win() -> void:
 	assert_true(state.apply_command(TravelCommand.new(1, Vector3i(2, Y, 2))), "walking works again")
 	state.step()
 	assert_false(state.combat.active, "a dead bandit doesn't restart the fight")
+
+
+func test_travel_is_limited_in_distance() -> void:
+	var state := Fixtures.flat_state(Vector3i(60, 5, 6))
+	state.add_entity(SimEntity.character("Hero", PLAYERS, Vector3i(1, Y, 2), 20))
+	var far := Vector3i(1 + TravelCommand.MAX_DISTANCE + 1, Y, 2)
+	assert_false(state.apply_command(TravelCommand.new(1, far)), "too far for one order")
+	assert_true(state.apply_command(TravelCommand.new(1, far - Vector3i(1, 0, 0))), "just within reach")
+
+
+func test_route_search_gives_up_on_a_walled_off_goal() -> void:
+	var state := _field(0)
+	# A box around (10, Y, 5): reachable by nobody.
+	state.grid.fill_solid(Vector3i(9, Y, 4), Vector3i(11, Y + 3, 6))
+	state.grid.fill_solid(Vector3i(10, Y, 5), Vector3i(10, Y + 3, 5), false)
+	assert_eq(SimPathfinder.find_path(state, Fixtures.hero(state).cell, Vector3i(10, Y, 5), 1, false, true, 50).size(), 0)
