@@ -24,6 +24,12 @@ const _INDEX_BITS := 24
 const _INDEX_MASK := (1 << 24) - 1
 
 
+## Highest rise (or drop) between neighbouring floors a unit can walk, in cm:
+## one-level steps on structures (stairs, platforms: 100) pass. Between two
+## terrain floors the limit is lower, so steep (rocky) slopes are cliffs.
+const MAX_CLIMB_CM := 110
+const MAX_SLOPE_CM := 70
+
 ## A cell a unit can stand in: open, on solid ground, not taken by another living entity.
 static func is_standable(state: SimState, c: Vector3i, mover_id: int = -1) -> bool:
 	return _standable(state.grid, occupancy(state), c, mover_id)
@@ -50,6 +56,13 @@ static func _standable(grid: SimGrid, occupied: Dictionary, c: Vector3i, mover_i
 	return occupant == -1 or occupant == mover_id
 
 
+## Whether the floors of two neighbouring cells are close enough in height to
+## walk between (the same both ways, which the pocket check relies on).
+static func _climbable(grid: SimGrid, a: Vector3i, b: Vector3i) -> bool:
+	var limit := MAX_SLOPE_CM if grid.is_terrain_floor(a) and grid.is_terrain_floor(b) else MAX_CLIMB_CM
+	return absi(grid.floor_cm(a) - grid.floor_cm(b)) <= limit
+
+
 static func _neighbors(grid: SimGrid, occupied: Dictionary, c: Vector3i, mover_id: int) -> Array[Vector3i]:
 	var result: Array[Vector3i] = []
 	for d: Vector3i in DIRS_8:
@@ -58,16 +71,17 @@ static func _neighbors(grid: SimGrid, occupied: Dictionary, c: Vector3i, mover_i
 			continue  # no cutting corners
 		var n := c + d
 		if _standable(grid, occupied, n, mover_id):
-			result.append(n)
+			if _climbable(grid, c, n):
+				result.append(n)
 		elif diagonal:
 			continue
 		elif grid.is_solid(n):
 			var up := n + Vector3i.UP
-			if not grid.is_solid(c + Vector3i.UP) and _standable(grid, occupied, up, mover_id):
+			if not grid.is_solid(c + Vector3i.UP) and _standable(grid, occupied, up, mover_id) and _climbable(grid, c, up):
 				result.append(up)
 		elif not grid.is_supported(n):
 			var down := n + Vector3i.DOWN
-			if _standable(grid, occupied, down, mover_id):
+			if _standable(grid, occupied, down, mover_id) and _climbable(grid, c, down):
 				result.append(down)
 	return result
 
@@ -200,6 +214,39 @@ static func _in_pocket_without(grid: SimGrid, occupied: Dictionary, goal: Vector
 				return false
 			queue.append(n)
 	return true
+
+
+## Walking cost from the nearest of `sources` to every cell within max_cost
+## (Dijkstra outward; walking is symmetric, so it is also the cost from each
+## cell to them). Sources are usually occupied (opponents), so they seed the
+## search instead of being stood on.
+static func distance_field(state: SimState, sources: Array[Vector3i], max_cost: int, mover_id: int = -1) -> Dictionary:
+	var grid := state.grid
+	var occupied := occupancy(state)
+	var g := {}
+	var closed := {}
+	var heap := PackedInt64Array()
+	for s in sources:
+		var si := grid.index(s)
+		if not g.has(si):
+			g[si] = 0
+			_push(heap, 0, si)
+	var result := {}
+	while not heap.is_empty():
+		var idx := _pop(heap) & _INDEX_MASK
+		if closed.has(idx):
+			continue
+		closed[idx] = true
+		var c := grid.coord(idx)
+		var base_cost: int = g[idx]
+		result[c] = base_cost
+		for n in _neighbors(grid, occupied, c, mover_id):
+			var ni := grid.index(n)
+			var cost := base_cost + step_cost(c, n)
+			if cost <= max_cost and not closed.has(ni) and (not g.has(ni) or cost < g[ni]):
+				g[ni] = cost
+				_push(heap, cost, ni)
+	return result
 
 
 static func _is_goal(c: Vector3i, to: Vector3i, stop_adjacent: bool) -> bool:

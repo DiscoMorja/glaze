@@ -32,11 +32,14 @@ const FIRE_TEMPERATURE := 200
 ## Temperature moves toward ambient by this much per tick.
 const THERMAL_RELAX_PER_TICK := 1
 
-const FIRE_MAX := 10
+## Fire lasts: while fuel remains (OIL_BURN_PER_TICK used per tick), then
+## FIRE_MAX / FIRE_DECAY ticks dying down. A lit Oil Flask puddle (24 oil per
+## cell) burns 12 + 12 = 24 ticks, three rounds; fire on bare ground 12 ticks.
+const FIRE_MAX := 12
 ## Fire intensity lost per tick when there is no fuel.
-const FIRE_DECAY := 2
-const OIL_BURN_PER_TICK := 8
-const SMOKE_PER_BURN_TICK := 12
+const FIRE_DECAY := 1
+const OIL_BURN_PER_TICK := 2
+const SMOKE_PER_BURN_TICK := 4
 ## Water consumed and steam created when fire meets water.
 const WATER_PER_EXTINGUISH := 20
 const STEAM_PER_EXTINGUISH := 40

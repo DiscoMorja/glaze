@@ -34,6 +34,13 @@ var gas_amount := PackedInt32Array()
 var temperature := PackedInt32Array()
 var fire := PackedInt32Array()
 
+## Real floor heights from the level bake (integer centimetres): the walk
+## layer of each terrain column and the terrain height there (index
+## x + z * width; empty when there is no terrain). See floor_cm(). Fixed after
+## the bake, so copies share them.
+var terrain_floor := PackedInt32Array()
+var terrain_height_cm := PackedInt32Array()
+
 ## Cells whose temperature differs from ambient (index -> true), so heat is
 ## processed per hot or cold cell instead of over the whole grid.
 var heat_cells := {}
@@ -84,6 +91,28 @@ func is_solid(c: Vector3i) -> bool:
 ## A cell is supported when the cell below it is solid (liquids rest on it).
 func is_supported(c: Vector3i) -> bool:
 	return is_solid(c + Vector3i.DOWN)
+
+
+# --- Floor heights ------------------------------------------------------------
+
+func set_terrain(floors: PackedInt32Array, heights_cm: PackedInt32Array) -> void:
+	terrain_floor = floors
+	terrain_height_cm = heights_cm
+
+
+## Whether a cell stands on terrain (its column's walk layer), not a structure.
+func is_terrain_floor(c: Vector3i) -> bool:
+	return not terrain_floor.is_empty() and terrain_floor[c.x + c.z * size.x] == c.y
+
+
+## Height (cm) of the floor a cell stands on: the real terrain height on a
+## terrain column's walk layer, else the cell's level (y * 100).
+func floor_cm(c: Vector3i) -> int:
+	if not terrain_floor.is_empty():
+		var column := c.x + c.z * size.x
+		if terrain_floor[column] == c.y:
+			return terrain_height_cm[column]
+	return c.y * 100
 
 
 # --- Writing (copy-on-write) --------------------------------------------------
@@ -321,6 +350,8 @@ func duplicate_grid() -> SimGrid:
 	copy.gas_amount = gas_amount
 	copy.temperature = temperature
 	copy.fire = fire
+	copy.terrain_floor = terrain_floor
+	copy.terrain_height_cm = terrain_height_cm
 	copy.heat_cells = heat_cells.duplicate()
 	copy.fire_cells = fire_cells.duplicate()
 	copy._maybe = _maybe

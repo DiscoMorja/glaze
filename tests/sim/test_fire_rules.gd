@@ -33,7 +33,7 @@ func test_burning_consumes_fuel_and_makes_smoke() -> void:
 	var c := Vector3i(4, Y, 4)
 	grid.add_surface(c, OIL, 5)
 	state.apply_command(IgniteCommand.new(c))
-	state.step()
+	state.step_ticks(ceili(5.0 / SimMaterials.OIL_BURN_PER_TICK))
 	assert_eq(grid.total_surface(OIL), 0)
 	assert_gt(grid.total_gas(SimMaterials.Gas.SMOKE), 0)
 
@@ -69,3 +69,17 @@ func test_fire_heats_its_cell() -> void:
 	state.apply_command(IgniteCommand.new(c))
 	state.step()
 	assert_gt(grid.temperature[grid.index(c)], SimMaterials.AMBIENT_TEMPERATURE)
+
+
+func test_a_lit_oil_flask_puddle_burns_three_rounds() -> void:
+	var state := Fixtures.flat_state()
+	var grid := state.grid
+	var c := Vector3i(4, Y, 4)
+	for cell in SimAbilities.splash_cells(grid, c, SimAbilities.OIL_FLASK_RADIUS):
+		grid.add_surface(cell, OIL, SimAbilities.OIL_FLASK_AMOUNT)
+	FireRules.ignite(state, c)
+	var round_ticks := 2 * CombatRules.TICKS_PER_SIDE_TURN
+	state.step_ticks(3 * round_ticks - 1)
+	assert_gt(grid.fire_cells.size(), 0, "still burning late in the third round")
+	state.step()
+	assert_eq(grid.fire_cells.size(), 0, "out after three rounds")

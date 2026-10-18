@@ -126,3 +126,46 @@ func test_ai_is_deterministic() -> void:
 	_enemy_turn(a)
 	_enemy_turn(b)
 	assert_eq(a.checksum(), b.checksum())
+
+
+func test_melee_takes_the_stairs_instead_of_the_cliff_edge() -> void:
+	# A plateau two levels high (top floor y = 3) over x 0..5, with one stair
+	# block at (6, 1, 4) as the only way down. The hero waits below the cliff.
+	var state := Fixtures.flat_state(Vector3i(12, 6, 6))
+	state.grid.fill_solid(Vector3i(0, Y, 0), Vector3i(5, Y + 1, 5))
+	state.grid.fill_solid(Vector3i(6, Y, 4), Vector3i(6, Y, 4))
+	var hero := state.add_entity(SimEntity.character("Hero", PLAYERS, Vector3i(7, Y, 0), 20, "Sword", 4))
+	var bandit := state.add_entity(SimEntity.character("Bandit", ENEMIES, Vector3i(2, Y + 2, 0), 12, "Club", 3))
+	state.apply_command(StartCombatCommand.new())
+	assert_eq(SimPathfinder.find_path(state, bandit.cell, Vector3i(5, Y + 2, 0), bandit.id).size() > 0, true, "the edge above the hero is walkable")
+	_enemy_turn(state)
+	assert_true(bandit.cell.z >= 3 or bandit.cell.y == Y, "heads for the stair, not the edge above the hero (at %s)" % bandit.cell)
+	assert_eq(hero.hp, 20)
+
+
+## A melee bandit at (6, 1, 3) with a firecaller (ranged) at (6, 1, 1), in a
+## 16x5x18 field, and a hero at `hero_at`.
+func _guard_field(hero_at: Vector3i) -> SimState:
+	var state := Fixtures.flat_state(Vector3i(16, 5, 18))
+	state.add_entity(SimEntity.character("Hero", PLAYERS, hero_at, 20, "Sword", 4))
+	state.add_entity(SimEntity.character("Bandit", ENEMIES, Vector3i(6, Y, 3), 12, "Club", 3))
+	state.add_entity(SimEntity.character("Caster", ENEMIES, Vector3i(6, Y, 1), 12, "Staff", 2, [], [A.FIREBOLT]))
+	state.apply_command(StartCombatCommand.new())
+	return state
+
+
+func test_melee_prefers_staying_near_its_caster_over_advancing_alone() -> void:
+	var state := _guard_field(Vector3i(6, Y, 17))
+	var bandit := Fixtures.bandit(state)
+	EntityOps.place(state, bandit, Vector3i(6, Y, 4))
+	var near_caster := UtilityAi._position_value(state, bandit)
+	EntityOps.place(state, bandit, Vector3i(6, Y, 12))
+	var alone := UtilityAi._position_value(state, bandit)
+	assert_gt(near_caster, alone, "8 cells closer to the hero isn't worth leaving the caster")
+
+
+func test_melee_leaves_its_caster_to_hit_someone_in_reach() -> void:
+	var state := _guard_field(Vector3i(6, Y, 8))
+	var hero := Fixtures.hero(state)
+	_enemy_turn(state)
+	assert_lt(hero.hp, 20, "close enough to walk up and hit this turn")

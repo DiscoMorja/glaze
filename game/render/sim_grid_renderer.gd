@@ -1,17 +1,13 @@
 class_name SimGridRenderer
 extends Node3D
-## Draws a SimGrid with one MultiMesh per layer: solid tops, surfaces, gas, fire.
-## Greybox visuals; call render() after the sim changes.
+## Draws a SimGrid: ground surfaces as smooth puddles (SurfaceRenderer), and one
+## MultiMesh per layer for solid tops, gas and fire. Greybox visuals for the
+## latter; call render() after the sim changes.
 ##
 ## Solids rarely change, so they are only rebuilt when the solid array does.
 ## Instance data is uploaded in one bulk buffer per layer instead of per
 ## instance calls, which keeps a redraw to a few milliseconds.
 
-const SURFACE_COLORS := {
-	SimMaterials.Surface.WATER: Color(0.2, 0.45, 0.95, 0.8),
-	SimMaterials.Surface.OIL: Color(0.12, 0.08, 0.03, 0.95),
-	SimMaterials.Surface.ICE: Color(0.8, 0.93, 1.0, 0.9),
-}
 const GAS_COLORS := {
 	SimMaterials.Gas.STEAM: Color(0.95, 0.95, 1.0),
 	SimMaterials.Gas.SMOKE: Color(0.2, 0.2, 0.2),
@@ -23,7 +19,7 @@ var show_fire := true
 var show_solids := true
 
 var _solid_layer: MultiMeshInstance3D
-var _surface_layer: MultiMeshInstance3D
+var _surfaces: SurfaceRenderer
 var _gas_layer: MultiMeshInstance3D
 var _fire_layer: MultiMeshInstance3D
 var _drawn_solids := PackedByteArray()
@@ -31,7 +27,8 @@ var _drawn_solids := PackedByteArray()
 
 func _ready() -> void:
 	_solid_layer = make_layer(self, Vector3(1, 1, 1), false, false)
-	_surface_layer = make_layer(self, Vector3(0.96, 1, 0.96), true, false)
+	_surfaces = SurfaceRenderer.new()
+	add_child(_surfaces)
 	_gas_layer = make_layer(self, Vector3(0.95, 0.95, 0.95), true, true)
 	_fire_layer = make_layer(self, Vector3(0.55, 0.7, 0.55), false, true)
 
@@ -45,10 +42,9 @@ func render(grid: SimGrid) -> void:
 		_render_solids(grid)
 		_drawn_solids = grid.solid.duplicate()
 
-	var surfaces := _Batch.new()
+	_surfaces.render(grid)
 	var gases := _Batch.new()
 	var fires := _Batch.new()
-	var surface_types := grid.surface_type
 	var gas_types := grid.gas_type
 	var fire := grid.fire
 	var full := float(SimMaterials.AMOUNT_FULL)
@@ -56,9 +52,6 @@ func render(grid: SimGrid) -> void:
 	# Only cells holding something, found with native searches, so a big
 	# mostly-empty world costs little to draw.
 	var cells := {}
-	if grid.has_any(SimGrid.FIELD_SURFACES):
-		for i in SimGrid.indices_of(surface_types, SURFACE_COLORS.keys()):
-			cells[i] = true
 	if grid.has_any(SimGrid.FIELD_GASES):
 		for i in SimGrid.indices_of(gas_types, GAS_COLORS.keys()):
 			cells[i] = true
@@ -67,19 +60,14 @@ func render(grid: SimGrid) -> void:
 			cells[i] = true
 
 	for i: int in cells:
-		var surface: int = surface_types[i]
 		var gas: int = gas_types[i]
 		var flame: int = fire[i] if show_fire else 0
-		if surface == 0 and gas == 0 and flame == 0:
+		if gas == 0 and flame == 0:
 			continue
 		var c := grid.coord(i)
 		var x := c.x + 0.5
 		var z := c.z + 0.5
 		var floor_y := WorldSpace.floor_y(c)
-		if surface != 0:
-			var fill := clampf(grid.surface_amount[i] / full, 0.0, 1.0)
-			var thickness := 0.04 + 0.3 * fill
-			surfaces.add(Vector3(x, floor_y + thickness / 2.0, z), Vector3(1, thickness, 1), SURFACE_COLORS[surface])
 		if gas != 0:
 			var color: Color = GAS_COLORS[gas]
 			color.a = clampf(grid.gas_amount[i] / full, 0.05, 0.6)
@@ -89,7 +77,6 @@ func render(grid: SimGrid) -> void:
 			var height := 0.3 + 0.7 * heat
 			fires.add(Vector3(x, floor_y + 0.35 * height, z), Vector3(1, height, 1), Color(1.0, 0.35 + 0.5 * heat, 0.05))
 
-	surfaces.apply(_surface_layer)
 	gases.apply(_gas_layer)
 	fires.apply(_fire_layer)
 

@@ -20,9 +20,19 @@ const W_HAZARD := 30  ## ending up standing in fire
 const W_DISTANCE := 1  ## per cell away from where the unit wants to be
 ## Cells from the nearest opponent that ranged units try to keep.
 const PREFERRED_RANGE := 5
+## Melee units guard their casters: they stay within this many cells of the
+## nearest ranged ally unless they end next to an opponent (an attack this
+## turn), so players can't lure them away one by one by waiting.
+const GUARD_RANGE := 4
+const W_GUARD := 3  ## per cell beyond GUARD_RANGE
 const MIN_SCORE := 1
 
 const MAX_MOVE_CANDIDATES := 12
+## Walk field reach (movement cost units: 10 per straight cell).
+const WALK_FIELD_SLACK := 200
+const WALK_FIELD_MAX := 1200
+## Melee move priority for cells the walk field doesn't reach.
+const UNREACHABLE_PENALTY := 100000
 const MAX_FIRE_TARGETS := 10
 const MAX_DROP_SPOTS := 4
 
@@ -33,13 +43,14 @@ static func next_command(state: SimState) -> SimCommand:
 	baseline.step_ticks(CombatRules.TICKS_PER_SIDE_TURN)
 	var best: SimCommand = null
 	var best_score := MIN_SCORE - 1
+	var walk := walk_field(state, CombatRules.opponent_of(side))
 	for e in CombatRules.fighters(state, side):
 		if e.ap <= 0:
 			continue
-		for candidate in candidates(state, e):
+		for candidate in candidates(state, e, walk):
 			if not candidate.validate(state):
 				continue
-			var value := score(state, baseline, e, candidate)
+			var value := score(state, baseline, e, candidate, walk)
 			if value > best_score:
 				best = candidate
 				best_score = value
@@ -48,10 +59,44 @@ static func next_command(state: SimState) -> SimCommand:
 	return best
 
 
+## Walking cost from the fighters of `faction` to the cells around them (see
+## SimPathfinder.distance_field), so units judge "close" by the way there, not
+## through cliffs. Reaches a little past the furthest unit of the other side.
+static func walk_field(state: SimState, faction: SimEntity.Faction) -> Dictionary:
+	var sources: Array[Vector3i] = []
+	for o in CombatRules.fighters(state, faction):
+		sources.append(o.cell)
+	var furthest := 0
+	for e in CombatRules.fighters(state, CombatRules.opponent_of(faction)):
+		for s in sources:
+			furthest = maxi(furthest, SimPathfinder.distance(e.cell, s))
+	var reach := mini(furthest * 2 + WALK_FIELD_SLACK, WALK_FIELD_MAX)
+	return SimPathfinder.distance_field(state, sources, reach)
+
+
+## Walking distance (cells) from c to the nearest opponent, from a walk field,
+## or -1 if the field doesn't reach it. A unit's own cell is occupied in the
+## field, so it is read through its neighbours.
+@warning_ignore("integer_division")
+static func walk_distance(walk: Dictionary, c: Vector3i) -> int:
+	if walk.has(c):
+		return walk[c] / SimPathfinder.COST_STRAIGHT
+	var best := -1
+	for d: Vector3i in SimPathfinder.DIRS_8:
+		for dy: int in [0, 1, -1]:
+			var n := c + d + Vector3i(0, dy, 0)
+			if walk.has(n):
+				var cost: int = walk[n] + SimPathfinder.step_cost(c, n)
+				if best < 0 or cost < best:
+					best = cost
+	return best / SimPathfinder.COST_STRAIGHT if best >= 0 else -1
+
+
 ## How much better the world looks for e's side after `command` than after
 ## doing nothing. `baseline` is the current state advanced to the turn's end.
-## `command` must already be valid for `state`.
-static func score(state: SimState, baseline: SimState, e: SimEntity, command: SimCommand) -> int:
+## `command` must already be valid for `state`. `walk` is the walk field to
+## e's opponents (walk_field()); without it distances are straight lines.
+static func score(state: SimState, baseline: SimState, e: SimEntity, command: SimCommand, walk: Dictionary = {}) -> int:
 	var after := state.duplicate_state()
 	command.execute(after)  # validated by the caller; skips a second path search
 	CombatRules.check_end(after)
@@ -61,10 +106,10 @@ static func score(state: SimState, baseline: SimState, e: SimEntity, command: Si
 	if command is CastCommand:
 		after.step_ticks(CombatRules.TICKS_PER_SIDE_TURN)
 		reference = baseline
-	return _compare(reference, after, e)
+	return _compare(reference, after, e, walk)
 
 
-static func _compare(reference: SimState, after: SimState, e: SimEntity) -> int:
+static func _compare(reference: SimState, after: SimState, e: SimEntity, walk: Dictionary = {}) -> int:
 	var baseline := reference
 
 	var opponent := CombatRules.opponent_of(e.faction)
@@ -82,7 +127,7 @@ static func _compare(reference: SimState, after: SimState, e: SimEntity) -> int:
 			value -= lost * W_FRIENDLY
 			if before.is_alive() and not now.is_alive():
 				value -= W_KILL
-	value += _position_value(after, after.get_entity(e.id)) - _position_value(baseline, baseline.get_entity(e.id))
+	value += _position_value(after, after.get_entity(e.id), walk) - _position_value(baseline, baseline.get_entity(e.id), walk)
 	return value
 
 
@@ -103,8 +148,8 @@ static func _hazard_at(state: SimState, c: Vector3i) -> int:
 	return 0
 
 
-## The actions worth trying for one unit.
-static func candidates(state: SimState, e: SimEntity) -> Array[SimCommand]:
+## The actions worth trying for one unit. `walk`: see score().
+static func candidates(state: SimState, e: SimEntity, walk: Dictionary = {}) -> Array[SimCommand]:
 	var result: Array[SimCommand] = []
 	var opponents := CombatRules.fighters(state, CombatRules.opponent_of(e.faction))
 	for o in opponents:
@@ -138,7 +183,7 @@ static func candidates(state: SimState, e: SimEntity) -> Array[SimCommand]:
 			SimAbilities.Ability.BLINK:
 				for c in _blink_spots(state, e, opponents):
 					result.append(CastCommand.new(e.id, ability, c))
-	for c in _move_targets(state, e, opponents):
+	for c in _move_targets(state, e, opponents, walk):
 		result.append(MoveCommand.new(e.id, c))
 	return result
 
@@ -189,16 +234,39 @@ static func _follow_up(state: SimState, e: SimEntity) -> void:
 			return
 
 
-## Higher is better: out of fire, and at the distance the unit likes to fight from.
-static func _position_value(state: SimState, e: SimEntity) -> int:
+## Higher is better: out of fire, and at the distance the unit likes to fight
+## from. Melee units measure it by walking (the walk field) where they can, so
+## a cliff edge above an opponent isn't "close".
+static func _position_value(state: SimState, e: SimEntity, walk: Dictionary = {}) -> int:
 	if not e.is_alive():
 		return 0
 	var value := -_hazard_at(state, e.cell)
 	var distance := _nearest_opponent_distance(state, e)
+	if not is_ranged(e) and not walk.is_empty():
+		var walked := walk_distance(walk, e.cell)
+		if walked >= 0:
+			distance = walked
+	if not is_ranged(e) and distance != 1:
+		var guard := _nearest_caster_distance(state, e)
+		if guard > GUARD_RANGE:
+			value -= (guard - GUARD_RANGE) * W_GUARD
 	if distance >= 0:
 		var wanted := PREFERRED_RANGE if is_ranged(e) else 1
 		value -= absi(distance - wanted) * W_DISTANCE
 	return value
+
+
+## Distance in cells to the nearest living ranged ally, or -1 if there is none.
+@warning_ignore("integer_division")
+static func _nearest_caster_distance(state: SimState, e: SimEntity) -> int:
+	var best := -1
+	for a in CombatRules.fighters(state, e.faction):
+		if a.id == e.id or not is_ranged(a):
+			continue
+		var d := SimPathfinder.distance(e.cell, a.cell) / SimPathfinder.COST_STRAIGHT
+		if best < 0 or d < best:
+			best = d
+	return best
 
 
 ## Distance in cells to the nearest living opponent, or -1 if there is none.
@@ -263,7 +331,7 @@ static func _drop_spots(state: SimState, e: SimEntity, target: SimEntity) -> Arr
 ## Move destinations: cells next to opponents, a step along the path to the
 ## nearest one, a safe cell if standing in fire, and (for ranged units) cells
 ## at a good distance with sight of an opponent.
-static func _move_targets(state: SimState, e: SimEntity, opponents: Array[SimEntity]) -> Array[Vector3i]:
+static func _move_targets(state: SimState, e: SimEntity, opponents: Array[SimEntity], walk: Dictionary = {}) -> Array[Vector3i]:
 	var budget := CombatRules.move_budget(e) if state.combat.active else 1 << 20
 	var reach := SimPathfinder.reachable(state, e.cell, budget, e.id)
 	var grid := state.grid
@@ -281,6 +349,10 @@ static func _move_targets(state: SimState, e: SimEntity, opponents: Array[SimEnt
 			if not sees:
 				continue
 			priority = absi(nearest - PREFERRED_RANGE * SimPathfinder.COST_STRAIGHT)
+		elif walk.has(c):
+			priority = walk[c]  # by the way there, not as the crow flies
+		elif not walk.is_empty():
+			priority = nearest + UNREACHABLE_PENALTY
 		else:
 			priority = nearest
 		if in_fire:

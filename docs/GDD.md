@@ -102,7 +102,7 @@ Explore (real time) ──► interact with world, scheme, steal, set up ──�
 
 | A | B | Result |
 |---|---|---|
-| Fire | Oil | The whole connected puddle catches at once, then burns down; spreads to oil that flows into it |
+| Fire | Oil | The whole connected puddle catches at once and burns for 3 rounds (a flask puddle; bare-ground fire lasts 1.5); spreads to oil that flows into it |
 | Fire | Unit | **Burning** for 3 turns: an instance of burn damage (2) the moment fire starts under them and for every burning cell they walk over, then burn damage at the start of each of their turns. Standing in fire keeps it going. Water (puddles, Rain) puts it out. Props in fire take damage every tick instead. |
 | Unit | Oil | Slowed for 2 turns (this one and the next): moving costs double AP, walking takes twice as long |
 | Fire | Water | Steam cloud, fire out |
@@ -173,7 +173,7 @@ Needed for pickpocketing, crime and abusing systems:
 - **Previews:** hovering an action runs it on a copy of the sim and shows its outcome: path, AP cost, damage now and by end of turn, new fire and surfaces.
 - **Optional undo** of the last action (setting) to encourage experimentation.
 - **Objectives beyond "kill all":** assassinate, steal, rescue, survive, escape, protect.
-- **AI (utility, `UtilityAi`):** for each enemy it generates candidate actions (attacks, its own abilities on sensible targets, a short list of move destinations), applies each to a copy of the sim and scores the outcome against doing nothing. Damage, kills and disarms on opponents score up; damage to its own side scores down; ending in fire or on fuel next to fire scores down; units want to be adjacent (melee) or ~5 cells away with sight (casters). Casts are compared after advancing the world to the end of the turn, so the AI sees chain reactions. Moves are valued with the attacks or casts they set up. Decisions take up to ~100 ms on the M1 arena.
+- **AI (utility, `UtilityAi`):** for each enemy it generates candidate actions (attacks, its own abilities on sensible targets, a short list of move destinations), applies each to a copy of the sim and scores the outcome against doing nothing. Damage, kills and disarms on opponents score up; damage to its own side scores down; ending in fire or on fuel next to fire scores down; units want to be adjacent (melee) or ~5 cells away with sight (casters). Melee units measure distance by walking (a walk field searched out from the opponents each decision), so they take the ramp or stairs instead of crowding a cliff edge above their target. Melee units also **guard their casters**: they stay within 4 cells of the nearest ranged ally unless they can end next to an opponent, so a group advances together instead of its melee being lured off one by one. Casts are compared after advancing the world to the end of the turn, so the AI sees chain reactions. Moves are valued with the attacks or casts they set up. Decisions take up to ~100 ms on the M1 arena.
 - **Per-character verbs:** each character's verbs come from its role (§5.3.1) and are checked by the sim.
 - **Controls (M1 greybox):** right-click always moves. The action bar (keys 1–9) holds Attack in slot 1, then the character's verbs; left-click a target to use the aimed action. Hovering a button shows its tooltip, its range (red where there's no line of sight) and makes every entity it can target glow. WASD is camera only.
 
@@ -188,6 +188,8 @@ Needed for pickpocketing, crime and abusing systems:
 ### 5.5.1 Effects
 
 Effects come from the BinbunVFX_Vol2 pack where it has one (`PackVfx`: spell casts, Firebolt and Frost projectiles, fire/water areas, flames on burning cells, ice, heal, teleport and hit/impact effects) and fall back to procedural particles (`VfxFactory`) otherwise, so the game runs without the pack. The pack lives in git-ignored `assetlibs/` (see CLAUDE.md). `VfxPlayer` turns sim events into effects: projectiles for Firebolt, Frost and Oil Flask (the hit waits for the bolt to land), bursts for hits, fire, steam, ice, spills, teleports and collisions, floating damage and heal numbers, impact flashes and light camera shake. `FireField` keeps a looping flame on every burning cell. Presets live in `VfxFactory.PRESETS`, so authored effects can replace them one at a time.
+
+**Ground surfaces** (water, oil, ice) are drawn as smooth puddles, not grid squares (`SurfaceRenderer` + `surface.gdshader`): a mesh of the surface cells and a ring around them, with corners on the real floor (terrain heights sampled at cell corners, so neighbouring cells share vertices and there are no gaps), shaped by a one-texel-per-column mask that is sampled smoothly and cut at a noisy threshold, so outlines round off and merge across cells. Limits: one surface per column is shown (the topmost), and puddles don't continue across a step of more than ~0.6 m. Gas and greybox fire are still boxes.
 
 **Feedback rules.** Every hit shows a floating damage number coloured by its element (`EntityOps.Element`): white physical, orange fire, blue frost/water. Every debuff shows a coloured tag above the character's name with its turns left, and plays a looping effect on the character while it lasts (Burning: flames; Slowed: dripping oil). New debuffs follow both rules (`SimEntityRenderer.STATUS_LOOKS`). Damage at the start of a turn (burning) is shown with the turn change.
 
@@ -266,7 +268,7 @@ The sim layer must be runnable headless and in isolation — this enables previe
 
 Levels are built freely in Godot and baked into the sim (`GameLevel.bake()`, runs at load in ~0.1 s):
 
-- **Ground:** Terrain3D (1.0.2). Cells below the rounded terrain height are solid; `WorldSpace` keeps the real height so characters, surfaces and effects sit on the ground instead of 1 m steps. Steep slopes become cliffs (unclimbable, shove-off-able), gentle ones walkable.
+- **Ground:** Terrain3D (1.0.2). Cells below the rounded terrain height are solid; `WorldSpace` keeps the real height so characters, surfaces and effects sit on the ground instead of 1 m steps. Steep slopes become cliffs (unclimbable, shove-off-able), gentle ones walkable: the bake also gives the sim each terrain column's real height (integer cm), and walking between neighbouring floors that differ by more than 1.1 m is not allowed (1 m structure steps still are), and between two terrain floors by more than 0.7 m (steep rocky slopes are cliffs).
 - **Structures:** anything with collision on layer 1 (CSG blockout now, kit meshes later). Vertical rays find the surfaces each column crosses; cells inside closed meshes are solid. Terrain3D collision lives on layer 2 so it is not probed.
 - **Gameplay markers:** `LevelSpawn` (role, name, team), `LevelBarrel`, `LevelSurface` nodes; they land on the floor below them.
 - The sim grid is the level's footprint with the origin at its corner (start area: 64 × 12 × 64).
@@ -326,6 +328,11 @@ Levels are built freely in Godot and baked into the sim (`GameLevel.bake()`, run
 | 2026-10-17 | Turn presentation: animated world advance, telegraphed enemy actions with camera follow and captions, AI on a worker thread. |
 | 2026-10-17 | Abilities have cooldowns (in turns, per user, combat only); fixes endless heal-vs-damage duels. |
 | 2026-10-17 | Exploration prototype before co-op: real-time walking on the sim grid (not navmesh) in both modes; combat starts on sight or hostility; levels are Terrain3D + collision structures + markers, baked to the sim grid at load. |
+| 2026-10-18 | Terrain steps above 0.7 m are cliffs; melee AI guards its casters (stays within 4 cells unless it can engage). |
+| 2026-10-18 | AI judges melee distance by walking routes, not straight lines. |
+| 2026-10-18 | Movement respects real terrain height: no walking up or down a rise of more than 1.1 m between neighbouring cells. |
+| 2026-10-18 | Ground surfaces render as smooth, ground-hugging puddles (mask + threshold shader) instead of per-cell boxes; the square grid doesn't show through. |
+| 2026-10-18 | Ground fire lasts longer: a lit flask puddle burns 3 rounds (was 1), bare-ground fire 1.5 (was 0.6). |
 | 2026-10-18 | Feedback rules: damage numbers coloured by element; every debuff gets a tag and a looping effect. |
 | 2026-10-18 | Burning status: fire under a character hits at once and burns for 3 turns (turn-start damage); each burning cell walked over hits again; water douses. |
 | 2026-10-18 | Oil: flask splashes its full puddle instantly and oil puddles don't creep on flat ground; lighting oil ignites the whole connected puddle at once; walking through oil slows (double move cost) for 2 turns. |

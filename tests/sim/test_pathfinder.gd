@@ -94,3 +94,34 @@ func test_top_of_a_pillar_is_unreachable_without_a_full_search() -> void:
 	assert_true(SimPathfinder.is_standable(state, top))
 	assert_eq(SimPathfinder.find_path(state, hero.cell, top, hero.id).size(), 0)
 	assert_gt(SimPathfinder.find_path(state, hero.cell, Vector3i(29, Fixtures.FLOOR_Y, 29), hero.id).size(), 0, "the ground next to it still works")
+
+
+## A 6x4x3 strip whose terrain rises from x = 3 on: one level up in sim terms.
+func _terrain_step(rise_cm: int) -> SimState:
+	var state := Fixtures.flat_state(Vector3i(6, 4, 3))
+	state.grid.fill_solid(Vector3i(3, Y, 0), Vector3i(5, Y, 2))
+	var floors := PackedInt32Array()
+	var heights := PackedInt32Array()
+	for z in 3:
+		for x in 6:
+			floors.append(Y if x < 3 else Y + 1)
+			heights.append(Y * 100 if x < 3 else Y * 100 + rise_cm)
+	state.grid.set_terrain(floors, heights)
+	state.add_entity(SimEntity.character("Hero", SimEntity.Faction.PLAYERS, Vector3i(0, Y, 1), 20))
+	return state
+
+
+func test_steep_terrain_cannot_be_climbed() -> void:
+	var state := _terrain_step(150)
+	assert_eq(SimPathfinder.find_path(state, Vector3i(0, Y, 1), Vector3i(5, Y + 1, 1), 1).size(), 0, "a 1.5 m rise is a cliff")
+
+
+func test_gentle_terrain_and_structure_steps_can_be_climbed() -> void:
+	var state := _terrain_step(60)
+	assert_gt(SimPathfinder.find_path(state, Vector3i(0, Y, 1), Vector3i(5, Y + 1, 1), 1).size(), 0, "a 0.6 m rise is a slope")
+	var steep := _terrain_step(90)
+	assert_eq(SimPathfinder.find_path(steep, Vector3i(0, Y, 1), Vector3i(5, Y + 1, 1), 1).size(), 0, "0.9 m of terrain is too steep")
+	var flat := Fixtures.flat_state(Vector3i(6, 4, 3))
+	flat.grid.fill_solid(Vector3i(3, Y, 0), Vector3i(5, Y, 2))
+	flat.add_entity(SimEntity.character("Hero", SimEntity.Faction.PLAYERS, Vector3i(0, Y, 1), 20))
+	assert_gt(SimPathfinder.find_path(flat, Vector3i(0, Y, 1), Vector3i(5, Y + 1, 1), 1).size(), 0, "a 1 m structure step")

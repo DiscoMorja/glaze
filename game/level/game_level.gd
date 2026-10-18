@@ -66,7 +66,18 @@ func _bake_terrain(grid: SimGrid) -> void:
 				grid.fill_solid(Vector3i(x, 0, z), Vector3i(x, top - 1, z))
 			heights[x + z * grid_size.x] = maxf(h, 0.0)
 			floors[x + z * grid_size.x] = top
-	WorldSpace.set_terrain(Vector2i(grid_size.x, grid_size.z), heights, floors)
+	var corners := PackedFloat32Array()
+	corners.resize((grid_size.x + 1) * (grid_size.z + 1))
+	for z in grid_size.z + 1:
+		for x in grid_size.x + 1:
+			var h: float = data.call("get_height", Vector3(x, 0.0, z))
+			corners[x + z * (grid_size.x + 1)] = 0.0 if is_nan(h) else maxf(h, 0.0)
+	WorldSpace.set_terrain(Vector2i(grid_size.x, grid_size.z), heights, floors, corners)
+	var heights_cm := PackedInt32Array()
+	heights_cm.resize(columns)
+	for i in columns:
+		heights_cm[i] = roundi(heights[i] * 100.0)
+	grid.set_terrain(floors, heights_cm)
 
 
 func _bake_structures(grid: SimGrid) -> void:
