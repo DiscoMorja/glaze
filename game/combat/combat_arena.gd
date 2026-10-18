@@ -146,6 +146,7 @@ var _range_markers: CellMarkers
 var _rig: CameraRig
 ## Roofs come off the buildings this player's characters are in.
 var _cutaway := BuildingCutaway.new()
+var _fog: FogOfWar
 var _hud: Label
 var _log_label: Label
 var _party_bar: PartyBar
@@ -225,6 +226,7 @@ func _process(delta: float) -> void:
 		_log.push_front("Autosaved.")
 		_refresh()
 	_update_cutaway()
+	_update_fog()
 	_update_hover()
 	_advance_walks()
 	if _preview_due_msec > 0 and Time.get_ticks_msec() >= _preview_due_msec:
@@ -252,6 +254,15 @@ func _process(delta: float) -> void:
 		_refresh()
 		if log_perf:
 			print("perf: ", _perf_text())
+
+
+func _update_fog() -> void:
+	var seers: Array[Vector3] = []
+	for e in state.entities:
+		if ExplorationRules.is_seer(e):
+			var view := _entity_renderer.view_of(e.id)
+			seers.append(view.global_position if view != null else SimEntityRenderer.cell_position(e.cell))
+	_fog.update(state, seers)
 
 
 func _update_cutaway() -> void:
@@ -421,6 +432,7 @@ func _load_level() -> int:
 
 func _start_from(start: SimState) -> void:
 	state = start
+	_fog.setup(_rig.camera, _level, state)
 	_danger_cache.clear()
 	if _retro.style == RetroLook.Style.OFF and retro_style != RetroLook.Style.OFF:
 		_retro.set_style(retro_style, _level)
@@ -1513,7 +1525,7 @@ func _watched_cells() -> Array:
 		var neutral := watcher.faction == SimEntity.Faction.NEUTRAL
 		if not (enemy or neutral) or not watcher.is_alive() or watcher.sight <= 0:
 			continue
-		if not _near_any(watcher.cell, party, DANGER_SHOW_RADIUS):
+		if not _near_any(watcher.cell, party, DANGER_SHOW_RADIUS) or not FogOfWar.shows(state, watcher):
 			continue
 		var key := [watcher.id, watcher.cell, watcher.facing, sneaking, watcher.sight]
 		if not _danger_cache.has(key):
@@ -1762,6 +1774,8 @@ func _build_scene() -> void:
 	_rig = CameraRig.new()
 	_rig.zoom = 18.0
 	add_child(_rig)
+	_fog = FogOfWar.new()
+	add_child(_fog)
 	_vfx.shake_requested.connect(_rig.shake)
 
 	var canvas := CanvasLayer.new()

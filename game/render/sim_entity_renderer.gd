@@ -124,7 +124,7 @@ func render(state: SimState, events: Array[SimEvent] = []) -> void:
 			view.position = cell_position(e.cell)
 		# Characters stay as corpses (they can be revived), broken containers
 		# while they still hold something; other props just vanish.
-		view.visible = e.is_alive() or e.takes_turns() or not e.inventory.is_empty()
+		view.visible = (e.is_alive() or e.takes_turns() or not e.inventory.is_empty()) and FogOfWar.shows(state, e)
 		view.set_dead(not e.is_alive())
 		view.set_side(e.faction)
 		if view.set_stats(e):
@@ -220,7 +220,8 @@ func set_selected(id: int) -> void:
 
 
 func set_hovered(id: int) -> void:
-	_hovered_id = id
+	var view: Node3D = _views.get(id)
+	_hovered_id = id if view != null and view.visible else -1  # nothing to hover in the fog
 
 
 ## Tints entities that the hovered or aimed action can target (id -> true).

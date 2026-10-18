@@ -17,6 +17,10 @@ var facts := {}
 var quests := {}
 ## The conversation in progress (SimDialogue), or empty.
 var conversation := {}
+## Fog of war (ExplorationRules): per map tile, EXPLORED once the party saw it.
+var explored := PackedByteArray()
+## Entity id -> the cell it last revealed from (derived: not saved or hashed).
+var seen_from := {}
 
 var _next_entity_id := 1
 var _events: Array[SimEvent] = []
@@ -32,6 +36,7 @@ func apply_command(command: SimCommand) -> bool:
 	if not command.validate(self):
 		return false
 	command.execute(self)
+	ExplorationRules.step(self)
 	CombatRules.check_end(self)
 	CombatRules.check_start(self)
 	if combat.active and not conversation.is_empty():
@@ -47,6 +52,7 @@ func step() -> void:
 	FireRules.step(self)
 	ThermalRules.step(self)
 	EntityRules.step(self)
+	ExplorationRules.step(self)
 	tick += 1
 	CombatRules.check_start(self)
 	if combat.active and not conversation.is_empty():
@@ -138,6 +144,8 @@ func duplicate_state() -> SimState:
 	copy.facts = facts.duplicate(true)
 	copy.quests = quests.duplicate(true)
 	copy.conversation = conversation.duplicate(true)
+	copy.explored = explored.duplicate()  # packed arrays are shared, not copied
+	copy.seen_from = seen_from.duplicate()
 	copy._next_entity_id = _next_entity_id
 	return copy
 
@@ -160,6 +168,7 @@ func to_snapshot() -> PackedByteArray:
 		"grid": grid.to_dict(), "entities": entity_data, "combat": combat.to_dict(),
 		"rng": rng.state, "tick": tick, "provoked": provoked, "next_entity_id": _next_entity_id,
 		"facts": facts, "quests": quests, "conversation": conversation,
+		"explored": explored,
 		"version": SNAPSHOT_VERSION,
 	}
 	var raw := var_to_bytes(data)
@@ -186,6 +195,7 @@ static func from_snapshot(bytes: PackedByteArray) -> SimState:
 	state.facts = data.get("facts", {})
 	state.quests = data.get("quests", {})
 	state.conversation = data.get("conversation", {})
+	state.explored = data.get("explored", PackedByteArray())
 	state._next_entity_id = data.next_entity_id
 	return state
 
@@ -212,5 +222,7 @@ func checksum(with_grid: bool = true) -> String:
 		ctx.update(var_to_bytes(e.to_dict()))
 	ctx.update(var_to_bytes(combat.to_dict()))
 	ctx.update(var_to_bytes([facts, quests, conversation]))
+	if not explored.is_empty():
+		ctx.update(explored)
 	ctx.update(PackedInt64Array([tick, rng.state, _next_entity_id, 1 if provoked else 0]).to_byte_array())
 	return ctx.finish().hex_encode()

@@ -14,6 +14,9 @@ const FIT_MARGIN := 0.7
 ## Extra room around framed points, in metres.
 const FIT_PADDING := 1.5
 const MAX_FIT_ZOOM := 40.0
+## Mouse wheel zoom range (camera distance in metres).
+const MIN_ZOOM := 8.0
+const MAX_ZOOM := 48.0
 
 var camera: Camera3D
 var yaw := 45.0
@@ -144,8 +147,8 @@ const DRAG_ROTATE_DEG_PER_PX := 0.35
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
 		match event.button_index:
-			MOUSE_BUTTON_WHEEL_UP: zoom = maxf(zoom - 2.0, 8.0)
-			MOUSE_BUTTON_WHEEL_DOWN: zoom = minf(zoom + 2.0, 80.0)
+			MOUSE_BUTTON_WHEEL_UP: zoom = maxf(zoom - 2.0, MIN_ZOOM)
+			MOUSE_BUTTON_WHEEL_DOWN: zoom = minf(zoom + 2.0, MAX_ZOOM)
 	elif event is InputEventMouseMotion and (event.button_mask & MOUSE_BUTTON_MASK_MIDDLE) != 0:
 		if _move_tween != null and _move_tween.is_running():
 			_move_tween.kill()  # the player takes over from a camera glide
@@ -176,7 +179,8 @@ func pick_cell(state: SimState, screen_pos: Vector2, cutaway: BuildingCutaway = 
 		var p := origin + dir * t
 		var c := Vector3i(floori(p.x), floori(p.y), floori(p.z))
 		if grid.in_bounds(c):
-			if state.entity_at(c) != null:
+			var there := state.entity_at(c)
+			if there != null and FogOfWar.shows(state, there):
 				return c
 			var ground := WorldSpace.terrain_height(c.x, c.z)
 			if p.y <= ground:

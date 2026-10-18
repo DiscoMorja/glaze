@@ -58,6 +58,7 @@ func bake(seed_value: int = 1) -> SimState:
 	# Ponds and puddles placed by markers flow into place now, so the world
 	# starts calm instead of spending its first ticks spreading them.
 	LiquidRules.settle(state, LIQUID_SETTLE_STEPS)
+	ExplorationRules.step(state)  # the party sees where it starts
 	state.drain_events()
 	if start_in_combat:
 		state.apply_command(StartCombatCommand.new())
