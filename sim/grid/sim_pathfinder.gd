@@ -15,6 +15,11 @@ const DIRS_8 := [
 	Vector3i(1, 0, 1), Vector3i(1, 0, -1), Vector3i(-1, 0, 1), Vector3i(-1, 0, -1),
 ]
 
+## A goal whose walkable surroundings run out within this many cells (a tower
+## top, a roof, a walled-off spot) is a pocket: find_path checks it first, so
+## unreachable pockets are rejected without searching the whole level.
+const POCKET_LIMIT := 128
+
 const _INDEX_BITS := 24
 const _INDEX_MASK := (1 << 24) - 1
 
@@ -112,6 +117,8 @@ static func find_path(state: SimState, from: Vector3i, to: Vector3i, mover_id: i
 	var occupied := occupancy(state)
 	if not stop_adjacent and not _standable(grid, occupied, to, mover_id):
 		return none
+	if not stop_adjacent and _in_pocket_without(grid, occupied, to, from, mover_id):
+		return none
 
 	var start := grid.index(from)
 	var g := {start: 0}
@@ -172,6 +179,27 @@ static func reachable(state: SimState, from: Vector3i, budget: int, mover_id: in
 				g[ni] = cost
 				_push(heap, cost, ni)
 	return result
+
+
+## Whether the cells walkable from `goal` run out within POCKET_LIMIT without
+## reaching `start` (walking is symmetric, so then start can't reach goal).
+static func _in_pocket_without(grid: SimGrid, occupied: Dictionary, goal: Vector3i, start: Vector3i, mover_id: int) -> bool:
+	var seen := {goal: true}
+	var queue: Array[Vector3i] = [goal]
+	var head := 0
+	while head < queue.size():
+		var c := queue[head]
+		head += 1
+		for n in _neighbors(grid, occupied, c, mover_id):
+			if n == start:
+				return false
+			if seen.has(n):
+				continue
+			seen[n] = true
+			if seen.size() > POCKET_LIMIT:
+				return false
+			queue.append(n)
+	return true
 
 
 static func _is_goal(c: Vector3i, to: Vector3i, stop_adjacent: bool) -> bool:

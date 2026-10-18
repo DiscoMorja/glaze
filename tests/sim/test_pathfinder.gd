@@ -83,3 +83,14 @@ func test_reachable_respects_budget() -> void:
 	assert_false(cells.has(Vector3i(7, Y, 4)))
 	assert_false(cells.has(from))
 	assert_eq(cells[Vector3i(5, Y, 5)], SimPathfinder.COST_DIAGONAL)
+
+
+func test_top_of_a_pillar_is_unreachable_without_a_full_search() -> void:
+	var state := Fixtures.flat_state(Vector3i(40, 8, 40))
+	var hero := state.add_entity(SimEntity.character("Hero", SimEntity.Faction.PLAYERS, Vector3i(1, Fixtures.FLOOR_Y, 1), 20))
+	# A 2x2 pillar four levels high: its top is a walkable island.
+	state.grid.fill_solid(Vector3i(30, Fixtures.FLOOR_Y, 30), Vector3i(31, Fixtures.FLOOR_Y + 3, 31))
+	var top := Vector3i(30, Fixtures.FLOOR_Y + 4, 30)
+	assert_true(SimPathfinder.is_standable(state, top))
+	assert_eq(SimPathfinder.find_path(state, hero.cell, top, hero.id).size(), 0)
+	assert_gt(SimPathfinder.find_path(state, hero.cell, Vector3i(29, Fixtures.FLOOR_Y, 29), hero.id).size(), 0, "the ground next to it still works")
