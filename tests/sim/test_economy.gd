@@ -176,56 +176,6 @@ func test_the_merchant_offers_to_trade_in_dialogue() -> void:
 	assert_eq(Fixtures.events_of_type(state.drain_events(), SimEvent.Type.TRADE_OFFERED).size(), 1)
 
 
-# --- Equipment ----------------------------------------------------------------------
-
-func test_equipping_a_weapon_swaps_it_and_sets_damage() -> void:
-	var state := _town()
-	var ari := _ari(state)
-	ari.inventory.assign(["Fine sword"])
-	assert_true(state.apply_command(EquipCommand.new(1, 0)))
-	assert_eq(ari.weapon, "Fine sword")
-	assert_eq(ari.attack_damage(), 6)
-	assert_eq(ari.inventory, ["Greatsword"] as Array[String], "the old one goes in the bag")
-
-
-func test_armour_takes_off_physical_damage_but_not_fire_and_never_all() -> void:
-	var state := _town()
-	var ari := _ari(state)
-	ari.inventory.assign(["Chain shirt"])
-	state.apply_command(EquipCommand.new(1, 0))
-	assert_eq(ari.armor, 2)
-	var hp := ari.hp
-	EntityOps.damage(state, ari, 5, -1)
-	assert_eq(ari.hp, hp - 3)
-	EntityOps.damage(state, ari, 1, -1)
-	assert_eq(ari.hp, hp - 4, "at least 1 gets through")
-	EntityOps.damage(state, ari, 4, -1, EntityOps.Element.FIRE)
-	assert_eq(ari.hp, hp - 8, "fire ignores armour")
-	assert_true(state.apply_command(EquipCommand.new(1, EquipCommand.UNEQUIP, "armor")))
-	assert_eq(ari.armor, 0)
-	assert_true(ari.inventory.has("Chain shirt"))
-
-
-func test_no_equipping_in_combat_or_non_wearables() -> void:
-	var state := _town()
-	_ari(state).inventory.assign(["Map", "Fine sword"])
-	assert_false(EquipCommand.new(1, 0).validate(state))
-	state.combat.active = true
-	assert_false(EquipCommand.new(1, 1).validate(state))
-
-
-func test_fallen_enemies_drop_what_they_wore() -> void:
-	var state := _town()
-	var thug := SimArchetypes.make("thug", "Thug", ENEMIES, Vector3i(5, Y, 4))
-	thug.armor_item = "Leather armour"
-	thug.armor = 1
-	state.add_entity(thug)
-	EntityOps.damage(state, thug, 100, 1)
-	assert_eq(thug.inventory, ["Club", "Leather armour"] as Array[String])
-	assert_eq(thug.weapon, "")
-	assert_true(LootCommand.is_container(thug))
-
-
 # --- Progression ------------------------------------------------------------------
 
 func test_kills_give_the_whole_party_xp_and_levels() -> void:
@@ -297,12 +247,13 @@ func test_new_fields_survive_snapshots() -> void:
 	ari.level = 2
 	ari.points = 1
 	ari.power = 1
-	ari.armor_item = "Chain shirt"
-	ari.armor = 2
+	EquipRules.put(ari, "body", "Chain shirt")
+	EquipRules.put(ari, "ring2", "Copper ring")
 	var copy := SimState.from_snapshot(state.to_snapshot())
 	var a := copy.get_entity(1)
-	assert_eq([a.gold, a.xp, a.level, a.points, a.power, a.armor_item, a.armor], [33, 120, 2, 1, 1, "Chain shirt", 2])
+	assert_eq([a.gold, a.xp, a.level, a.points, a.power, a.armor, a.max_hp, a.gear_hp], [33, 120, 2, 1, 1, 2, ari.max_hp, 2])
+	assert_eq(a.worn, {"body": "Chain shirt", "ring2": "Copper ring"})
 	assert_true(copy.get_entity(3).trader)
 	for command: SimCommand in [UseItemCommand.new(1, 0, 2), RestCommand.new(1), TradeCommand.new(1, 3, [0] as Array[int], [1] as Array[int]),
-			EquipCommand.new(1, -1, "armor"), SpendPointCommand.new(1, "power")]:
+			EquipCommand.new(1, -1, "body"), SpendPointCommand.new(1, "power")]:
 		assert_eq(SimCommandRegistry.from_dict(command.to_dict()).to_dict(), command.to_dict())

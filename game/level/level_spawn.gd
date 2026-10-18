@@ -29,6 +29,9 @@ enum Team { PLAYERS, ENEMIES, NEUTRAL }
 ## Dialogue knot (game/data/dialogue/*.dlg) talking to this character starts
 ## at; empty = nothing to say.
 @export var dialogue := ""
+## Items worn from the start (each in its own slot, see EquipRules). A
+## weapon here replaces the role's.
+@export var equipment: Array[String] = []
 ## Gold pieces carried.
 @export var gold := 0
 ## Townsfolk who buy and sell (offer it in their dialogue with "~ trade").

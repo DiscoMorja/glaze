@@ -1,6 +1,6 @@
 extends GutTest
 ## Inventory drag and drop: the data a dragged slot carries, dropping on
-## another slot (sort) and on a party member's card (give).
+## another slot (sort) and on a party member's frame (give).
 
 const Y := 1
 
@@ -60,7 +60,7 @@ func test_dropping_on_a_party_card_gives() -> void:
 	var dropped: Array = []
 	bar.item_dropped.connect(func(to_id: int, from_id: int, index: int) -> void: dropped.append([to_id, from_id, index]))
 	var party: Array[SimEntity] = [_owner, _other]
-	bar.update_party(party, 1, {}, 0, false)
+	bar.update_party(party, 1, {}, 0)
 	var bram_card: Control = bar._cards[2]
 	assert_true(bram_card._can_drop_data(Vector2.ZERO, _data(1)))
 	assert_false(bar._cards[1]._can_drop_data(Vector2.ZERO, _data(1)), "not onto its own card")

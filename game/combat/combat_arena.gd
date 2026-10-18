@@ -12,12 +12,12 @@ extends Node3D
 ## M1 combat greybox. Every player and AI action is a SimCommand; hovering shows
 ## a preview computed by running the command on a copy of the sim.
 ##
-## Select: click a party card, F1-F4, Tab (next with AP left), or left-click a
-## party member when nothing is aimed.
+## Select: click a party frame (left edge), F1-F4, Tab (next with AP left), or
+## left-click a party member when nothing is aimed.
 ## Move: right-click a cell, always (it also cancels aiming). Left-click moves
 ## too when nothing is aimed.
-## Actions: the action bar (or keys 1-9) aims Attack or one of the selected
-## character's abilities; left-click a target to use it. Hovering a button shows
+## Actions: the action bar (or keys 1-0; [ and ] switch bars) aims Attack or
+## an ability, or uses an item put on the bar; left-click a target to aim. Hovering a button shows
 ## its tooltip, range and what it can target. Actions return to moving after
 ## use. Actions that would hurt your own party need a second click to confirm.
 ## Teleport takes two clicks: the target, then where to put it.
@@ -31,7 +31,7 @@ extends Node3D
 ## Hold Alt to show every health bar. Actions against a target swing the camera
 ## to frame both sides, then back to the caster.
 
-const SLOT_KEYS := [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9]
+const SLOT_KEYS := [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9, KEY_0]
 ## Pause on an enemy's telegraphed action before it happens.
 const ENEMY_AIM_SECONDS := 0.55
 ## Minimum time an enemy action gets to play out before the next one.
@@ -142,6 +142,7 @@ var _hud: Label
 var _log_label: Label
 var _party_bar: PartyBar
 var _action_bar: ActionBar
+var _end_turn_button: EndTurnButton
 var _inventory: InventoryPanel
 var _dialogue: DialoguePanel
 var _journal: JournalPanel
@@ -278,6 +279,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_aim_slot(slot)
 			return
 		match event.keycode:
+			KEY_BRACKETLEFT: _action_bar.turn_page(-1)
+			KEY_BRACKETRIGHT: _action_bar.turn_page(1)
 			KEY_ESCAPE:
 				if _action == ActionInfo.NONE and _teleport_target == null:
 					_save_menu.open(Net.is_host(), _save_blocker())
@@ -1126,12 +1129,24 @@ func _aim(action: int) -> void:
 
 ## Aims the action in action-bar slot `slot` (0-based) for the selected character.
 func _aim_slot(slot: int) -> void:
+	if _selected_is_mine():
+		_action_bar.press(slot)
+
+
+## An item on the action bar was clicked: use it on the selected character,
+## or rest with it.
+func _use_bar_item(item: String) -> void:
 	var actor := state.get_entity(_selected_id)
-	if actor == null or not _selected_is_mine():
+	if actor == null or not _can_order():
 		return
-	var actions := ActionInfo.actions_for(actor)
-	if slot < actions.size():
-		_aim(actions[slot])
+	if not SimItems.is_usable(item) and SimItems.has_property(item, "rest"):
+		_submit_or_say(RestCommand.new(actor.id), RestCommand.blocker(state, actor))
+		return
+	var index := actor.inventory.find(item)
+	if index < 0:
+		_show_banner("No %s left" % item)
+		return
+	_submit_or_say(UseItemCommand.new(actor.id, index), "Can't use that now")
 
 
 func _on_action_pressed(action: int) -> void:
@@ -1619,7 +1634,9 @@ func _build_scene() -> void:
 			_select(id))
 	_party_bar.item_dropped.connect(func(to_id: int, from_id: int, index: int) -> void:
 		Net.submit(GiveCommand.new(from_id, to_id, index)))
-	_party_bar.end_turn_pressed.connect(func() -> void:
+	_end_turn_button = EndTurnButton.new()
+	canvas.add_child(_end_turn_button)
+	_end_turn_button.pressed.connect(func() -> void:
 		if _confirming_end_turn:
 			_end_turn(true)
 		else:
@@ -1666,7 +1683,7 @@ func _build_scene() -> void:
 	_inventory.use_requested.connect(func(entity_id: int, index: int) -> void:
 		_submit_or_say(UseItemCommand.new(entity_id, index), "Can't use that now"))
 	_inventory.equip_requested.connect(func(entity_id: int, index: int, slot: String) -> void:
-		_submit_or_say(EquipCommand.new(entity_id, index, slot), "Only outside combat"))
+		_submit_or_say(EquipCommand.new(entity_id, index, slot), "Can't wear that there (or not during a fight)"))
 	_inventory.spend_requested.connect(func(entity_id: int, stat: String) -> void:
 		_submit_or_say(SpendPointCommand.new(entity_id, stat), ""))
 	_inventory.rest_requested.connect(func(entity_id: int) -> void:
@@ -1676,6 +1693,7 @@ func _build_scene() -> void:
 	_action_bar = ActionBar.new()
 	canvas.add_child(_action_bar)
 	_action_bar.action_pressed.connect(_on_action_pressed)
+	_action_bar.item_pressed.connect(_use_bar_item)
 	_action_bar.action_hovered.connect(_on_action_hovered)
 
 	_banner = _make_centered_label(canvas, 160, 52)
@@ -1762,12 +1780,14 @@ func _refresh() -> void:
 			partner_ids[e.id] = true
 		elif _has_moves(e):
 			out_of_moves = false
-	var end_turn := PartyBar.EndTurn.NORMAL
+	var end_turn := EndTurnButton.Look.NORMAL
 	if _is_players_turn() and Net.ready_slots.has(Net.local_slot):
-		end_turn = PartyBar.EndTurn.WAITING
+		end_turn = EndTurnButton.Look.WAITING
 	elif _can_command() and out_of_moves:
-		end_turn = PartyBar.EndTurn.SUGGESTED
-	_party_bar.update_party(party, _selected_id, _turn_start_ap, _preview_cost, _can_command() and _is_players_turn(), partner_ids, end_turn)
+		end_turn = EndTurnButton.Look.SUGGESTED
+	_party_bar.update_party(party, _selected_id, _turn_start_ap, _preview_cost, partner_ids)
+	_end_turn_button.visible = state.combat.active
+	_end_turn_button.show_state(_can_command() and _is_players_turn(), end_turn)
 	var actor := state.get_entity(_selected_id)
 	var talker := state.get_entity(state.conversation.get("talker", -1)) if not state.conversation.is_empty() else null
 	_dialogue.show_conversation(state, talker != null and Net.may_control(Net.local_slot, talker))
@@ -1809,7 +1829,7 @@ func _refresh() -> void:
 			var whose := "" if _selected_is_mine() else "   (your partner's — you can't control them)"
 			lines.append("%s the %s   weapon: %s   carrying: %s%s" % [actor.name, SimArchetypes.title(actor.archetype), actor.weapon if actor.weapon != "" else "none", items, whose])
 		lines.append("Ground tint — red: enemies see you there, yellow: townsfolk watch")
-		lines.append("RMB move   LMB use / select   1-9 actions   Esc cancel / menu   F1-F4 / Tab select   Enter end turn   Space (hold) fast-forward")
+		lines.append("RMB move   LMB use / select   1-0 action bar ([ ] switch bars)   Esc cancel / menu   F1-F4 / Tab select   Enter end turn   Space (hold) fast-forward")
 		lines.append("C sneak   I inventory   J journal   Alt (hold) names + health   F5 / F9 quicksave / load   R restart")
 		lines.append("WASD pan   Q/E or middle-drag rotate   wheel zoom   P look: %s   ` perf   H hide" % _retro.style_name())
 	else:

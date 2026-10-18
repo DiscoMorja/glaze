@@ -9,8 +9,12 @@ extends RefCounted
 ## properties, never the name (CLAUDE.md rule 9):
 ##   "heal": n           using it restores n HP (UseItemCommand)
 ##   "temperature": d    using it moves body temperature by d levels
-##   "slot": "weapon"/"armor", "damage": n, "armor": n   (EquipCommand)
-##   "money": true       traders take it at full value (TradeRules)
+##   "slot": where it is worn (EquipRules: head, neck, body, hands, waist,
+##           legs, feet, ring, main_hand, off_hand); "two_handed" weapons
+##           fill both hands
+##   "damage": n (weapons; worn elsewhere, extra damage), "armor": n,
+##   "power": n (weapon and spell damage), "max_hp": n   (EquipRules)
+##   "money": true       traders take it at full value (TradeCommand)
 ##   "rest": true        the party can rest with it (RestCommand)
 
 const DEFAULT := {"value": 0, "weight": 1000, "kind": "misc", "blurb": ""}
@@ -18,7 +22,6 @@ const DEFAULT := {"value": 0, "weight": 1000, "kind": "misc", "blurb": ""}
 const ITEMS := {
 	"Gold": {"value": 25, "weight": 250, "kind": "valuable", "money": true, "blurb": "A pouch of gold pieces."},
 	"Coins": {"value": 8, "weight": 150, "kind": "valuable", "money": true, "blurb": "A handful of copper and silver."},
-	"Silver ring": {"value": 40, "weight": 20, "kind": "valuable", "blurb": "Plain, but real silver."},
 	"Map": {"value": 15, "weight": 50, "kind": "document", "blurb": "The roads around the village, with a cross near the bandit camp."},
 	"Key": {"value": 2, "weight": 30, "kind": "key", "blurb": "A guard's key. To what?"},
 	"Camp key": {"value": 5, "weight": 40, "kind": "key", "blurb": "Opens the bandit chief's chest."},
@@ -31,18 +34,32 @@ const ITEMS := {
 			"blurb": "Thaws the frozen and the cold."},
 	"Bedroll": {"value": 10, "weight": 2000, "kind": "misc", "rest": true,
 			"blurb": "Rest with it when no enemies are near: the whole party heals."},
-	# Weapons (damage) and armour (armor: less physical damage per hit)
-	"Greatsword": {"value": 30, "weight": 3500, "kind": "weapon", "slot": "weapon", "damage": 5, "blurb": "Two-handed. 5 damage."},
-	"Greataxe": {"value": 30, "weight": 4000, "kind": "weapon", "slot": "weapon", "damage": 6, "blurb": "Heavy. 6 damage."},
-	"Daggers": {"value": 18, "weight": 800, "kind": "weapon", "slot": "weapon", "damage": 3, "blurb": "A matched pair. 3 damage."},
-	"Knife": {"value": 6, "weight": 300, "kind": "weapon", "slot": "weapon", "damage": 3, "blurb": "Sharp enough. 3 damage."},
-	"Staff": {"value": 10, "weight": 1800, "kind": "weapon", "slot": "weapon", "damage": 2, "blurb": "A walking stick, mostly. 2 damage."},
-	"Totem": {"value": 12, "weight": 1500, "kind": "weapon", "slot": "weapon", "damage": 2, "blurb": "Carved and painted. 2 damage."},
-	"Spear": {"value": 15, "weight": 2200, "kind": "weapon", "slot": "weapon", "damage": 4, "blurb": "Long reach, simple. 4 damage."},
-	"Club": {"value": 3, "weight": 1500, "kind": "weapon", "slot": "weapon", "damage": 3, "blurb": "A heavy branch. 3 damage."},
-	"Fine sword": {"value": 60, "weight": 1500, "kind": "weapon", "slot": "weapon", "damage": 6, "blurb": "Well balanced. 6 damage."},
-	"Leather armour": {"value": 25, "weight": 5000, "kind": "armor", "slot": "armor", "armor": 1, "blurb": "Takes 1 off every physical hit."},
-	"Chain shirt": {"value": 70, "weight": 9000, "kind": "armor", "slot": "armor", "armor": 2, "blurb": "Takes 2 off every physical hit."},
+	# Main hand (two-handed ones leave no room for the off hand)
+	"Greatsword": {"value": 30, "weight": 3500, "kind": "weapon", "slot": "main_hand", "two_handed": true, "damage": 5, "blurb": "Two-handed."},
+	"Greataxe": {"value": 30, "weight": 4000, "kind": "weapon", "slot": "main_hand", "two_handed": true, "damage": 6, "blurb": "Two-handed. Heavy."},
+	"Daggers": {"value": 18, "weight": 800, "kind": "weapon", "slot": "main_hand", "damage": 3, "blurb": "Quick and quiet."},
+	"Knife": {"value": 6, "weight": 300, "kind": "weapon", "slot": "main_hand", "damage": 3, "blurb": "Sharp enough."},
+	"Staff": {"value": 10, "weight": 1800, "kind": "weapon", "slot": "main_hand", "two_handed": true, "damage": 2, "blurb": "Two-handed. A walking stick, mostly."},
+	"Totem": {"value": 12, "weight": 1500, "kind": "weapon", "slot": "main_hand", "damage": 2, "blurb": "Carved and painted."},
+	"Spear": {"value": 15, "weight": 2200, "kind": "weapon", "slot": "main_hand", "two_handed": true, "damage": 4, "blurb": "Two-handed. Long reach, simple."},
+	"Club": {"value": 3, "weight": 1500, "kind": "weapon", "slot": "main_hand", "damage": 3, "blurb": "A heavy branch."},
+	"Fine sword": {"value": 60, "weight": 1500, "kind": "weapon", "slot": "main_hand", "damage": 6, "blurb": "Well balanced; leaves a hand free."},
+	# Off hand
+	"Wooden shield": {"value": 14, "weight": 3000, "kind": "armor", "slot": "off_hand", "armor": 1, "blurb": "Round, oak, dented."},
+	"Parrying dagger": {"value": 16, "weight": 400, "kind": "weapon", "slot": "off_hand", "damage": 1, "blurb": "For the other hand."},
+	# Armour and trinkets
+	"Leather cap": {"value": 8, "weight": 400, "kind": "armor", "slot": "head", "max_hp": 2, "blurb": "Better than nothing."},
+	"Iron helm": {"value": 30, "weight": 2000, "kind": "armor", "slot": "head", "armor": 1, "max_hp": 2, "blurb": "Heavy and loud."},
+	"Leather armour": {"value": 25, "weight": 5000, "kind": "armor", "slot": "body", "armor": 1, "blurb": "Boiled leather."},
+	"Chain shirt": {"value": 70, "weight": 9000, "kind": "armor", "slot": "body", "armor": 2, "blurb": "Rings of iron."},
+	"Brawler's gloves": {"value": 18, "weight": 300, "kind": "armor", "slot": "hands", "damage": 1, "blurb": "Studded knuckles."},
+	"Leather leggings": {"value": 12, "weight": 1200, "kind": "armor", "slot": "legs", "max_hp": 3, "blurb": "Patched at the knees."},
+	"Leather boots": {"value": 10, "weight": 900, "kind": "armor", "slot": "feet", "max_hp": 2, "blurb": "Good for long roads."},
+	"Belt": {"value": 6, "weight": 300, "kind": "armor", "slot": "waist", "max_hp": 2, "blurb": "Keeps everything where it should be."},
+	"Bone amulet": {"value": 22, "weight": 60, "kind": "trinket", "slot": "neck", "power": 1, "blurb": "Something old hums in it."},
+	"Amber pendant": {"value": 35, "weight": 40, "kind": "trinket", "slot": "neck", "max_hp": 4, "blurb": "Warm to the touch."},
+	"Silver ring": {"value": 40, "weight": 20, "kind": "trinket", "slot": "ring", "power": 1, "blurb": "Plain, but real silver."},
+	"Copper ring": {"value": 10, "weight": 15, "kind": "trinket", "slot": "ring", "max_hp": 2, "blurb": "Turns your finger green."},
 }
 
 
@@ -71,7 +88,7 @@ static func has_property(item: String, property: String) -> bool:
 	return info(item).has(property)
 
 
-## "weapon", "armor", or "" if it can't be worn.
+## Its EquipRules slot kind, or "" if it can't be worn.
 static func slot_of(item: String) -> String:
 	return info(item).get("slot", "")
 

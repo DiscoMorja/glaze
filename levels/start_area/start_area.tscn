@@ -114,6 +114,7 @@ role = "vanguard"
 entity_name = "Ari"
 team = 0
 inventory = Array[String](["Healing potion", "Bread", "Bedroll"])
+equipment = Array[String](["Leather armour", "Leather boots"])
 gold = 15
 
 [node name="Bram" type="Marker3D" parent="Party" unique_id=1124453819]
@@ -123,6 +124,7 @@ role = "pyromancer"
 entity_name = "Bram"
 team = 0
 inventory = Array[String](["Healing potion", "Bread"])
+equipment = Array[String](["Leather cap", "Belt"])
 gold = 15
 
 [node name="Cel" type="Marker3D" parent="Party" unique_id=706996317]
@@ -133,6 +135,7 @@ entity_name = "Cel"
 player = 1
 team = 0
 inventory = Array[String](["Healing potion", "Bread"])
+equipment = Array[String](["Leather boots", "Copper ring"])
 gold = 15
 
 [node name="Dov" type="Marker3D" parent="Party" unique_id=666803984]
@@ -143,6 +146,7 @@ entity_name = "Dov"
 player = 1
 team = 0
 inventory = Array[String](["Healing potion", "Bread"])
+equipment = Array[String](["Leather leggings"])
 gold = 15
 
 [node name="Bandits" type="Node3D" parent="." unique_id=1193246565]
@@ -153,6 +157,7 @@ script = ExtResource("2_spawn")
 role = "brute"
 entity_name = "Chief"
 inventory = Array[String](["Camp key"])
+equipment = Array[String](["Iron helm", "Leather armour"])
 
 [node name="Hexer" type="Marker3D" parent="Bandits" unique_id=913866369]
 transform = Transform3D(-0.70710677, 0, 0.70710677, 0, 1, 0, -0.70710677, 0, -0.70710677, 53.5, 4.5, 17.5)
@@ -172,6 +177,7 @@ script = ExtResource("2_spawn")
 role = "skirmisher"
 entity_name = "Cutpurse"
 inventory = Array[String](["Gold"])
+equipment = Array[String](["Parrying dagger", "Brawler's gloves"])
 
 [node name="Thug" type="Marker3D" parent="Bandits" unique_id=296618876]
 transform = Transform3D(-0.70710677, 0, 0.70710677, 0, 1, 0, -0.70710677, 0, -0.70710677, 50.5, 4.5, 21.5)
@@ -234,7 +240,7 @@ role = "merchant"
 entity_name = "Merchant"
 team = 2
 dialogue = "merchant"
-inventory = Array[String](["Coins", "Silver ring", "Map", "Healing potion", "Healing potion", "Healing potion", "Cooling salve", "Warming draught", "Bedroll", "Leather armour", "Fine sword"])
+inventory = Array[String](["Coins", "Silver ring", "Map", "Healing potion", "Healing potion", "Healing potion", "Cooling salve", "Warming draught", "Bedroll", "Leather armour", "Fine sword", "Wooden shield", "Leather cap", "Leather boots", "Copper ring", "Bone amulet"])
 gold = 120
 trades = true
 
@@ -269,5 +275,5 @@ inventory = Array[String](["Key"])
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21.5, 2, 44.5)
 script = ExtResource("9_container")
 display_name = "Strongbox"
-items = Array[String](["Gold", "Gold", "Coins"])
+items = Array[String](["Gold", "Gold", "Coins", "Amber pendant"])
 key = "Key"

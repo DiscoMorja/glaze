@@ -1,9 +1,10 @@
 class_name EquipCommand
 extends SimCommand
-## Outside combat: a party member wears an item from their inventory in the
-## slot its "slot" property names (weapon or armour); what they wore goes back
-## in the bag. index -1 takes off whatever is in `slot` instead. Damage and
-## armour come from the item's properties (SimItems).
+## Outside combat: a party member wears an item from their bag in an
+## equipment slot (EquipRules.SLOTS; "" = the item's own slot, for rings the
+## first free one). Whatever was there, and anything in the way of a
+## two-handed weapon, goes back in the bag. index UNEQUIP takes off what is
+## in `slot` instead. Stats come from the items' properties (SimItems).
 
 const TYPE := "equip"
 const UNEQUIP := -1
@@ -27,45 +28,34 @@ func actor_id() -> int:
 	return entity_id
 
 
+func _target_slot(e: SimEntity) -> String:
+	if slot != "" or index == UNEQUIP:
+		return slot
+	return EquipRules.default_slot(e, e.inventory[index])
+
+
 func validate(state: SimState) -> bool:
 	var e := state.get_entity(entity_id)
 	if state.combat.active or e == null or not e.is_alive() or e.faction != SimEntity.Faction.PLAYERS:
 		return false
 	if index == UNEQUIP:
-		return worn(e, slot) != ""
-	return index >= 0 and index < e.inventory.size() and SimItems.slot_of(e.inventory[index]) != ""
-
-
-## What `e` wears in `slot` ("" = nothing).
-static func worn(e: SimEntity, p_slot: String) -> String:
-	match p_slot:
-		"weapon":
-			return e.weapon
-		"armor":
-			return e.armor_item
-	return ""
+		return EquipRules.SLOTS.has(slot) and EquipRules.worn(e, slot) != ""
+	if index < 0 or index >= e.inventory.size():
+		return false
+	return EquipRules.fits(_target_slot(e), e.inventory[index])
 
 
 func execute(state: SimState) -> void:
 	var e := state.get_entity(entity_id)
+	var target := _target_slot(e)
 	var item := ""
-	var target_slot := slot
 	if index != UNEQUIP:
 		item = e.inventory[index]
 		e.inventory.remove_at(index)
-		target_slot = SimItems.slot_of(item)
-	var old := worn(e, target_slot)
-	if old != "":
-		e.inventory.append(old)
-	match target_slot:
-		"weapon":
-			e.weapon = item
-			e.weapon_damage = SimItems.amount(item, "damage")
-		"armor":
-			e.armor_item = item
-			e.armor = SimItems.amount(item, "armor")
+	var removed := EquipRules.put(e, target, item)
+	e.inventory.append_array(removed)
 	var event := state.emit_event(SimEvent.Type.EQUIPPED, e.cell, e.id)
-	event.text = item if item != "" else old
+	event.text = item  # "" = took something off
 
 
 func to_dict() -> Dictionary:

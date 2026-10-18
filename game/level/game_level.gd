@@ -183,6 +183,12 @@ func _place_markers(state: SimState) -> void:
 		e.group = spawn.group_name()
 		e.dialogue = spawn.dialogue
 		e.gold = spawn.gold
+		for item in spawn.equipment:
+			var slot := EquipRules.default_slot(e, item)
+			if slot == "":
+				push_warning("%s can't wear %s" % [spawn.name, item])
+			else:
+				EquipRules.put(e, slot, item)
 		e.trader = spawn.trades
 		var pack_name := spawn.pack_name()
 		if pack_name != "":

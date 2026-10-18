@@ -39,7 +39,23 @@ func _ready() -> void:
 	%HostInfo.text = "Hosting: your partner joins with %s (port %d, UDP)." % [
 		" or ".join(addresses) if not addresses.is_empty() else "your IP address", NetSession.DEFAULT_PORT]
 	DisplayServer.window_set_title("glaze")
+	_fit_window()
 	_run_command_line.call_deferred()  # changing scene inside _ready isn't allowed
+
+
+## The window opens at 1920x1080 (project settings); on a smaller screen it
+## shrinks to fit and centres. The UI scales with it (canvas_items stretch).
+static func _fit_window() -> void:
+	if DisplayServer.window_get_mode() != DisplayServer.WINDOW_MODE_WINDOWED or OS.has_feature("editor_hint"):
+		return
+	var screen := DisplayServer.screen_get_usable_rect(DisplayServer.window_get_current_screen())
+	var size := DisplayServer.window_get_size()
+	if size.x <= screen.size.x and size.y <= screen.size.y:
+		return
+	var fit := minf(screen.size.x * 0.92 / size.x, screen.size.y * 0.92 / size.y)
+	size = Vector2i(roundi(size.x * fit), roundi(size.y * fit))
+	DisplayServer.window_set_size(size)
+	DisplayServer.window_set_position(screen.position + (screen.size - size) / 2)
 
 
 func _run_command_line() -> void:

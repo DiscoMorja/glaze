@@ -37,7 +37,7 @@ static func damage(state: SimState, e: SimEntity, amount: int, source_id: int = 
 	if not e.is_alive() or amount <= 0:
 		return
 	if element == Element.PHYSICAL and e.armor > 0:
-		amount = maxi(amount - e.armor, 1)  # armour softens blows, never stops them
+		amount = maxi(amount - e.armor, (amount + 1) / 2)  # armour softens blows, at most by half
 	e.hp = maxi(e.hp - amount, 0)
 	var event := state.emit_event(SimEvent.Type.DAMAGED, e.cell, e.id, source_id, amount)
 	event.element = element
@@ -317,12 +317,7 @@ static func _die(state: SimState, e: SimEntity) -> void:
 	ProgressionRules.on_death(state, e)
 	if e.faction != SimEntity.Faction.PLAYERS and e.takes_turns():
 		# What it wore falls with it, for whoever loots the body.
-		for worn: String in [e.weapon, e.armor_item]:
-			if worn != "":
-				e.inventory.append(worn)
-		e.weapon = ""
-		e.armor_item = ""
-		e.armor = 0
+		e.inventory.append_array(EquipRules.strip(e))
 	if e.contents_surface == SimMaterials.Surface.NONE or e.contents_amount <= 0:
 		return
 	var cells := state.grid.disc_cells(e.cell, 1)

@@ -28,10 +28,15 @@ var weapon: String = ""
 var can_be_disarmed := true
 var weapon_damage: int = 0
 var unarmed_damage: int = 1
-## Worn armour (an item name, "" = none) and how much it takes off each
-## physical hit (EntityOps.damage(); at least 1 still gets through).
-var armor_item := ""
+## What is worn in every slot but the main hand (that's `weapon`): slot ->
+## item name (EquipRules). The gear_* stats and armour are worked out from it
+## (EquipRules.recalculate()); armour takes that much off each physical hit
+## (EntityOps.damage(), at most half of it).
+var worn := {}
 var armor := 0
+var gear_damage := 0
+var gear_power := 0
+var gear_hp := 0
 ## Gold pieces carried (TradeCommand).
 var gold := 0
 ## Townsfolk who buy and sell (TradeCommand).
@@ -142,7 +147,12 @@ func takes_turns() -> bool:
 
 
 func attack_damage() -> int:
-	return (weapon_damage if weapon != "" else unarmed_damage) + power
+	return (weapon_damage if weapon != "" else unarmed_damage) + gear_damage + power + gear_power
+
+
+## Bonus damage for spells: points spent on power, and gear.
+func spell_power() -> int:
+	return power + gear_power
 
 
 func to_dict() -> Dictionary:
@@ -151,7 +161,8 @@ func to_dict() -> Dictionary:
 		"hp": hp, "max_hp": max_hp, "ap": ap, "max_ap": max_ap, "mass": mass,
 		"contents_surface": contents_surface, "contents_amount": contents_amount,
 		"weapon": weapon, "can_be_disarmed": can_be_disarmed, "weapon_damage": weapon_damage, "unarmed_damage": unarmed_damage,
-		"armor_item": armor_item, "armor": armor, "gold": gold, "trader": trader,
+		"worn": worn.duplicate(), "armor": armor, "gear_damage": gear_damage, "gear_power": gear_power, "gear_hp": gear_hp,
+		"gold": gold, "trader": trader,
 		"xp": xp, "level": level, "points": points, "power": power,
 		"inventory": inventory.duplicate(),
 		"abilities": abilities.duplicate(),
@@ -198,8 +209,13 @@ static func from_dict(data: Dictionary) -> SimEntity:
 	e.can_be_disarmed = data.get("can_be_disarmed", e.can_be_disarmed)
 	e.weapon_damage = data.get("weapon_damage", e.weapon_damage)
 	e.unarmed_damage = data.get("unarmed_damage", e.unarmed_damage)
-	e.armor_item = data.get("armor_item", e.armor_item)
+	e.worn = data.get("worn", {}).duplicate()
+	if data.get("armor_item", "") != "":
+		e.worn["body"] = data.armor_item  # one armour slot, before the paperdoll
 	e.armor = data.get("armor", e.armor)
+	e.gear_damage = data.get("gear_damage", e.gear_damage)
+	e.gear_power = data.get("gear_power", e.gear_power)
+	e.gear_hp = data.get("gear_hp", e.gear_hp)
 	e.gold = data.get("gold", e.gold)
 	e.trader = data.get("trader", e.trader)
 	e.xp = data.get("xp", e.xp)
