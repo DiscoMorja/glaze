@@ -111,14 +111,14 @@ size = Vector3(11.25, 4.00, 13.50)
 material = SubResource("Mat_wood")
 
 [node name="Inside" type="CSGBox3D" parent="Village/Buildings/Tavern"]
-transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.20, 0.00)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.08, 0.00)
 operation = 2
-size = Vector3(10.65, 3.60, 12.90)
+size = Vector3(10.65, 4.25, 12.90)
 
 [node name="Door" type="CSGBox3D" parent="Village/Buildings/Tavern"]
-transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, -5.63, -0.90, 0.00)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, -5.63, -1.00, 0.00)
 operation = 2
-size = Vector3(1.4, 2.2, 1.4)
+size = Vector3(1.40, 2.40, 2.00)
 
 [node name="Roof" type="CSGBox3D" parent="Village/Buildings/Tavern"]
 transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, 2.25, 0.00)
@@ -132,14 +132,14 @@ size = Vector3(12.75, 4.50, 12.75)
 material = SubResource("Mat_stone")
 
 [node name="Inside" type="CSGBox3D" parent="Village/Buildings/Authorities"]
-transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.20, 0.00)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.08, 0.00)
 operation = 2
-size = Vector3(12.15, 4.10, 12.15)
+size = Vector3(12.15, 4.75, 12.15)
 
 [node name="Door" type="CSGBox3D" parent="Village/Buildings/Authorities"]
-transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, -6.38, -1.15, 0.00)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, -6.38, -1.25, 0.00)
 operation = 2
-size = Vector3(1.4, 2.2, 1.4)
+size = Vector3(1.40, 2.40, 2.00)
 
 [node name="Roof" type="CSGBox3D" parent="Village/Buildings/Authorities"]
 transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, 2.50, 0.00)
@@ -153,14 +153,14 @@ size = Vector3(6.75, 6.00, 10.50)
 material = SubResource("Mat_stone")
 
 [node name="Inside" type="CSGBox3D" parent="Village/Buildings/Church"]
-transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.20, 0.00)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.08, 0.00)
 operation = 2
-size = Vector3(6.15, 5.60, 9.90)
+size = Vector3(6.15, 6.25, 9.90)
 
 [node name="Door" type="CSGBox3D" parent="Village/Buildings/Church"]
-transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 3.38, -1.90, 0.00)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 3.38, -2.00, 0.00)
 operation = 2
-size = Vector3(1.4, 2.2, 1.4)
+size = Vector3(1.40, 2.40, 2.00)
 
 [node name="Roof" type="CSGBox3D" parent="Village/Buildings/Church"]
 transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, 3.25, 0.00)
@@ -174,14 +174,14 @@ size = Vector3(9.00, 3.50, 7.50)
 material = SubResource("Mat_dark")
 
 [node name="Inside" type="CSGBox3D" parent="Village/Buildings/Blacksmith"]
-transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.20, 0.00)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.07, 0.00)
 operation = 2
-size = Vector3(8.40, 3.10, 6.90)
+size = Vector3(8.40, 3.75, 6.90)
 
 [node name="Door" type="CSGBox3D" parent="Village/Buildings/Blacksmith"]
-transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 4.50, -0.65, 0.00)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 4.50, -0.75, 0.00)
 operation = 2
-size = Vector3(1.4, 2.2, 1.4)
+size = Vector3(1.40, 2.40, 2.00)
 
 [node name="Roof" type="CSGBox3D" parent="Village/Buildings/Blacksmith"]
 transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, 2.00, 0.00)
@@ -195,14 +195,14 @@ size = Vector3(6.00, 3.50, 6.75)
 material = SubResource("Mat_plaster")
 
 [node name="Inside" type="CSGBox3D" parent="Village/Buildings/HouseA"]
-transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.20, 0.00)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.07, 0.00)
 operation = 2
-size = Vector3(5.40, 3.10, 6.15)
+size = Vector3(5.40, 3.75, 6.15)
 
 [node name="Door" type="CSGBox3D" parent="Village/Buildings/HouseA"]
-transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, -3.00, -0.65, 0.00)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, -3.00, -0.75, 0.00)
 operation = 2
-size = Vector3(1.4, 2.2, 1.4)
+size = Vector3(1.40, 2.40, 2.00)
 
 [node name="Roof" type="CSGBox3D" parent="Village/Buildings/HouseA"]
 transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, 2.00, 0.00)
@@ -216,14 +216,14 @@ size = Vector3(5.63, 3.50, 8.25)
 material = SubResource("Mat_plaster")
 
 [node name="Inside" type="CSGBox3D" parent="Village/Buildings/HouseB"]
-transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.20, 0.00)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.07, 0.00)
 operation = 2
-size = Vector3(5.03, 3.10, 7.65)
+size = Vector3(5.03, 3.75, 7.65)
 
 [node name="Door" type="CSGBox3D" parent="Village/Buildings/HouseB"]
-transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, -2.81, -0.65, 0.00)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, -2.81, -0.75, 0.00)
 operation = 2
-size = Vector3(1.4, 2.2, 1.4)
+size = Vector3(1.40, 2.40, 2.00)
 
 [node name="Roof" type="CSGBox3D" parent="Village/Buildings/HouseB"]
 transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, 2.00, 0.00)
@@ -237,14 +237,14 @@ size = Vector3(5.25, 3.50, 8.25)
 material = SubResource("Mat_plaster")
 
 [node name="Inside" type="CSGBox3D" parent="Village/Buildings/HouseC"]
-transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.20, 0.00)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.07, 0.00)
 operation = 2
-size = Vector3(4.65, 3.10, 7.65)
+size = Vector3(4.65, 3.75, 7.65)
 
 [node name="Door" type="CSGBox3D" parent="Village/Buildings/HouseC"]
-transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, -2.63, -0.65, 0.00)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, -2.63, -0.75, 0.00)
 operation = 2
-size = Vector3(1.4, 2.2, 1.4)
+size = Vector3(1.40, 2.40, 2.00)
 
 [node name="Roof" type="CSGBox3D" parent="Village/Buildings/HouseC"]
 transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, 2.00, 0.00)
@@ -258,14 +258,14 @@ size = Vector3(6.75, 3.50, 12.00)
 material = SubResource("Mat_plaster")
 
 [node name="Inside" type="CSGBox3D" parent="Village/Buildings/HouseD"]
-transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.20, 0.00)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.07, 0.00)
 operation = 2
-size = Vector3(6.15, 3.10, 11.40)
+size = Vector3(6.15, 3.75, 11.40)
 
 [node name="Door" type="CSGBox3D" parent="Village/Buildings/HouseD"]
-transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.65, 6.00)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.75, 6.00)
 operation = 2
-size = Vector3(1.4, 2.2, 1.4)
+size = Vector3(2.00, 2.40, 1.40)
 
 [node name="Roof" type="CSGBox3D" parent="Village/Buildings/HouseD"]
 transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, 2.00, 0.00)
@@ -279,14 +279,14 @@ size = Vector3(9.00, 3.50, 6.75)
 material = SubResource("Mat_plaster")
 
 [node name="Inside" type="CSGBox3D" parent="Village/Buildings/HouseE"]
-transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.20, 0.00)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.07, 0.00)
 operation = 2
-size = Vector3(8.40, 3.10, 6.15)
+size = Vector3(8.40, 3.75, 6.15)
 
 [node name="Door" type="CSGBox3D" parent="Village/Buildings/HouseE"]
-transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.65, 3.38)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.75, 3.38)
 operation = 2
-size = Vector3(1.4, 2.2, 1.4)
+size = Vector3(2.00, 2.40, 1.40)
 
 [node name="Roof" type="CSGBox3D" parent="Village/Buildings/HouseE"]
 transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, 2.00, 0.00)
@@ -300,14 +300,14 @@ size = Vector3(14.25, 3.50, 6.75)
 material = SubResource("Mat_plaster")
 
 [node name="Inside" type="CSGBox3D" parent="Village/Buildings/HouseF"]
-transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.20, 0.00)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.07, 0.00)
 operation = 2
-size = Vector3(13.65, 3.10, 6.15)
+size = Vector3(13.65, 3.75, 6.15)
 
 [node name="Door" type="CSGBox3D" parent="Village/Buildings/HouseF"]
-transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.65, 3.38)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, -4.50, -0.75, 3.38)
 operation = 2
-size = Vector3(1.4, 2.2, 1.4)
+size = Vector3(2.00, 2.40, 1.40)
 
 [node name="Roof" type="CSGBox3D" parent="Village/Buildings/HouseF"]
 transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, 2.00, 0.00)
@@ -321,14 +321,14 @@ size = Vector3(5.25, 3.50, 16.50)
 material = SubResource("Mat_stone")
 
 [node name="Inside" type="CSGBox3D" parent="Village/Buildings/GuardHouse"]
-transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.20, 0.00)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.07, 0.00)
 operation = 2
-size = Vector3(4.65, 3.10, 15.90)
+size = Vector3(4.65, 3.75, 15.90)
 
 [node name="Door" type="CSGBox3D" parent="Village/Buildings/GuardHouse"]
-transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 2.63, -0.65, 0.00)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 2.63, -0.75, 0.00)
 operation = 2
-size = Vector3(1.4, 2.2, 1.4)
+size = Vector3(1.40, 2.40, 2.00)
 
 [node name="Roof" type="CSGBox3D" parent="Village/Buildings/GuardHouse"]
 transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, 2.00, 0.00)
@@ -336,7 +336,7 @@ size = Vector3(5.85, 0.5, 17.10)
 material = SubResource("Mat_roof")
 
 [node name="Steeple" type="CSGBox3D" parent="Village/Buildings"]
-transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 256.38, 8.00, 148.00)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 256.38, 8.00, 143.90)
 use_collision = true
 size = Vector3(2.2, 10, 2.2)
 material = SubResource("Mat_stone")
@@ -1428,14 +1428,19 @@ size = Vector3(5, 3, 5)
 material = SubResource("Mat_wood")
 
 [node name="Inside" type="CSGBox3D" parent="Camp/Hut1"]
-transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.30, 0.00)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.07, 0.00)
 operation = 2
-size = Vector3(4.2, 2.4, 4.2)
+size = Vector3(4.20, 3.25, 4.20)
 
 [node name="Door" type="CSGBox3D" parent="Camp/Hut1"]
-transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 2.30, -0.40, 0.00)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 2.30, -0.50, 0.00)
 operation = 2
-size = Vector3(1, 2.2, 1.2)
+size = Vector3(1.00, 2.40, 2.00)
+
+[node name="Roof" type="CSGBox3D" parent="Camp/Hut1"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, 1.70, 0.00)
+size = Vector3(5.60, 0.40, 5.60)
+material = SubResource("Mat_roof")
 
 [node name="Hut2" type="CSGBox3D" parent="Camp"]
 transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 86.00, 6.50, 118.00)
@@ -1444,14 +1449,19 @@ size = Vector3(5, 3, 5)
 material = SubResource("Mat_wood")
 
 [node name="Inside" type="CSGBox3D" parent="Camp/Hut2"]
-transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.30, 0.00)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.07, 0.00)
 operation = 2
-size = Vector3(4.2, 2.4, 4.2)
+size = Vector3(4.20, 3.25, 4.20)
 
 [node name="Door" type="CSGBox3D" parent="Camp/Hut2"]
-transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 2.30, -0.40, 0.00)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 2.30, -0.50, 0.00)
 operation = 2
-size = Vector3(1, 2.2, 1.2)
+size = Vector3(1.00, 2.40, 2.00)
+
+[node name="Roof" type="CSGBox3D" parent="Camp/Hut2"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, 1.70, 0.00)
+size = Vector3(5.60, 0.40, 5.60)
+material = SubResource("Mat_roof")
 
 [node name="Hut3" type="CSGBox3D" parent="Camp"]
 transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 73.00, 6.50, 131.00)
@@ -1460,14 +1470,19 @@ size = Vector3(5, 3, 5)
 material = SubResource("Mat_wood")
 
 [node name="Inside" type="CSGBox3D" parent="Camp/Hut3"]
-transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.30, 0.00)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.07, 0.00)
 operation = 2
-size = Vector3(4.2, 2.4, 4.2)
+size = Vector3(4.20, 3.25, 4.20)
 
 [node name="Door" type="CSGBox3D" parent="Camp/Hut3"]
-transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 2.30, -0.40, 0.00)
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 2.30, -0.50, 0.00)
 operation = 2
-size = Vector3(1, 2.2, 1.2)
+size = Vector3(1.00, 2.40, 2.00)
+
+[node name="Roof" type="CSGBox3D" parent="Camp/Hut3"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, 1.70, 0.00)
+size = Vector3(5.60, 0.40, 5.60)
+material = SubResource("Mat_roof")
 
 [node name="Watchtower" type="CSGBox3D" parent="Camp"]
 transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 89.00, 7.00, 132.00)

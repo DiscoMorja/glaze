@@ -163,7 +163,7 @@ func _update_camera() -> void:
 ## living entity's cell if the ray hits one, otherwise the open cell on top of
 ## the first solid cell (or, in levels with terrain, the walk cell of the
 ## terrain the ray reaches). Returns null when nothing is hit.
-func pick_cell(state: SimState, screen_pos: Vector2) -> Variant:
+func pick_cell(state: SimState, screen_pos: Vector2, cutaway: BuildingCutaway = null) -> Variant:
 	var origin := camera.project_ray_origin(screen_pos)
 	var dir := camera.project_ray_normal(screen_pos)
 	var grid := state.grid
@@ -171,6 +171,7 @@ func pick_cell(state: SimState, screen_pos: Vector2) -> Variant:
 	if span.x > span.y:
 		return null
 	var t := span.x
+	var grazed := {}  # wall columns under a removed roof the ray slid past
 	while t <= span.y:
 		var p := origin + dir * t
 		var c := Vector3i(floori(p.x), floori(p.y), floori(p.z))
@@ -183,8 +184,15 @@ func pick_cell(state: SimState, screen_pos: Vector2) -> Variant:
 				while grid.in_bounds(walk) and grid.is_solid(walk):
 					walk += Vector3i.UP
 				return walk if grid.in_bounds(walk) else null
-			if grid.is_solid(c):
+			if grid.is_solid(c) and not (cutaway != null and cutaway.see_through(c)):
 				var above := c + Vector3i.UP
+				var column := Vector2i(c.x, c.z)
+				if grazed.has(column) or (cutaway != null and grid.in_bounds(above) and cutaway.see_through(above)):
+					# A wall top under a removed roof (walls fill whole cells, wider
+					# than they look): look on into the room.
+					grazed[column] = true
+					t += 0.05
+					continue
 				return above if grid.in_bounds(above) and not grid.is_solid(above) else null
 		t += 0.05
 	return null

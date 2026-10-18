@@ -144,6 +144,8 @@ var _entity_renderer: SimEntityRenderer
 var _markers: CellMarkers
 var _range_markers: CellMarkers
 var _rig: CameraRig
+## Roofs come off the buildings this player's characters are in.
+var _cutaway := BuildingCutaway.new()
 var _hud: Label
 var _log_label: Label
 var _party_bar: PartyBar
@@ -222,6 +224,7 @@ func _process(delta: float) -> void:
 		_save(SaveStore.next_auto_slot(), "Autosave" + (": " + _autosave_reason if _autosave_reason != "" else ""))
 		_log.push_front("Autosaved.")
 		_refresh()
+	_update_cutaway()
 	_update_hover()
 	_advance_walks()
 	if _preview_due_msec > 0 and Time.get_ticks_msec() >= _preview_due_msec:
@@ -251,6 +254,15 @@ func _process(delta: float) -> void:
 			print("perf: ", _perf_text())
 
 
+func _update_cutaway() -> void:
+	var cells: Array[Vector3i] = []
+	for member in _my_party():
+		if member.is_alive():
+			cells.append(member.cell)
+	if _cutaway.update(cells):
+		_force_pick = true  # the cursor may now look into the room
+
+
 func _update_hover() -> void:
 	var view := [_mouse_pos, _rig.camera.global_transform]
 	if view == _last_pick_view and not _force_pick:
@@ -259,7 +271,7 @@ func _update_hover() -> void:
 	var forced := _force_pick
 	_force_pick = false
 	var t_pick := Time.get_ticks_usec()
-	var hover: Variant = _rig.pick_cell(state, _mouse_pos)
+	var hover: Variant = _rig.pick_cell(state, _mouse_pos, _cutaway)
 	_note_perf("pick", t_pick)
 	if typeof(hover) != typeof(_hover) or hover != _hover:
 		_hover = hover
@@ -403,6 +415,7 @@ func _load_level() -> int:
 	var bake_start := Time.get_ticks_usec()
 	_baked = await _level.bake()
 	_note_perf("bake", bake_start)
+	_cutaway.setup(_level)
 	return session
 
 

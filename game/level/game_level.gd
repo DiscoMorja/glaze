@@ -23,9 +23,22 @@ extends Node3D
 ## Start the level in turn-based combat (an arena) instead of exploring.
 @export var start_in_combat := false
 
-## Where the vertical sample lines run inside each 1 m column.
-const SAMPLE_OFFSETS := [Vector2(0.25, 0.25), Vector2(0.75, 0.25), Vector2(0.25, 0.75), Vector2(0.75, 0.75)]
+## Where the vertical sample lines run inside each 1 m column: a 5 x 5 grid
+## 0.2 m apart, so a wall at least 0.2 m thick always crosses a line (two
+## lines 0.5 m apart let 0.3 m walls slip between them and leave holes). The
+## grid is shifted off round numbers so no line runs along an authored face
+## (a ray grazing a face reports stray crossings).
+const SAMPLE_STEPS := [0.1137, 0.3137, 0.5137, 0.7137, 0.9137]
 const MAX_CROSSINGS := 16
+static var SAMPLE_OFFSETS: Array[Vector2] = _sample_offsets()
+
+
+static func _sample_offsets() -> Array[Vector2]:
+	var result: Array[Vector2] = []
+	for z: float in SAMPLE_STEPS:
+		for x: float in SAMPLE_STEPS:
+			result.append(Vector2(x, z))
+	return result
 
 
 ## Builds the sim state for this level. Waits for physics so structure
@@ -97,7 +110,7 @@ func _bake_structures(grid: SimGrid) -> void:
 		var top := bounds.end.y + 1.0
 		for z in range(maxi(lo.z, 0), mini(hi.z, grid_size.z)):
 			for x in range(maxi(lo.x, 0), mini(hi.x, grid_size.x)):
-				# Four vertical sample lines per column catch walls thinner than a cell.
+				# A grid of vertical sample lines per column catches walls thinner than a cell.
 				var lines: Array[PackedFloat32Array] = []
 				for offset: Vector2 in SAMPLE_OFFSETS:
 					lines.append(_crossings(space, Vector2(x + offset.x, z + offset.y), bottom, top))
