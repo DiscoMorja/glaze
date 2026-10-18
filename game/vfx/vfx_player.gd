@@ -94,6 +94,10 @@ func play(state: SimState, events: Array[SimEvent]) -> void:
 			SimEvent.Type.BURNING:
 				_later(delay, func() -> void:
 					VfxFactory.floating_text(self, _body(e.cell) + Vector3(0, 1.3, 0), "Burning", Color(1.0, 0.55, 0.15), 56))
+			SimEvent.Type.REVIVED:
+				_later(delay, func() -> void:
+					VfxFactory.burst(self, _body(e.cell), "heal", 1.4)
+					VfxFactory.floating_text(self, _body(e.cell) + Vector3(0, 1.3, 0), "Revived", Color(0.5, 1.0, 0.6), 60))
 			SimEvent.Type.KNOCKED_DOWN:
 				_later(delay, func() -> void:
 					VfxFactory.burst(self, _feet(e.cell), "dust", 1.3)

@@ -41,6 +41,13 @@ const STATUS_LOOKS := {
 }
 ## Frozen characters take on an icy tint.
 const FROZEN_TINT := Color(0.7, 0.9, 1.0)
+## Characters are outlined by side. The stencil value they write also keeps
+## ground markers (CellMarkers.CHARACTER_STENCIL) from drawing over them.
+const OUTLINE_ALLY := Color(0.35, 1.0, 0.45)
+const OUTLINE_ENEMY := Color(1.0, 0.25, 0.2)
+const OUTLINE_THICKNESS := 0.035
+## The fallen lie where they died, greyed out.
+const CORPSE_TINT := Color(0.32, 0.32, 0.34)
 
 ## When > 0 (real-time exploration), each move glides linearly over this many
 ## seconds, matching the sim tick, instead of playing a combat walk animation.
@@ -89,7 +96,9 @@ func render(state: SimState, events: Array[SimEvent] = []) -> void:
 			add_child(view)
 			_views[e.id] = view
 			view.position = cell_position(e.cell)
-		view.visible = e.is_alive()
+		# Characters stay as corpses (they can be revived); props just vanish.
+		view.visible = e.is_alive() or e.takes_turns()
+		view.set_dead(not e.is_alive())
 		if view.set_stats(e):
 			view.recent_until = now + RECENT_SECONDS
 		# Slowed characters take twice as long per cell.
@@ -148,6 +157,8 @@ class _View:
 	var _targetable := false
 	var _down := false
 	var _frozen := false
+	var _dead := false
+	var _outline := Color.TRANSPARENT
 	## The body's height when standing.
 	var _rest_height := 0.0
 	var _hp := -1
@@ -175,6 +186,12 @@ class _View:
 			_base_color = PROP_COLOR
 			top = 1.15
 		_material.albedo_color = _base_color
+		if e.takes_turns() and e.faction != SimEntity.Faction.NONE:
+			_outline = OUTLINE_ALLY if e.faction == SimEntity.Faction.PLAYERS else OUTLINE_ENEMY
+			_material.stencil_mode = BaseMaterial3D.STENCIL_MODE_OUTLINE
+			_material.stencil_color = _outline
+			_material.stencil_outline_thickness = OUTLINE_THICKNESS
+			_material.stencil_reference = CellMarkers.CHARACTER_STENCIL
 		_body.material_override = _material
 		_rest_height = _body.position.y
 		add_child(_body)
@@ -265,6 +282,7 @@ class _View:
 		_loops[status] = nodes
 
 	func show_bar(shown: bool, predicted: Array) -> void:
+		shown = shown and not _dead
 		_bar.visible = shown
 		if not shown:
 			return
@@ -283,8 +301,23 @@ class _View:
 		_targetable = targetable
 		_update_look()
 
-	## Knocked down: the body tips over. Frozen: an icy tint.
+	## Dead: lies down, greyed out, no outline, label or bar.
+	func set_dead(dead: bool) -> void:
+		if dead == _dead:
+			return
+		_dead = dead
+		_label.set("visible", not dead)
+		if _status != null:
+			_status.visible = not dead
+		_bar.visible = false
+		if _outline.a > 0.0:
+			_material.stencil_color = Color.TRANSPARENT if dead else _outline
+		_update_look()
+		_set_pose(false, false)
+
+	## Knocked down (or dead): the body tips over. Frozen: an icy tint.
 	func _set_pose(down: bool, frozen: bool) -> void:
+		down = down or _dead
 		if frozen != _frozen:
 			_frozen = frozen
 			_update_look()
@@ -297,6 +330,8 @@ class _View:
 
 	func _update_look() -> void:
 		var base := _base_color.lerp(FROZEN_TINT, 0.65) if _frozen else _base_color
+		if _dead:
+			base = CORPSE_TINT
 		_material.albedo_color = base.lightened(0.45) if _selected else base
 		_material.emission_enabled = _selected or _targetable
 		_material.emission = TARGETABLE_GLOW if _targetable else _base_color * 0.4

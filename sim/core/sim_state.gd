@@ -68,6 +68,14 @@ func get_entity(id: int) -> SimEntity:
 	return null
 
 
+## The fallen character lying in a cell (dead, turn-taking), or null.
+func corpse_at(c: Vector3i) -> SimEntity:
+	for e in entities:
+		if e.cell == c and not e.is_alive() and e.takes_turns():
+			return e
+	return null
+
+
 ## The living entity occupying a cell, or null.
 func entity_at(c: Vector3i) -> SimEntity:
 	for e in entities:

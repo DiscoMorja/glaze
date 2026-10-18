@@ -4,16 +4,16 @@ extends RefCounted
 ## with materials and each other (GDD §5.3). Which character knows which verbs
 ## comes from SimArchetypes.
 
-enum Ability { FIREBOLT, RAIN, TELEPORT, SHOVE, STEAL, FROST, OIL_FLASK, MEND, CLEAVE, BLINK, HELP_UP }
+enum Ability { FIREBOLT, RAIN, TELEPORT, SHOVE, STEAL, FROST, OIL_FLASK, MEND, CLEAVE, BLINK, HELP_UP, REVIVE }
 
-const NAMES := ["Firebolt", "Rain", "Teleport", "Shove", "Steal", "Frost", "Oil Flask", "Mend", "Cleave", "Blink", "Help up"]
-const AP_COST := [2, 2, 2, 1, 1, 2, 1, 2, 2, 1, 1]
+const NAMES := ["Firebolt", "Rain", "Teleport", "Shove", "Steal", "Frost", "Oil Flask", "Mend", "Cleave", "Blink", "Help up", "Revive"]
+const AP_COST := [2, 2, 2, 1, 1, 2, 1, 2, 2, 1, 1, 0]
 ## Reach in cells. 1 means adjacent only (diagonals count).
-const RANGE := [7, 7, 7, 1, 1, 6, 6, 5, 1, 4, 1]
+const RANGE := [7, 7, 7, 1, 1, 6, 6, 5, 1, 4, 1, 1]
 ## Turns until an ability can be used again by its user: 1 = once per turn,
 ## 3 = every third turn. In combat they count down at the start of the user's
 ## turn; outside combat every CombatRules.REALTIME_TICKS_PER_TURN ticks.
-const COOLDOWN := [1, 2, 3, 1, 2, 2, 2, 3, 2, 2, 0]
+const COOLDOWN := [1, 2, 3, 1, 2, 2, 2, 3, 2, 2, 0, 0]
 
 const FIREBOLT_DAMAGE := 4
 ## Rain lays its whole puddle at once, like the Oil Flask: puddle-deep water
@@ -33,6 +33,9 @@ const FROST_RADIUS := 1
 const OIL_FLASK_AMOUNT := 24
 const OIL_FLASK_RADIUS := 2
 const MEND_HEAL := 6
+## Revive (outside combat only) brings a fallen ally back with this share of
+## its max HP (percent, at least 1 HP).
+const REVIVE_HP_PERCENT := 25
 ## Temperature levels the elements move a target by.
 const FIREBOLT_HEAT := 2
 const FROST_CHILL := 2
@@ -138,6 +141,10 @@ static func validate(state: SimState, caster: SimEntity, ability: int, target: V
 			return SimPathfinder.is_standable(state, target, caster.id) and victim == null
 		Ability.HELP_UP:
 			return other_victim and victim.knocked_down and victim.faction == caster.faction
+		Ability.REVIVE:
+			var corpse: SimEntity = state.corpse_at(target)
+			return (not state.combat.active and corpse != null and corpse.faction == caster.faction
+					and victim == null)  # nobody standing on the body
 	return false
 
 
@@ -190,6 +197,8 @@ static func execute(state: SimState, caster: SimEntity, ability: int, target: Ve
 			EntityOps.relocate(state, caster, target)
 		Ability.HELP_UP:
 			EntityOps.help_up(state, victim, caster.id)
+		Ability.REVIVE:
+			EntityOps.revive(state, state.corpse_at(target), caster.id)
 
 
 ## Pushes the victim up to SHOVE_DISTANCE cells away from the caster. Walls and

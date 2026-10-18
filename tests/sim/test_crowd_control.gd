@@ -281,3 +281,33 @@ func test_blinking_into_oil_slows() -> void:
 	state.grid.add_surface(Vector3i(2, Y, 5), SimMaterials.Surface.OIL, 20)
 	assert_true(state.apply_command(CastCommand.new(1, A.BLINK, Vector3i(2, Y, 5))))
 	assert_true(hero.is_slowed())
+
+
+# --- Death and revival -----------------------------------------------------------
+
+func test_the_fallen_stay_as_corpses() -> void:
+	var state := _melee()
+	var hero := Fixtures.hero(state)
+	EntityOps.damage(state, hero, 999)
+	assert_false(hero.is_alive())
+	assert_eq(state.corpse_at(hero.cell), hero)
+	assert_null(state.entity_at(hero.cell), "the body doesn't block the cell")
+
+
+func test_revive_works_after_combat_only() -> void:
+	var state := _melee()
+	var hero := Fixtures.hero(state)
+	state.get_entity(3).abilities.append(A.REVIVE)
+	EntityOps.damage(state, hero, 999)
+	assert_false(state.apply_command(CastCommand.new(3, A.REVIVE, hero.cell)), "not during a fight")
+	EntityOps.damage(state, Fixtures.bandit(state), 999)
+	CombatRules.check_end(state)
+	assert_false(state.combat.active)
+	assert_true(state.apply_command(CastCommand.new(3, A.REVIVE, hero.cell)))
+	assert_true(hero.is_alive())
+	assert_eq(hero.hp, hero.max_hp * SimAbilities.REVIVE_HP_PERCENT / 100)
+
+
+func test_party_roles_can_revive() -> void:
+	assert_true(SimArchetypes.make("vanguard", "Ari", PLAYERS, Vector3i(1, Y, 1)).abilities.has(A.REVIVE))
+	assert_false(SimArchetypes.make("thug", "Thug", ENEMIES, Vector3i(1, Y, 1)).abilities.has(A.REVIVE))

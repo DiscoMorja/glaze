@@ -30,6 +30,8 @@ static func description(action: int) -> String:
 			return "Hits everything adjacent with your weapon, allies too."
 		SimAbilities.Ability.BLINK:
 			return "Jump to a free cell you can see."
+		SimAbilities.Ability.REVIVE:
+			return "After combat: bring an adjacent fallen ally back with %d%% of their HP." % SimAbilities.REVIVE_HP_PERCENT
 		SimAbilities.Ability.HELP_UP:
 			return "Help an adjacent knocked-down ally to their feet. On their turn, they can act right away."
 	return ""

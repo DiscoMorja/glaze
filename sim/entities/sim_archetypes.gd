@@ -72,6 +72,8 @@ static func make(role: String, p_name: String, faction: SimEntity.Faction, cell:
 	var abilities: Array[int] = []
 	abilities.assign(data.abilities)
 	abilities.append(A.HELP_UP)  # everyone can help a fallen ally up
+	if faction == SimEntity.Faction.PLAYERS:
+		abilities.append(A.REVIVE)  # and the party revives its fallen after a fight
 	var e := SimEntity.character(p_name, faction, cell, data.hp, data.weapon, data.damage, inventory, abilities)
 	e.archetype = role
 	e.mass = data.mass

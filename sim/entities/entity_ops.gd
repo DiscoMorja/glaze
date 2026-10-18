@@ -152,6 +152,23 @@ static func help_up(state: SimState, e: SimEntity, helper_id: int = -1) -> void:
 	state.emit_event(SimEvent.Type.STOOD_UP, e.cell, e.id, helper_id)
 
 
+## Brings a fallen character back (Revive): REVIVE_HP_PERCENT of its max HP,
+## statuses cleared.
+@warning_ignore("integer_division")
+static func revive(state: SimState, e: SimEntity, reviver_id: int = -1) -> void:
+	if e == null or e.is_alive():
+		return
+	e.hp = maxi(1, e.max_hp * SimAbilities.REVIVE_HP_PERCENT / 100)
+	e.temperature = 0
+	e.temp_turns = 0
+	e.stagger = 0
+	e.slowed = 0
+	e.knocked_down = false
+	e.knocked_skipping = false
+	e.travel.clear()
+	state.emit_event(SimEvent.Type.REVIVED, e.cell, e.id, reviver_id, e.hp)
+
+
 static func _on_own_turn(state: SimState, e: SimEntity) -> bool:
 	return state.combat.active and state.combat.side == e.faction
 

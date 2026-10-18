@@ -354,7 +354,12 @@ func _has_moves(e: SimEntity) -> bool:
 	if CombatRules.move_budget(e) >= SimPathfinder.COST_STRAIGHT and not SimPathfinder.neighbors(state, e.cell, e.id).is_empty():
 		return true
 	for action in ActionInfo.actions_for(e):
+		if action == SimAbilities.Ability.REVIVE or action == SimAbilities.Ability.HELP_UP:
+			continue  # only usable in special situations; not "moves left"
 		if e.ap >= ActionInfo.cost(action) and ActionInfo.remaining(action, e) == 0:
+			return true
+	for other in CombatRules.fighters(state, e.faction):
+		if other.knocked_down and SimAbilities.is_adjacent(e.cell, other.cell) and e.ap >= ActionInfo.cost(SimAbilities.Ability.HELP_UP):
 			return true
 	return false
 
@@ -1019,6 +1024,11 @@ func _target_reason(command: SimCommand) -> String:
 		return "No one selected"
 	if command is CastCommand:
 		var cast := command as CastCommand
+		if cast.ability == SimAbilities.Ability.REVIVE:
+			if state.combat.active:
+				return "Revive works after the fight"
+			if state.corpse_at(cast.target) == null:
+				return "Pick a fallen ally"
 		if state.combat.active and actor.ap < SimAbilities.AP_COST[cast.ability]:
 			return "Not enough AP"
 		if actor.cooldown(cast.ability) > 0:
@@ -1465,7 +1475,7 @@ func _refresh() -> void:
 		lines.append("%s the %s   weapon: %s   carrying: %s%s" % [actor.name, SimArchetypes.title(actor.archetype), actor.weapon if actor.weapon != "" else "none", items, whose])
 	lines.append("%s   %s" % [_mode_name(), _preview_text])
 	lines.append("RMB move   LMB use / select   1-9 actions   Esc cancel   F1-F4 / Tab select   Enter end turn   Space (hold) fast-forward   R restart")
-	lines.append("WASD pan   Q/E rotate   wheel zoom   P look: %s" % _retro.style_name())
+	lines.append("WASD pan   Q/E or middle-drag rotate   wheel zoom   P look: %s" % _retro.style_name())
 	lines.append(_perf_text())
 	_hud.text = "\n".join(lines)
 	_log_label.text = "\n".join(_log)

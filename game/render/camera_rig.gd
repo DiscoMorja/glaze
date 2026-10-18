@@ -137,11 +137,19 @@ func shake(strength: float) -> void:
 	_shake = maxf(_shake, strength)
 
 
+## Middle-mouse drag rotates: degrees per pixel dragged sideways.
+const DRAG_ROTATE_DEG_PER_PX := 0.35
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed:
 		match event.button_index:
 			MOUSE_BUTTON_WHEEL_UP: zoom = maxf(zoom - 2.0, 8.0)
 			MOUSE_BUTTON_WHEEL_DOWN: zoom = minf(zoom + 2.0, 80.0)
+	elif event is InputEventMouseMotion and (event.button_mask & MOUSE_BUTTON_MASK_MIDDLE) != 0:
+		if _move_tween != null and _move_tween.is_running():
+			_move_tween.kill()  # the player takes over from a camera glide
+		yaw -= event.relative.x * DRAG_ROTATE_DEG_PER_PX
 
 
 func _update_camera() -> void:

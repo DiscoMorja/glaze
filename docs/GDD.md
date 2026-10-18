@@ -200,6 +200,8 @@ Effects come from the BinbunVFX_Vol2 pack where it has one (`PackVfx`: spell cas
 
 **Ground surfaces** (water, oil, ice) are drawn as smooth puddles, not grid squares (`SurfaceRenderer` + `surface.gdshader`): a mesh of the surface cells and a ring around them, with corners on the real floor (terrain heights sampled at cell corners, so neighbouring cells share vertices and there are no gaps), shaped by a one-texel-per-column mask that is sampled smoothly and cut at a noisy threshold, so outlines round off and merge across cells. Limits: one surface per column is shown (the topmost), and puddles don't continue across a step of more than ~0.6 m. Gas and greybox fire are still boxes.
 
+**Readability.** Allies have a green outline, enemies a red one (stencil outline); ground markers (range, paths, previews) draw over grass but never over a character. The fallen stay where they died as grey corpses; after the fight any party member can **Revive** an adjacent fallen ally (25 % HP). Camera: WASD pan, Q/E or middle-mouse drag rotate, wheel zoom.
+
 **Feedback rules.** Every hit shows a floating damage number coloured by its element (`EntityOps.Element`): white physical, orange fire, blue frost/water. Every debuff shows a coloured tag above the character's name with its turns left, and plays a looping effect on the character while it lasts (Burning: flames; Slowed: dripping oil). New debuffs follow both rules (`SimEntityRenderer.STATUS_LOOKS`). Damage at the start of a turn (burning) is shown with the turn change.
 
 ### 5.6 Generated Narration
@@ -347,6 +349,7 @@ Levels are built freely in Godot and baked into the sim (`GameLevel.bake()`, run
 | 2026-10-18 | Movement respects real terrain height: no walking up or down a rise of more than 1.1 m between neighbouring cells. |
 | 2026-10-18 | Ground surfaces render as smooth, ground-hugging puddles (mask + threshold shader) instead of per-cell boxes; the square grid doesn't show through. |
 | 2026-10-18 | Rain splashes its full puddle instantly, like the Oil Flask; shallow water no longer creeps on flat ground; water cools to Cold at most. |
+| 2026-10-18 | First playtest feedback: middle-drag camera rotation, faction outlines, markers no longer cover characters, corpses stay and can be revived after combat. |
 | 2026-10-18 | M2 two-PC essentials: Windows export, connection help (Tailscale/LAN/port 24560 UDP), leave/rejoin, fast disconnect detection, ping. Next: the real playtest together. |
 | 2026-10-18 | Crowd control: stagger → Knocked down (skip next turn; Help up); body temperature −2..+2 with Frozen/Cold/Hot/Burning replacing the separate Burning status; ice staggers instead of ending your turn. |
 | 2026-10-18 | Ground fire lasts longer: a lit flask puddle burns 3 rounds (was 1), bare-ground fire 1.5 (was 0.6). |
