@@ -200,10 +200,14 @@ static func _migrate(data: Dictionary) -> Dictionary:
 
 
 ## SHA-256 over all authoritative state; equal checksums mean identical sims.
-func checksum() -> String:
+## with_grid = false leaves out the grid: on a big level the grid is tens of
+## MB to hash (100+ ms), so co-op checks it only now and then and checks
+## the cheap rest on every command.
+func checksum(with_grid: bool = true) -> String:
 	var ctx := HashingContext.new()
 	ctx.start(HashingContext.HASH_SHA256)
-	grid.hash_into(ctx)
+	if with_grid:
+		grid.hash_into(ctx)
 	for e in entities:
 		ctx.update(var_to_bytes(e.to_dict()))
 	ctx.update(var_to_bytes(combat.to_dict()))

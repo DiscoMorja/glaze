@@ -12,12 +12,16 @@ const FLUIDS := [SimMaterials.Surface.WATER, SimMaterials.Surface.OIL]
 @warning_ignore("integer_division")
 static func step(state: SimState) -> void:
 	var grid := state.grid
+	var now := [grid.surface_version, grid.solid_version]
+	if now == grid.liquids_still_at:
+		return  # settled (a calm sea), and nothing has changed since
 	if not grid.has_any(SimGrid.FIELD_SURFACES):
 		return
 	var types := grid.surface_type
 	var amounts := grid.surface_amount
 	var active := SimGrid.indices_of(types, FLUIDS)
 	if active.is_empty():
+		grid.liquids_still_at = now
 		return
 	# Sparse: only cells that hold or receive something get entries.
 	var delta := {}
@@ -65,6 +69,7 @@ static func step(state: SimState) -> void:
 			touched[ni] = true
 
 	if delta.is_empty():
+		grid.liquids_still_at = now
 		return
 	grid.edit_surfaces()
 	types = grid.surface_type
@@ -79,6 +84,16 @@ static func step(state: SimState) -> void:
 		else:
 			amounts[i] = a
 			types[i] = next_types.get(i, types[i])
+
+
+## Runs liquid steps (nothing else) until liquids stop moving, at most
+## max_steps. Returns the steps run.
+static func settle(state: SimState, max_steps: int) -> int:
+	for i in max_steps:
+		step(state)
+		if state.grid.liquids_still_at == [state.grid.surface_version, state.grid.solid_version]:
+			return i + 1
+	return max_steps
 
 
 ## A cell can receive a liquid if it is empty or already holds the same liquid

@@ -70,3 +70,48 @@ func test_different_liquids_do_not_mix() -> void:
 	state.step_ticks(30)
 	assert_eq(grid.total_surface(WATER), 200)
 	assert_eq(grid.total_surface(OIL), 200)
+
+
+func test_settled_liquids_are_skipped_until_something_changes() -> void:
+	var state := Fixtures.flat_state()
+	var grid := state.grid
+	grid.add_surface(Vector3i(4, Fixtures.FLOOR_Y, 4), WATER, 200)
+	var steps := LiquidRules.settle(state, 500)
+	assert_lt(steps, 500, "the puddle comes to rest")
+	var resting := grid.surface_amount.duplicate()
+	var version := grid.surface_version
+	LiquidRules.step(state)
+	assert_eq(grid.surface_version, version, "a settled step writes nothing")
+	assert_eq(grid.surface_amount, resting)
+	# New water wakes it up again.
+	grid.add_surface(Vector3i(1, Fixtures.FLOOR_Y, 1), WATER, 100)
+	LiquidRules.step(state)
+	assert_gt(grid.surface_amount[grid.index(Vector3i(2, Fixtures.FLOOR_Y, 1))], 0, "the new water spreads")
+
+
+func test_a_removed_wall_wakes_settled_liquids() -> void:
+	var state := Fixtures.flat_state()
+	var grid := state.grid
+	var y := Fixtures.FLOOR_Y
+	grid.fill_solid(Vector3i(4, y, 0), Vector3i(4, y, 8))
+	grid.add_surface(Vector3i(2, y, 4), WATER, 300)
+	LiquidRules.settle(state, 500)
+	assert_eq(grid.surface_amount[grid.index(Vector3i(5, y, 4))], 0, "held back")
+	grid.fill_solid(Vector3i(4, y, 0), Vector3i(4, y, 8), false)
+	state.step_ticks(5)
+	assert_gt(grid.surface_amount[grid.index(Vector3i(4, y, 4))], 0, "flows through the gap")
+
+
+func test_settled_and_unsettled_runs_match() -> void:
+	# Skipping a settled step must change nothing: compare with a grid that
+	# never learns it settled.
+	var a := Fixtures.flat_state()
+	var b := Fixtures.flat_state()
+	for s: SimState in [a, b]:
+		s.grid.add_surface(Vector3i(3, Fixtures.FLOOR_Y, 3), WATER, 150)
+	for i in 120:
+		LiquidRules.step(a)
+		LiquidRules.step(b)
+		b.grid.liquids_still_at = [-1, -1]
+	assert_eq(a.grid.surface_amount, b.grid.surface_amount)
+	assert_eq(a.grid.surface_type, b.grid.surface_type)

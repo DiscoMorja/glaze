@@ -40,6 +40,7 @@ addons/   third-party plugins (godot_ai, GUT)
 - Keep sim classes small and testable; prefer pure functions for rules.
 - Grid copies are copy-on-write: before writing a `SimGrid` array call its `edit_*()` (then re-read the array), and write fire/temperature with `set_fire()` / `set_temperature()`. A direct write to a shared array silently corrupts previews or the authoritative state.
 - Performance: profile before optimizing. GDExtension porting is a later escape hatch, not a default.
+- In game, ` shows the perf readout and logs every frame over 25 ms with what the script spent in it (an empty list means the engine). Godot-ai screenshots cause ~60 ms frames themselves. Exploring walk routes are searched a few ms per frame (`RouteSearches`, `SimPathSearch`) and carried in the command; keep per-tick sim work proportional to what changed (`SimGrid.surface_version` lets settled liquids and renderers skip).
 
 ## Running tests
 
@@ -55,8 +56,9 @@ Don't run `--import` headless while the editor is open: it rewrites the class ca
 
 ## Scenes & levels
 
-- `res://game/menu/main_menu.tscn` (main scene): Solo / Host / Join. Command line (after `--`): `--solo`, `--host`, `--join=ADDRESS`, `--level=arena|start|highlands`, `--autoready`. To test co-op alone, start a host from a terminal with `--host --level=arena --autoready` and join from the editor run.
-- `res://game/world/world.tscn`: explore `levels/start_area` in real time; combat starts on sight or hostility. Same controller as the arena (`game/combat/combat_arena.gd`, controls in its header) with `level_scene` set. P cycles the retro looks — off, early 2000s, PSX (`game/render/retro/retro_look.gd`, tuned in its STYLES; `retro_style` exports the start style).
+- `res://game/menu/main_menu.tscn` (main scene): Solo / Host / Join. Command line (after `--`): `--solo`, `--host`, `--join=ADDRESS`, `--level=slice|start|arena|highlands`, `--autoready`. To test co-op alone, start a host from a terminal with `--host --level=arena --autoready` and join from the editor run.
+- `res://game/world/vertical_slice.tscn`: the main world, `levels/vertical_slice` (320 × 256 m, from the developer's paper sketches): the village with docks on the east coast (the party lands on the quay), forest north and centre, the bandit camp west, hills south, mountain passes north, a hidden shore north-west. A first block-out: buildings are CSG boxes, trees are `game/props/tree.tscn` instances; reshape and repaint it in the editor.
+- `res://game/world/world.tscn`: explore `levels/start_area` (the small test level) in real time; combat starts on sight or hostility. Same controller as the arena (`game/combat/combat_arena.gd`, controls in its header) with `level_scene` set. P cycles the retro looks — off, early 2000s, PSX (`game/render/retro/retro_look.gd`, tuned in its STYLES; `retro_style` exports the start style).
 - `res://game/world/highlands.tscn`: stress test — the same controller on `levels/highlands` (256 × 256 m, big height differences, 32 enemy packs), with `log_perf` printing the perf readout every 2 s.
 - `res://game/combat/combat_arena.tscn`: same controller on `levels/arena` (a level with `start_in_combat`), straight into a fight.
 - Levels (`levels/<name>/<name>.tscn`, root script `GameLevel`): Terrain3D ground (collision layer 2), structures with collision on layer 1, and `LevelSpawn` / `LevelBarrel` / `LevelContainer` / `LevelSurface` markers. Items are the catalog in `sim/items/sim_items.gd`; give new verbs a property there, never check item names. New abilities and items need an icon in `game/ui/icons/` (`ability_<name>.svg` / `item_<name>.svg`, lower case, spaces to `_`, apostrophes dropped, 64×64; `tests/ui/test_action_bar.gd` checks they exist). The UI is laid out for a 1280×720 base and scales with the window. All windows share one look: `UiStyle` (theme on the root window, `window_style()`, `title()`, `button()`) and `ItemSlot` for every item grid (icon, corner number, borders, `ItemSlot.details()` text). New windows use those instead of their own styles. Group enemy markers under one node per pack (they fight together). `GameLevel.bake()` builds the sim grid at load; use `WorldSpace` (not raw `c.y`) to turn cells into world positions. Nothing about the world is built in code: terrain is sculpted/painted/foliage-scattered with Terrain3D's editor tools, and each level scene owns its WorldEnvironment and Sun. Don't add generator scripts for level content. Shared terrain textures live in `levels/shared/terrain/` (CC0, see its LICENSE.txt).
@@ -70,7 +72,7 @@ Dialogue (`game/data/dialogue/*.dlg`) and quests (`game/data/quests/*.quest`) ar
 
 - `NetSession` (autoload `Net`) is the only way game code changes the sim: `Net.submit(command)` for player actions, `Net.submit_ai()` for enemies (host), `Net.host_tick()` for real time (host), `Net.set_ready()` for End Turn. The controller plays `Net.op_received` in order; never call `state.apply_command()` from game code outside that playback.
 - Solo is a host without a guest, through the same path.
-- Ops carry checksums; keep the sim deterministic (rule 5) or guests will resync constantly.
+- With a guest connected, ops carry checksums (commands: everything but the grid; turn ends and every 16th tick: the grid too, which costs 100+ ms on big levels). Keep the sim deterministic (rule 5) or guests will resync constantly.
 
 ## Saves
 

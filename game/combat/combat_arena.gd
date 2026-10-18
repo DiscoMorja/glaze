@@ -56,6 +56,10 @@ const COLOR_SUSPICIOUS := Color(1.0, 0.55, 0.1, 0.18)
 const DANGER_SHOW_RADIUS := 40
 ## Exploring: the walk preview waits this long after the hovered cell changes.
 const EXPLORE_PREVIEW_DELAY_MSEC := 60
+## Time each frame may spend on walk route searches.
+const ROUTE_BUDGET_USEC := 2500
+## A frame longer than this is logged while the perf readout is up.
+const HITCH_SECONDS := 0.025
 ## Autosave at least this often (seconds played), besides quest and combat starts.
 const AUTOSAVE_SECONDS := 300.0
 
@@ -116,6 +120,8 @@ var _frame_worst_shown := 0.0
 var _frame_window := 0.0
 ## Last cost (ms) of the expensive steps, for the HUD: bake, tick, ai, preview, range.
 var _perf := {}
+## What this frame spent, by _perf key (printed when the frame is a hitch).
+var _frame_cost := {}
 ## [watcher id, cell] -> floor cells that watcher sees (see _danger_cells).
 var _danger_cache := {}
 ## When to refresh the hover preview while exploring (0 = nothing pending).
@@ -147,6 +153,15 @@ var _inventory: InventoryPanel
 var _dialogue: DialoguePanel
 var _journal: JournalPanel
 var _save_menu: SaveMenu
+## Walk routes, searched a bit each frame (the hover's and the walk orders').
+var _routes := RouteSearches.new()
+## The walk order being handed out: party members still to send, leader first.
+var _walk_queue: Array[int] = []
+var _walk_dest := Vector3i.ZERO
+var _walk_taken := {}
+## Where the first in _walk_queue is going (null: not picked yet).
+var _walk_spot: Variant = null
+var _walk_session := -1
 var _loot: LootPanel
 var _trade: TradePanel
 ## A container to open once the selected character has walked up to it (-1 = none).
@@ -197,6 +212,9 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if (log_perf or _show_perf) and delta > HITCH_SECONDS:
+		print("hitch %d ms: %s" % [int(delta * 1000.0), _frame_cost])
+	_frame_cost.clear()
 	if state == null:
 		return
 	_playtime += delta / Engine.time_scale
@@ -205,6 +223,7 @@ func _process(delta: float) -> void:
 		_log.push_front("Autosaved.")
 		_refresh()
 	_update_hover()
+	_advance_walks()
 	if _preview_due_msec > 0 and Time.get_ticks_msec() >= _preview_due_msec:
 		_preview_due_msec = 0
 		_update_preview()
@@ -239,7 +258,9 @@ func _update_hover() -> void:
 	_last_pick_view = view
 	var forced := _force_pick
 	_force_pick = false
+	var t_pick := Time.get_ticks_usec()
 	var hover: Variant = _rig.pick_cell(state, _mouse_pos)
+	_note_perf("pick", t_pick)
 	if typeof(hover) != typeof(_hover) or hover != _hover:
 		_hover = hover
 		if _exploring() and not forced:
@@ -318,13 +339,17 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 		match event.button_index:
 			MOUSE_BUTTON_LEFT:
+				var t0 := Time.get_ticks_usec()
 				_force_pick = true
 				_update_hover()
 				_left_click()
+				_note_perf("click", t0)
 			MOUSE_BUTTON_RIGHT:
+				var t0 := Time.get_ticks_usec()
 				_force_pick = true
 				_update_hover()
 				_right_click()
+				_note_perf("click", t0)
 
 
 # --- Flow ----------------------------------------------------------------------
@@ -377,7 +402,7 @@ func _load_level() -> int:
 	add_child(_level)
 	var bake_start := Time.get_ticks_usec()
 	_baked = await _level.bake()
-	_perf["bake"] = (Time.get_ticks_usec() - bake_start) / 1000.0
+	_note_perf("bake", bake_start)
 	return session
 
 
@@ -519,7 +544,7 @@ func _apply_tick() -> void:
 	var selected := state.get_entity(_selected_id)
 	var was_walking := selected != null and not selected.travel.is_empty()
 	state.step()
-	_perf["tick"] = (Time.get_ticks_usec() - t0) / 1000.0
+	_note_perf("tick", t0)
 	_present(state, state.drain_events())
 	if state.combat.active:
 		_tick_accumulator = 0.0
@@ -538,20 +563,73 @@ func _apply_tick() -> void:
 
 
 ## Walks the selected character to `dest`; the rest of this player's party
-## follows to free cells around it, nearest first.
+## follows to free cells around it, nearest first. Routes are searched a bit
+## each frame (_advance_walks) and each walk goes out once its route is found,
+## with the route, so the host and the replay only check it.
 func _travel_party(dest: Vector3i) -> void:
 	var leader := state.get_entity(_selected_id)
-	if leader == null or not TravelCommand.new(leader.id, dest).validate(state):
+	if leader == null or not TravelCommand.new(leader.id, dest).may_walk(state):
 		return
-	Net.submit(TravelCommand.new(leader.id, dest))
-	var taken := {dest: true}
+	_walk_queue.clear()
+	_walk_queue.append(leader.id)
 	for member in _my_party():
-		if member.id == leader.id:
-			continue
-		var spot: Variant = _formation_cell(dest, taken, member.id)
-		if spot != null:
-			taken[spot] = true
-			Net.submit(TravelCommand.new(member.id, spot))
+		if member.id != leader.id:
+			_walk_queue.append(member.id)
+	_walk_dest = dest
+	_walk_taken = {dest: true}
+	_walk_spot = null
+	_walk_session = _session
+	_advance_walks()
+
+
+## Hands out the walk order's walks whose routes are found and runs the route
+## searches for this frame's budget.
+func _advance_walks() -> void:
+	if _walk_queue.is_empty() and not _routes.busy():
+		return
+	if state == null or not _exploring() or _walk_session != _session:
+		_walk_queue.clear()
+		_routes.clear()
+		return
+	var t0 := Time.get_ticks_usec()
+	var until := t0 + ROUTE_BUDGET_USEC
+	var refresh := false
+	while true:
+		while not _walk_queue.is_empty() and _send_next_walk():
+			pass
+		var left := until - Time.get_ticks_usec()
+		if not _routes.busy() or left <= 0:
+			break
+		refresh = _routes.run(left) or refresh
+	_note_perf("routes", t0)
+	if refresh and _walk_queue.is_empty():
+		_update_preview()  # the hovered route may be in
+
+
+## Sends the next walk of the order if its route is known (or drops it when
+## there is none). Returns false while its route is still being searched.
+func _send_next_walk() -> bool:
+	var member := state.get_entity(_walk_queue[0])
+	if member == null:
+		_walk_queue.pop_front()
+		return true
+	if _walk_spot == null:
+		_walk_spot = _walk_dest if _walk_taken.size() == 1 and _walk_queue[0] == _selected_id else _formation_cell(_walk_dest, _walk_taken, member.id)
+		if _walk_spot == null:
+			_walk_queue.pop_front()
+			return true
+		_walk_taken[_walk_spot] = true
+	var travel := TravelCommand.new(member.id, _walk_spot)
+	var route: Variant = _routes.find(state, member, _walk_spot, true) if travel.may_walk(state) else []
+	if route == null:
+		return false
+	_walk_queue.pop_front()
+	_walk_spot = null
+	if not (route as Array).is_empty():
+		travel.set_route(route)
+		if travel.validate(state):
+			Net.submit(travel)
+	return true
 
 
 ## The nearest standable cell to `dest` (breadth-first over walkable steps)
@@ -602,11 +680,11 @@ func _left_click() -> void:
 			_update_range()
 			_update_preview()
 		return
+	if _action == ActionInfo.NONE and _exploring():
+		_travel_party(cell)
+		return
 	var command := _build_command(cell)
 	if command == null or not command.validate(state):
-		return
-	if command is TravelCommand:
-		_travel_party(cell)
 		return
 	if not _preview_hurts_allies.is_empty() and _confirm_cell != _hover:
 		_confirm_cell = cell
@@ -790,7 +868,9 @@ func _pump() -> void:
 	var session := _session
 	while not _ops.is_empty():
 		var op: Dictionary = _ops.pop_front()
+		var t_op := Time.get_ticks_usec()
 		await _play_op(op)
+		_note_perf("ops", t_op)
 		if session != _session:
 			return
 		if state != null:
@@ -906,7 +986,12 @@ func _after_action() -> void:
 	_confirm_cell = null
 	_consume_events()
 	_update_range()
-	_update_preview()
+	if _exploring():
+		# A click sends one walk per party member: refresh the hover preview
+		# once they're all in, not after each.
+		_preview_due_msec = Time.get_ticks_msec() + EXPLORE_PREVIEW_DELAY_MSEC
+	else:
+		_update_preview()
 
 
 ## Plays the world advancing between sides one tick at a time, then applies the
@@ -1024,7 +1109,7 @@ func _begin_player_turn() -> void:
 func _think() -> SimCommand:
 	var t0 := Time.get_ticks_usec()
 	var command: SimCommand = await _think_on_worker()
-	_perf["ai"] = (Time.get_ticks_usec() - t0) / 1000.0
+	_note_perf("ai", t0)
 	return command
 
 
@@ -1352,7 +1437,7 @@ func _target_reason(command: SimCommand) -> String:
 func _update_range() -> void:
 	var t0 := Time.get_ticks_usec()
 	_update_range_now()
-	_perf["range"] = (Time.get_ticks_usec() - t0) / 1000.0
+	_note_perf("range", t0)
 
 
 func _update_range_now() -> void:
@@ -1473,7 +1558,7 @@ func _cells_seen_by(watcher: SimEntity, occupied: Dictionary, sneaking: bool) ->
 func _update_preview() -> void:
 	var t0 := Time.get_ticks_usec()
 	_update_preview_now()
-	_perf["preview"] = (Time.get_ticks_usec() - t0) / 1000.0
+	_note_perf("preview", t0)
 
 
 func _update_preview_now() -> void:
@@ -1528,7 +1613,24 @@ func _update_preview_now() -> void:
 	elif _can_order() and _hover != null and actor != null:
 		var cell: Vector3i = _hover
 		var command := _build_command(cell)
-		if command == null:
+		var route: Variant = null
+		if command is TravelCommand:
+			# Searched a bit each frame; until it's in, just the cursor.
+			route = _routes.find(state, actor, cell, false) if (command as TravelCommand).may_walk(state) else []
+		if command is TravelCommand and route == null:
+			cells.append(cell)
+			colors.append(COLOR_CURSOR)
+		elif command is TravelCommand and (route as Array).is_empty():
+			cells.append(cell)
+			colors.append(COLOR_INVALID)
+			_preview_text = _target_reason(command)
+		elif command is TravelCommand:
+			for c: Vector3i in route:
+				cells.append(c)
+				colors.append(COLOR_PATH)
+			cells.append(cell)
+			colors.append(COLOR_CURSOR)
+		elif command == null:
 			cells.append(cell)
 			colors.append(COLOR_CURSOR)
 			if _action == SimAbilities.Ability.TELEPORT:
@@ -1550,13 +1652,6 @@ func _update_preview_now() -> void:
 
 
 func _preview_outcome(command: SimCommand, actor: SimEntity, cells: Array[Vector3i], colors: Array[Color], texts: Dictionary) -> void:
-	# A walk in real time changes nothing until the world ticks: just show the
-	# route (found while validating) without copying the world.
-	if command is TravelCommand:
-		for c in (command as TravelCommand).route(state):
-			cells.append(c)
-			colors.append(COLOR_PATH)
-		return
 	# The caller has validated the command, so run it straight on the copy (no
 	# second validation) and read the path from what it did, rather than
 	# searching for it again.
@@ -1786,6 +1881,13 @@ func _make_label(parent: Node, pos: Vector2) -> Label:
 	return label
 
 
+## Records how long a timed section took (since `start_usec`).
+func _note_perf(key: String, start_usec: int) -> void:
+	var ms := (Time.get_ticks_usec() - start_usec) / 1000.0
+	_perf[key] = ms
+	_frame_cost[key] = snappedf(_frame_cost.get(key, 0.0) + ms, 0.1)
+
+
 func _perf_text() -> String:
 	var fighting := 0
 	for e in state.entities:
@@ -1800,7 +1902,7 @@ func _perf_text() -> String:
 			Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME),
 			Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME) / 1000],
 	]
-	for key: String in ["bake", "tick", "ai", "preview", "range"]:
+	for key: String in ["bake", "tick", "ai", "preview", "range", "pick", "click", "ops", "routes"]:
 		if _perf.has(key):
 			parts.append("%s %.1f ms" % [key, _perf[key]])
 	return "   ".join(parts)

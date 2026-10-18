@@ -31,10 +31,12 @@ func _cmds() -> Array[Dictionary]:
 
 
 func test_an_accepted_command_is_applied_and_broadcast() -> void:
+	_net._guest_peer = 2  # checksums are only made for a guest to compare
 	_net.submit(MoveCommand.new(1, Vector3i(3, Y, 2)))
 	assert_eq(_cmds().size(), 1)
 	assert_eq(_net.authority.get_entity(1).cell, Vector3i(3, Y, 2))
 	assert_true(_cmds()[0].has("sum"), "commands carry a checksum")
+	assert_false(_cmds()[0].full, "a cheap one, without the grid")
 
 
 func test_invalid_commands_are_dropped() -> void:
@@ -89,10 +91,16 @@ func test_ops_are_numbered_in_order() -> void:
 	assert_eq(_ops[0].seq + 1, _ops[1].seq)
 
 
+func test_alone_no_checksums_are_made() -> void:
+	_net.submit(MoveCommand.new(1, Vector3i(3, Y, 2)))
+	assert_false(_cmds()[0].has("sum"), "nobody to compare with: skip the cost")
+
+
 func test_a_guest_replaying_the_stream_matches_the_host() -> void:
+	_net._guest_peer = 2
 	var guest := SimState.from_snapshot(_net.authority.to_snapshot())
 	_net.submit(MoveCommand.new(1, Vector3i(4, Y, 3)))
 	_net.set_ready(true)
 	for op in _cmds():
 		assert_true(guest.apply_command(SimCommandRegistry.from_dict(op.c)))
-		assert_eq(guest.checksum(), op.sum)
+		assert_eq(guest.checksum(op.full), op.sum)

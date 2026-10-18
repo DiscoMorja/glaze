@@ -34,7 +34,7 @@ static func step(state: SimState) -> void:
 static func _walk(state: SimState, e: SimEntity) -> void:
 	var next: Vector3i = e.travel[0]
 	if not SimPathfinder.is_standable(state, next, e.id):
-		var detour := SimPathfinder.find_path(state, e.cell, e.travel.back(), e.id)
+		var detour := SimPathfinder.find_path(state, e.cell, e.travel.back(), e.id, false, true, TravelCommand.MAX_SEARCH_CELLS)
 		if detour.is_empty():
 			e.travel.clear()
 			return

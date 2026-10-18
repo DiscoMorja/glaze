@@ -1,0 +1,2581 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://game/level/game_level.gd" id="1_level"]
+[ext_resource type="Script" path="res://game/level/level_spawn.gd" id="2_spawn"]
+[ext_resource type="Script" path="res://game/level/level_barrel.gd" id="3_barrel"]
+[ext_resource type="Script" path="res://game/level/level_surface.gd" id="4_surface"]
+[ext_resource type="Script" path="res://game/level/level_container.gd" id="5_container"]
+[ext_resource type="Terrain3DAssets" path="res://levels/vertical_slice/terrain_assets.tres" id="6_assets"]
+[ext_resource type="Terrain3DMaterial" path="res://levels/vertical_slice/terrain_material.tres" id="7_material"]
+[ext_resource type="PackedScene" path="res://game/props/tree.tscn" id="8_tree"]
+
+[sub_resource type="ProceduralSkyMaterial" id="Sky_mat"]
+sky_horizon_color = Color(0.66, 0.7, 0.72, 1)
+ground_horizon_color = Color(0.66, 0.7, 0.72, 1)
+
+[sub_resource type="Sky" id="Sky_day"]
+sky_material = SubResource("Sky_mat")
+
+[sub_resource type="Environment" id="Env_day"]
+background_mode = 2
+sky = SubResource("Sky_day")
+ambient_light_source = 3
+ambient_light_energy = 0.8
+tonemap_mode = 2
+fog_enabled = true
+fog_light_color = Color(0.66, 0.7, 0.72, 1)
+fog_density = 0.003
+
+[sub_resource type="StandardMaterial3D" id="Mat_wood"]
+albedo_color = Color(0.45, 0.33, 0.22, 1)
+roughness = 1.0
+
+[sub_resource type="StandardMaterial3D" id="Mat_plaster"]
+albedo_color = Color(0.78, 0.72, 0.6, 1)
+roughness = 1.0
+
+[sub_resource type="StandardMaterial3D" id="Mat_stone"]
+albedo_color = Color(0.55, 0.55, 0.55, 1)
+roughness = 1.0
+
+[sub_resource type="StandardMaterial3D" id="Mat_roof"]
+albedo_color = Color(0.42, 0.2, 0.15, 1)
+roughness = 1.0
+
+[sub_resource type="StandardMaterial3D" id="Mat_dock"]
+albedo_color = Color(0.38, 0.28, 0.18, 1)
+roughness = 1.0
+
+[sub_resource type="StandardMaterial3D" id="Mat_dark"]
+albedo_color = Color(0.2, 0.17, 0.14, 1)
+roughness = 1.0
+
+[sub_resource type="StandardMaterial3D" id="Mat_water"]
+transparency = 1
+albedo_color = Color(0.18, 0.36, 0.5, 0.82)
+roughness = 0.15
+metallic_specular = 0.8
+
+[sub_resource type="PlaneMesh" id="Sea_mesh"]
+material = SubResource("Mat_water")
+size = Vector2(60, 256)
+
+[sub_resource type="PlaneMesh" id="Shore_mesh"]
+material = SubResource("Mat_water")
+size = Vector2(40, 90)
+
+[sub_resource type="CylinderMesh" id="Boat_mesh"]
+material = SubResource("Mat_dark")
+top_radius = 1.4
+bottom_radius = 1.0
+height = 0.8
+radial_segments = 10
+
+[node name="VerticalSlice" type="Node3D"]
+script = ExtResource("1_level")
+grid_size = Vector3i(320, 40, 256)
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Env_day")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.86602527, 0.4095762, -0.2867884, 0, 0.5735765, 0.819152, 0.50000024, -0.7094063, 0.49673176, 0, 0, 0)
+light_energy = 1.1
+shadow_enabled = true
+directional_shadow_max_distance = 80.0
+
+[node name="Terrain3D" type="Terrain3D" parent="."]
+data_directory = "res://levels/vertical_slice/terrain"
+material = ExtResource("7_material")
+assets = ExtResource("6_assets")
+collision_layer = 2
+
+[node name="Water" type="Node3D" parent="."]
+
+[node name="Sea" type="MeshInstance3D" parent="Water"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 322.00, 1.60, 128.00)
+mesh = SubResource("Sea_mesh")
+
+[node name="FarShore" type="MeshInstance3D" parent="Water"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 14.00, 1.00, 76.00)
+mesh = SubResource("Shore_mesh")
+
+[node name="Village" type="Node3D" parent="."]
+
+[node name="Buildings" type="Node3D" parent="Village"]
+
+[node name="Tavern" type="CSGBox3D" parent="Village/Buildings"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 282.63, 5.00, 159.25)
+use_collision = true
+size = Vector3(11.25, 4.00, 13.50)
+material = SubResource("Mat_wood")
+
+[node name="Inside" type="CSGBox3D" parent="Village/Buildings/Tavern"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.20, 0.00)
+operation = 2
+size = Vector3(10.65, 3.60, 12.90)
+
+[node name="Door" type="CSGBox3D" parent="Village/Buildings/Tavern"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, -5.63, -0.90, 0.00)
+operation = 2
+size = Vector3(1.4, 2.2, 1.4)
+
+[node name="Roof" type="CSGBox3D" parent="Village/Buildings/Tavern"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, 2.25, 0.00)
+size = Vector3(11.85, 0.5, 14.10)
+material = SubResource("Mat_roof")
+
+[node name="Authorities" type="CSGBox3D" parent="Village/Buildings"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 269.88, 5.25, 173.88)
+use_collision = true
+size = Vector3(12.75, 4.50, 12.75)
+material = SubResource("Mat_stone")
+
+[node name="Inside" type="CSGBox3D" parent="Village/Buildings/Authorities"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.20, 0.00)
+operation = 2
+size = Vector3(12.15, 4.10, 12.15)
+
+[node name="Door" type="CSGBox3D" parent="Village/Buildings/Authorities"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, -6.38, -1.15, 0.00)
+operation = 2
+size = Vector3(1.4, 2.2, 1.4)
+
+[node name="Roof" type="CSGBox3D" parent="Village/Buildings/Authorities"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, 2.50, 0.00)
+size = Vector3(13.35, 0.5, 13.35)
+material = SubResource("Mat_roof")
+
+[node name="Church" type="CSGBox3D" parent="Village/Buildings"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 256.38, 6.00, 148.00)
+use_collision = true
+size = Vector3(6.75, 6.00, 10.50)
+material = SubResource("Mat_stone")
+
+[node name="Inside" type="CSGBox3D" parent="Village/Buildings/Church"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.20, 0.00)
+operation = 2
+size = Vector3(6.15, 5.60, 9.90)
+
+[node name="Door" type="CSGBox3D" parent="Village/Buildings/Church"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 3.38, -1.90, 0.00)
+operation = 2
+size = Vector3(1.4, 2.2, 1.4)
+
+[node name="Roof" type="CSGBox3D" parent="Village/Buildings/Church"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, 3.25, 0.00)
+size = Vector3(7.35, 0.5, 11.10)
+material = SubResource("Mat_roof")
+
+[node name="Blacksmith" type="CSGBox3D" parent="Village/Buildings"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 268.00, 4.75, 137.50)
+use_collision = true
+size = Vector3(9.00, 3.50, 7.50)
+material = SubResource("Mat_dark")
+
+[node name="Inside" type="CSGBox3D" parent="Village/Buildings/Blacksmith"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.20, 0.00)
+operation = 2
+size = Vector3(8.40, 3.10, 6.90)
+
+[node name="Door" type="CSGBox3D" parent="Village/Buildings/Blacksmith"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 4.50, -0.65, 0.00)
+operation = 2
+size = Vector3(1.4, 2.2, 1.4)
+
+[node name="Roof" type="CSGBox3D" parent="Village/Buildings/Blacksmith"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, 2.00, 0.00)
+size = Vector3(9.60, 0.5, 8.10)
+material = SubResource("Mat_roof")
+
+[node name="HouseA" type="CSGBox3D" parent="Village/Buildings"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 279.25, 4.75, 143.13)
+use_collision = true
+size = Vector3(6.00, 3.50, 6.75)
+material = SubResource("Mat_plaster")
+
+[node name="Inside" type="CSGBox3D" parent="Village/Buildings/HouseA"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.20, 0.00)
+operation = 2
+size = Vector3(5.40, 3.10, 6.15)
+
+[node name="Door" type="CSGBox3D" parent="Village/Buildings/HouseA"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, -3.00, -0.65, 0.00)
+operation = 2
+size = Vector3(1.4, 2.2, 1.4)
+
+[node name="Roof" type="CSGBox3D" parent="Village/Buildings/HouseA"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, 2.00, 0.00)
+size = Vector3(6.60, 0.5, 7.35)
+material = SubResource("Mat_roof")
+
+[node name="HouseB" type="CSGBox3D" parent="Village/Buildings"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 279.06, 4.75, 131.88)
+use_collision = true
+size = Vector3(5.63, 3.50, 8.25)
+material = SubResource("Mat_plaster")
+
+[node name="Inside" type="CSGBox3D" parent="Village/Buildings/HouseB"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.20, 0.00)
+operation = 2
+size = Vector3(5.03, 3.10, 7.65)
+
+[node name="Door" type="CSGBox3D" parent="Village/Buildings/HouseB"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, -2.81, -0.65, 0.00)
+operation = 2
+size = Vector3(1.4, 2.2, 1.4)
+
+[node name="Roof" type="CSGBox3D" parent="Village/Buildings/HouseB"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, 2.00, 0.00)
+size = Vector3(6.22, 0.5, 8.85)
+material = SubResource("Mat_roof")
+
+[node name="HouseC" type="CSGBox3D" parent="Village/Buildings"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 278.50, 4.75, 120.25)
+use_collision = true
+size = Vector3(5.25, 3.50, 8.25)
+material = SubResource("Mat_plaster")
+
+[node name="Inside" type="CSGBox3D" parent="Village/Buildings/HouseC"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.20, 0.00)
+operation = 2
+size = Vector3(4.65, 3.10, 7.65)
+
+[node name="Door" type="CSGBox3D" parent="Village/Buildings/HouseC"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, -2.63, -0.65, 0.00)
+operation = 2
+size = Vector3(1.4, 2.2, 1.4)
+
+[node name="Roof" type="CSGBox3D" parent="Village/Buildings/HouseC"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, 2.00, 0.00)
+size = Vector3(5.85, 0.5, 8.85)
+material = SubResource("Mat_roof")
+
+[node name="HouseD" type="CSGBox3D" parent="Village/Buildings"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 264.63, 4.75, 95.50)
+use_collision = true
+size = Vector3(6.75, 3.50, 12.00)
+material = SubResource("Mat_plaster")
+
+[node name="Inside" type="CSGBox3D" parent="Village/Buildings/HouseD"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.20, 0.00)
+operation = 2
+size = Vector3(6.15, 3.10, 11.40)
+
+[node name="Door" type="CSGBox3D" parent="Village/Buildings/HouseD"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.65, 6.00)
+operation = 2
+size = Vector3(1.4, 2.2, 1.4)
+
+[node name="Roof" type="CSGBox3D" parent="Village/Buildings/HouseD"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, 2.00, 0.00)
+size = Vector3(7.35, 0.5, 12.60)
+material = SubResource("Mat_roof")
+
+[node name="HouseE" type="CSGBox3D" parent="Village/Buildings"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 255.25, 4.75, 98.88)
+use_collision = true
+size = Vector3(9.00, 3.50, 6.75)
+material = SubResource("Mat_plaster")
+
+[node name="Inside" type="CSGBox3D" parent="Village/Buildings/HouseE"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.20, 0.00)
+operation = 2
+size = Vector3(8.40, 3.10, 6.15)
+
+[node name="Door" type="CSGBox3D" parent="Village/Buildings/HouseE"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.65, 3.38)
+operation = 2
+size = Vector3(1.4, 2.2, 1.4)
+
+[node name="Roof" type="CSGBox3D" parent="Village/Buildings/HouseE"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, 2.00, 0.00)
+size = Vector3(9.60, 0.5, 7.35)
+material = SubResource("Mat_roof")
+
+[node name="HouseF" type="CSGBox3D" parent="Village/Buildings"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 251.13, 4.75, 91.38)
+use_collision = true
+size = Vector3(14.25, 3.50, 6.75)
+material = SubResource("Mat_plaster")
+
+[node name="Inside" type="CSGBox3D" parent="Village/Buildings/HouseF"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.20, 0.00)
+operation = 2
+size = Vector3(13.65, 3.10, 6.15)
+
+[node name="Door" type="CSGBox3D" parent="Village/Buildings/HouseF"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.65, 3.38)
+operation = 2
+size = Vector3(1.4, 2.2, 1.4)
+
+[node name="Roof" type="CSGBox3D" parent="Village/Buildings/HouseF"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, 2.00, 0.00)
+size = Vector3(14.85, 0.5, 7.35)
+material = SubResource("Mat_roof")
+
+[node name="GuardHouse" type="CSGBox3D" parent="Village/Buildings"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 232.38, 4.75, 97.00)
+use_collision = true
+size = Vector3(5.25, 3.50, 16.50)
+material = SubResource("Mat_stone")
+
+[node name="Inside" type="CSGBox3D" parent="Village/Buildings/GuardHouse"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.20, 0.00)
+operation = 2
+size = Vector3(4.65, 3.10, 15.90)
+
+[node name="Door" type="CSGBox3D" parent="Village/Buildings/GuardHouse"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 2.63, -0.65, 0.00)
+operation = 2
+size = Vector3(1.4, 2.2, 1.4)
+
+[node name="Roof" type="CSGBox3D" parent="Village/Buildings/GuardHouse"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, 2.00, 0.00)
+size = Vector3(5.85, 0.5, 17.10)
+material = SubResource("Mat_roof")
+
+[node name="Steeple" type="CSGBox3D" parent="Village/Buildings"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 256.38, 8.00, 148.00)
+use_collision = true
+size = Vector3(2.2, 10, 2.2)
+material = SubResource("Mat_stone")
+
+[node name="Market" type="Node3D" parent="Village"]
+
+[node name="Stall1" type="CSGBox3D" parent="Village/Market"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 255.06, 3.50, 124.94)
+use_collision = true
+size = Vector3(3.38, 1, 4.88)
+material = SubResource("Mat_wood")
+
+[node name="Stall2" type="CSGBox3D" parent="Village/Market"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 268.00, 3.50, 118.75)
+use_collision = true
+size = Vector3(6.00, 1, 4.50)
+material = SubResource("Mat_wood")
+
+[node name="Stall3" type="CSGBox3D" parent="Village/Market"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 257.69, 3.50, 118.75)
+use_collision = true
+size = Vector3(8.63, 1, 4.50)
+material = SubResource("Mat_wood")
+
+[node name="Well" type="CSGCylinder3D" parent="Village"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 277.75, 3.50, 99.25)
+use_collision = true
+radius = 0.9
+height = 1.0
+sides = 10
+material = SubResource("Mat_stone")
+
+[node name="Monument" type="CSGCylinder3D" parent="Village"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 268.38, 4.00, 156.25)
+use_collision = true
+radius = 0.6
+height = 2.0
+sides = 8
+material = SubResource("Mat_stone")
+
+[node name="Graveyard" type="Node3D" parent="Village"]
+
+[node name="Post1" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 231.25, 3.60, 131.50)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post2" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 233.43, 3.60, 131.50)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post3" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 235.60, 3.60, 131.50)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post4" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 237.77, 3.60, 131.50)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post5" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 239.95, 3.60, 131.50)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post6" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 242.13, 3.60, 131.50)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post7" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 244.30, 3.60, 131.50)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post8" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 246.48, 3.60, 131.50)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post9" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 248.65, 3.60, 131.50)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post10" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 250.82, 3.60, 131.50)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post11" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 253.00, 3.60, 131.50)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post12" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 253.00, 3.60, 133.56)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post13" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 253.00, 3.60, 135.63)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post14" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 253.00, 3.60, 137.69)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post15" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 253.00, 3.60, 139.75)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post16" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 253.00, 3.60, 141.81)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post17" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 253.00, 3.60, 143.88)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post18" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 253.00, 3.60, 145.94)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post19" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 253.00, 3.60, 148.00)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post20" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 253.00, 3.60, 150.06)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post21" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 253.00, 3.60, 152.13)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post22" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 253.00, 3.60, 154.19)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post23" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 253.00, 3.60, 156.25)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post24" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 253.00, 3.60, 158.31)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post25" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 253.00, 3.60, 160.38)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post26" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 253.00, 3.60, 162.44)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post27" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 253.00, 3.60, 164.50)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post28" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 250.82, 3.60, 164.50)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post29" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 248.65, 3.60, 164.50)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post30" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 246.48, 3.60, 164.50)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post31" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 244.30, 3.60, 164.50)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post32" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 242.13, 3.60, 164.50)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post33" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 239.95, 3.60, 164.50)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post34" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 237.77, 3.60, 164.50)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post35" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 235.60, 3.60, 164.50)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post36" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 233.43, 3.60, 164.50)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post37" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 231.25, 3.60, 164.50)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post38" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 231.25, 3.60, 162.44)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post39" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 231.25, 3.60, 160.38)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post40" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 231.25, 3.60, 158.31)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post41" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 231.25, 3.60, 156.25)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post42" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 231.25, 3.60, 154.19)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post43" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 231.25, 3.60, 152.13)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post44" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 231.25, 3.60, 150.06)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post45" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 231.25, 3.60, 145.94)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post46" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 231.25, 3.60, 143.88)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post47" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 231.25, 3.60, 141.81)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post48" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 231.25, 3.60, 139.75)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post49" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 231.25, 3.60, 137.69)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post50" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 231.25, 3.60, 135.63)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Post51" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 231.25, 3.60, 133.56)
+use_collision = true
+size = Vector3(0.25, 1.2, 0.25)
+material = SubResource("Mat_wood")
+
+[node name="Grave1" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 246.50, 3.45, 137.50)
+use_collision = true
+size = Vector3(0.7, 0.9, 0.25)
+material = SubResource("Mat_stone")
+
+[node name="Grave2" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 237.50, 3.45, 150.50)
+use_collision = true
+size = Vector3(0.7, 0.9, 0.25)
+material = SubResource("Mat_stone")
+
+[node name="Grave3" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 238.50, 3.45, 134.50)
+use_collision = true
+size = Vector3(0.7, 0.9, 0.25)
+material = SubResource("Mat_stone")
+
+[node name="Grave4" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 240.50, 3.45, 147.50)
+use_collision = true
+size = Vector3(0.7, 0.9, 0.25)
+material = SubResource("Mat_stone")
+
+[node name="Grave5" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 245.50, 3.45, 158.50)
+use_collision = true
+size = Vector3(0.7, 0.9, 0.25)
+material = SubResource("Mat_stone")
+
+[node name="Grave6" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 248.50, 3.45, 148.50)
+use_collision = true
+size = Vector3(0.7, 0.9, 0.25)
+material = SubResource("Mat_stone")
+
+[node name="Grave7" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 243.50, 3.45, 148.50)
+use_collision = true
+size = Vector3(0.7, 0.9, 0.25)
+material = SubResource("Mat_stone")
+
+[node name="Grave8" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 239.50, 3.45, 148.50)
+use_collision = true
+size = Vector3(0.7, 0.9, 0.25)
+material = SubResource("Mat_stone")
+
+[node name="Grave9" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 240.50, 3.45, 134.50)
+use_collision = true
+size = Vector3(0.7, 0.9, 0.25)
+material = SubResource("Mat_stone")
+
+[node name="Grave10" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 249.50, 3.45, 158.50)
+use_collision = true
+size = Vector3(0.7, 0.9, 0.25)
+material = SubResource("Mat_stone")
+
+[node name="Grave11" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 234.50, 3.45, 146.50)
+use_collision = true
+size = Vector3(0.7, 0.9, 0.25)
+material = SubResource("Mat_stone")
+
+[node name="Grave12" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 236.50, 3.45, 138.50)
+use_collision = true
+size = Vector3(0.7, 0.9, 0.25)
+material = SubResource("Mat_stone")
+
+[node name="Grave13" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 239.50, 3.45, 152.50)
+use_collision = true
+size = Vector3(0.7, 0.9, 0.25)
+material = SubResource("Mat_stone")
+
+[node name="Grave14" type="CSGBox3D" parent="Village/Graveyard"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 234.50, 3.45, 144.50)
+use_collision = true
+size = Vector3(0.7, 0.9, 0.25)
+material = SubResource("Mat_stone")
+
+[node name="Docks" type="Node3D" parent="Village"]
+
+[node name="Quay" type="CSGBox3D" parent="Village/Docks"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 295.50, 2.75, 152.13)
+use_collision = true
+size = Vector3(9.00, 0.5, 75.75)
+material = SubResource("Mat_dock")
+
+[node name="Pier1" type="CSGBox3D" parent="Village/Docks"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 309.00, 2.75, 176.50)
+use_collision = true
+size = Vector3(18, 0.5, 6.00)
+material = SubResource("Mat_dock")
+
+[node name="Boat1" type="MeshInstance3D" parent="Village/Docks"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 311.00, 1.70, 181.00)
+mesh = SubResource("Boat_mesh")
+
+[node name="Pier2" type="CSGBox3D" parent="Village/Docks"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 309.00, 2.75, 150.25)
+use_collision = true
+size = Vector3(18, 0.5, 7.50)
+material = SubResource("Mat_dock")
+
+[node name="Boat2" type="MeshInstance3D" parent="Village/Docks"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 311.00, 1.70, 154.75)
+mesh = SubResource("Boat_mesh")
+
+[node name="Pier3" type="CSGBox3D" parent="Village/Docks"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 309.00, 2.75, 122.88)
+use_collision = true
+size = Vector3(18, 0.5, 6.75)
+material = SubResource("Mat_dock")
+
+[node name="Boat3" type="MeshInstance3D" parent="Village/Docks"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 311.00, 1.70, 127.38)
+mesh = SubResource("Boat_mesh")
+
+[node name="Palisade" type="Node3D" parent="Village"]
+
+[node name="Stake1" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 77.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake2" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 79.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake3" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 81.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake4" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 83.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake5" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 85.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake6" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 87.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake7" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 89.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake8" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 91.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake9" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 93.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake10" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 95.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake11" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 97.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake12" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 99.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake13" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 101.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake14" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 103.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake15" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 105.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake16" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 107.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake17" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 115.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake18" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 117.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake19" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 119.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake20" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 121.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake21" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 123.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake22" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 125.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake23" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 127.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake24" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 129.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake25" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 131.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake26" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 133.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake27" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 135.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake28" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 137.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake29" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 139.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake30" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 141.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake31" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 143.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake32" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 145.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake33" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 147.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake34" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 149.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake35" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 151.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake36" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 153.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake37" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 155.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake38" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 157.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake39" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 159.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake40" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 161.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake41" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 163.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake42" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 165.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake43" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 167.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake44" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 169.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake45" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 171.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake46" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 173.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake47" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 175.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake48" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 177.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake49" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 179.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake50" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 187.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake51" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 189.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake52" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 191.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake53" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 193.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake54" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 195.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake55" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 197.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake56" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 199.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake57" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 201.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake58" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 203.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake59" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 229.00, 4.00, 205.00)
+use_collision = true
+size = Vector3(0.5, 2, 2.0)
+material = SubResource("Mat_wood")
+
+[node name="Stake60" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 230.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake61" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 232.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake62" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 234.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake63" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 236.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake64" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 238.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake65" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 240.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake66" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 242.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake67" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 244.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake68" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 246.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake69" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 248.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake70" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 250.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake71" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 252.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake72" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 254.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake73" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 256.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake74" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 258.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake75" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 260.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake76" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 262.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake77" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 264.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake78" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 266.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake79" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 268.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake80" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 270.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake81" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 272.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake82" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 274.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake83" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 276.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake84" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 278.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake85" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 280.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake86" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 282.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake87" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 284.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake88" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 286.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake89" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 288.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Stake90" type="CSGBox3D" parent="Village/Palisade"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 290.00, 4.00, 76.00)
+use_collision = true
+size = Vector3(2.0, 2, 0.5)
+material = SubResource("Mat_wood")
+
+[node name="Pond" type="Marker3D" parent="Village"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 247.75, 3.00, 175.00)
+script = ExtResource("4_surface")
+kind = 0
+radius = 6
+amount = 150
+
+[node name="Merchant" type="Marker3D" parent="Village"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 257.69, 4.50, 116.75)
+script = ExtResource("2_spawn")
+role = "merchant"
+entity_name = "Merchant"
+team = 2
+dialogue = "merchant"
+inventory = Array[String](["Coins", "Silver ring", "Map", "Healing potion", "Healing potion", "Healing potion", "Cooling salve", "Warming draught", "Bedroll", "Leather armour", "Fine sword", "Wooden shield", "Leather cap", "Leather boots", "Copper ring", "Bone amulet"])
+gold = 120
+trades = true
+
+[node name="Villager" type="Marker3D" parent="Village"]
+transform = Transform3D(-0.00000004371139, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, -0.00000004371139, 269.50, 4.50, 151.00)
+script = ExtResource("2_spawn")
+role = "villager"
+entity_name = "Villager"
+team = 2
+dialogue = "villager"
+inventory = Array[String](["Bread"])
+
+[node name="Farmer" type="Marker3D" parent="Village"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 260.50, 4.50, 106.75)
+script = ExtResource("2_spawn")
+role = "villager"
+entity_name = "Farmer"
+team = 2
+dialogue = "farmer"
+inventory = Array[String](["Coins"])
+
+[node name="Fisher" type="Marker3D" parent="Village"]
+transform = Transform3D(-0.00000004371139, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, -0.00000004371139, 294.50, 3.64, 151.00)
+script = ExtResource("2_spawn")
+role = "villager"
+entity_name = "Fisher"
+team = 2
+dialogue = "villager"
+inventory = Array[String](["Bread"])
+
+[node name="Smith" type="Marker3D" parent="Village"]
+transform = Transform3D(-0.00000004371139, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, -0.00000004371139, 274.00, 4.50, 137.50)
+script = ExtResource("2_spawn")
+role = "villager"
+entity_name = "Smith"
+team = 2
+dialogue = "villager"
+inventory = Array[String](["Coins"])
+
+[node name="Guard" type="Marker3D" parent="Village"]
+transform = Transform3D(-0.00000004371139, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, -0.00000004371139, 231.50, 4.47, 113.50)
+script = ExtResource("2_spawn")
+role = "guard"
+entity_name = "Guard"
+team = 2
+dialogue = "guard"
+inventory = Array[String](["Key"])
+
+[node name="Strongbox" type="Marker3D" parent="Village"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 257.69, 4.00, 121.25)
+script = ExtResource("5_container")
+display_name = "Strongbox"
+items = Array[String](["Gold", "Gold", "Coins", "Amber pendant"])
+key = "Key"
+
+[node name="Camp" type="Node3D" parent="."]
+
+[node name="Hut1" type="CSGBox3D" parent="Camp"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 74.00, 6.50, 119.00)
+use_collision = true
+size = Vector3(5, 3, 5)
+material = SubResource("Mat_wood")
+
+[node name="Inside" type="CSGBox3D" parent="Camp/Hut1"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.30, 0.00)
+operation = 2
+size = Vector3(4.2, 2.4, 4.2)
+
+[node name="Door" type="CSGBox3D" parent="Camp/Hut1"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 2.30, -0.40, 0.00)
+operation = 2
+size = Vector3(1, 2.2, 1.2)
+
+[node name="Hut2" type="CSGBox3D" parent="Camp"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 86.00, 6.50, 118.00)
+use_collision = true
+size = Vector3(5, 3, 5)
+material = SubResource("Mat_wood")
+
+[node name="Inside" type="CSGBox3D" parent="Camp/Hut2"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.30, 0.00)
+operation = 2
+size = Vector3(4.2, 2.4, 4.2)
+
+[node name="Door" type="CSGBox3D" parent="Camp/Hut2"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 2.30, -0.40, 0.00)
+operation = 2
+size = Vector3(1, 2.2, 1.2)
+
+[node name="Hut3" type="CSGBox3D" parent="Camp"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 73.00, 6.50, 131.00)
+use_collision = true
+size = Vector3(5, 3, 5)
+material = SubResource("Mat_wood")
+
+[node name="Inside" type="CSGBox3D" parent="Camp/Hut3"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.00, -0.30, 0.00)
+operation = 2
+size = Vector3(4.2, 2.4, 4.2)
+
+[node name="Door" type="CSGBox3D" parent="Camp/Hut3"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 2.30, -0.40, 0.00)
+operation = 2
+size = Vector3(1, 2.2, 1.2)
+
+[node name="Watchtower" type="CSGBox3D" parent="Camp"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 89.00, 7.00, 132.00)
+use_collision = true
+size = Vector3(2, 4, 2)
+material = SubResource("Mat_wood")
+
+[node name="Stake3" type="CSGBox3D" parent="Camp"]
+transform = Transform3D(0.84125351905823, 0.0, -0.54064077138901, 0.0, 1.0, 0.0, 0.54064077138901, 0.0, 0.84125351905823, 90.94, 6.00, 132.03)
+use_collision = true
+size = Vector3(0.5, 2, 3.6)
+material = SubResource("Mat_wood")
+
+[node name="Stake4" type="CSGBox3D" parent="Camp"]
+transform = Transform3D(0.65486073493958, 0.0, -0.75574958324432, 0.0, 1.0, 0.0, 0.75574958324432, 0.0, 0.65486073493958, 88.51, 6.00, 134.82)
+use_collision = true
+size = Vector3(0.5, 2, 3.6)
+material = SubResource("Mat_wood")
+
+[node name="Stake5" type="CSGBox3D" parent="Camp"]
+transform = Transform3D(0.41541504859924, 0.0, -0.90963196754456, 0.0, 1.0, 0.0, 0.90963196754456, 0.0, 0.41541504859924, 85.40, 6.00, 136.83)
+use_collision = true
+size = Vector3(0.5, 2, 3.6)
+material = SubResource("Mat_wood")
+
+[node name="Stake6" type="CSGBox3D" parent="Camp"]
+transform = Transform3D(0.14231486618519, 0.0, -0.989821434021, 0.0, 1.0, 0.0, 0.989821434021, 0.0, 0.14231486618519, 81.85, 6.00, 137.87)
+use_collision = true
+size = Vector3(0.5, 2, 3.6)
+material = SubResource("Mat_wood")
+
+[node name="Stake7" type="CSGBox3D" parent="Camp"]
+transform = Transform3D(-0.14231483638287, 0.0, -0.989821434021, 0.0, 1.0, 0.0, 0.989821434021, 0.0, -0.14231483638287, 78.15, 6.00, 137.87)
+use_collision = true
+size = Vector3(0.5, 2, 3.6)
+material = SubResource("Mat_wood")
+
+[node name="Stake8" type="CSGBox3D" parent="Camp"]
+transform = Transform3D(-0.41541501879692, 0.0, -0.90963196754456, 0.0, 1.0, 0.0, 0.90963196754456, 0.0, -0.41541501879692, 74.60, 6.00, 136.83)
+use_collision = true
+size = Vector3(0.5, 2, 3.6)
+material = SubResource("Mat_wood")
+
+[node name="Stake9" type="CSGBox3D" parent="Camp"]
+transform = Transform3D(-0.65486067533493, 0.0, -0.75574964284897, 0.0, 1.0, 0.0, 0.75574964284897, 0.0, -0.65486067533493, 71.49, 6.00, 134.82)
+use_collision = true
+size = Vector3(0.5, 2, 3.6)
+material = SubResource("Mat_wood")
+
+[node name="Stake10" type="CSGBox3D" parent="Camp"]
+transform = Transform3D(-0.84125357866287, 0.0, -0.54064077138901, 0.0, 1.0, 0.0, 0.54064077138901, 0.0, -0.84125357866287, 69.06, 6.00, 132.03)
+use_collision = true
+size = Vector3(0.5, 2, 3.6)
+material = SubResource("Mat_wood")
+
+[node name="Stake11" type="CSGBox3D" parent="Camp"]
+transform = Transform3D(-0.95949298143387, 0.0, -0.28173261880875, 0.0, 1.0, 0.0, 0.28173261880875, 0.0, -0.95949298143387, 67.53, 6.00, 128.66)
+use_collision = true
+size = Vector3(0.5, 2, 3.6)
+material = SubResource("Mat_wood")
+
+[node name="Stake12" type="CSGBox3D" parent="Camp"]
+transform = Transform3D(-1.0, 0.0, 0.00000008742278, 0.0, 1.0, 0.0, -0.00000008742278, 0.0, -1.0, 67.00, 6.00, 125.00)
+use_collision = true
+size = Vector3(0.5, 2, 3.6)
+material = SubResource("Mat_wood")
+
+[node name="Stake13" type="CSGBox3D" parent="Camp"]
+transform = Transform3D(-0.95949298143387, 0.0, 0.2817325592041, 0.0, 1.0, 0.0, -0.2817325592041, 0.0, -0.95949298143387, 67.53, 6.00, 121.34)
+use_collision = true
+size = Vector3(0.5, 2, 3.6)
+material = SubResource("Mat_wood")
+
+[node name="Stake14" type="CSGBox3D" parent="Camp"]
+transform = Transform3D(-0.84125357866287, 0.0, 0.54064071178436, 0.0, 1.0, 0.0, -0.54064071178436, 0.0, -0.84125357866287, 69.06, 6.00, 117.97)
+use_collision = true
+size = Vector3(0.5, 2, 3.6)
+material = SubResource("Mat_wood")
+
+[node name="Stake15" type="CSGBox3D" parent="Camp"]
+transform = Transform3D(-0.65486073493958, 0.0, 0.75574958324432, 0.0, 1.0, 0.0, -0.75574958324432, 0.0, -0.65486073493958, 71.49, 6.00, 115.18)
+use_collision = true
+size = Vector3(0.5, 2, 3.6)
+material = SubResource("Mat_wood")
+
+[node name="Stake16" type="CSGBox3D" parent="Camp"]
+transform = Transform3D(-0.41541507840157, 0.0, 0.90963196754456, 0.0, 1.0, 0.0, -0.90963196754456, 0.0, -0.41541507840157, 74.60, 6.00, 113.17)
+use_collision = true
+size = Vector3(0.5, 2, 3.6)
+material = SubResource("Mat_wood")
+
+[node name="Stake17" type="CSGBox3D" parent="Camp"]
+transform = Transform3D(-0.1423150151968, 0.0, 0.989821434021, 0.0, 1.0, 0.0, -0.989821434021, 0.0, -0.1423150151968, 78.15, 6.00, 112.13)
+use_collision = true
+size = Vector3(0.5, 2, 3.6)
+material = SubResource("Mat_wood")
+
+[node name="Stake18" type="CSGBox3D" parent="Camp"]
+transform = Transform3D(0.14231503009796, 0.0, 0.989821434021, 0.0, 1.0, 0.0, -0.989821434021, 0.0, 0.14231503009796, 81.85, 6.00, 112.13)
+use_collision = true
+size = Vector3(0.5, 2, 3.6)
+material = SubResource("Mat_wood")
+
+[node name="Stake19" type="CSGBox3D" parent="Camp"]
+transform = Transform3D(0.41541510820389, 0.0, 0.90963196754456, 0.0, 1.0, 0.0, -0.90963196754456, 0.0, 0.41541510820389, 85.40, 6.00, 113.17)
+use_collision = true
+size = Vector3(0.5, 2, 3.6)
+material = SubResource("Mat_wood")
+
+[node name="Stake20" type="CSGBox3D" parent="Camp"]
+transform = Transform3D(0.65486073493958, 0.0, 0.75574958324432, 0.0, 1.0, 0.0, -0.75574958324432, 0.0, 0.65486073493958, 88.51, 6.00, 115.18)
+use_collision = true
+size = Vector3(0.5, 2, 3.6)
+material = SubResource("Mat_wood")
+
+[node name="Stake21" type="CSGBox3D" parent="Camp"]
+transform = Transform3D(0.84125345945358, 0.0, 0.5406408905983, 0.0, 1.0, 0.0, -0.5406408905983, 0.0, 0.84125345945358, 90.94, 6.00, 117.97)
+use_collision = true
+size = Vector3(0.5, 2, 3.6)
+material = SubResource("Mat_wood")
+
+[node name="Bandits" type="Node3D" parent="."]
+
+[node name="Chief" type="Marker3D" parent="Bandits"]
+transform = Transform3D(-0.00000004371139, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, -0.00000004371139, 80.50, 6.50, 123.50)
+script = ExtResource("2_spawn")
+role = "brute"
+entity_name = "Chief"
+team = 1
+inventory = Array[String](["Camp key"])
+equipment = Array[String](["Iron helm", "Leather armour"])
+
+[node name="Hexer" type="Marker3D" parent="Bandits"]
+transform = Transform3D(-0.00000004371139, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, -0.00000004371139, 75.50, 6.50, 127.50)
+script = ExtResource("2_spawn")
+role = "firecaller"
+entity_name = "Hexer"
+team = 1
+
+[node name="Shaman" type="Marker3D" parent="Bandits"]
+transform = Transform3D(-0.00000004371139, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, -0.00000004371139, 79.50, 6.50, 127.50)
+script = ExtResource("2_spawn")
+role = "shaman"
+entity_name = "Shaman"
+team = 1
+
+[node name="Cutpurse" type="Marker3D" parent="Bandits"]
+transform = Transform3D(-0.00000004371139, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, -0.00000004371139, 85.50, 6.50, 128.50)
+script = ExtResource("2_spawn")
+role = "skirmisher"
+entity_name = "Cutpurse"
+team = 1
+inventory = Array[String](["Gold"])
+equipment = Array[String](["Parrying dagger", "Brawler's gloves"])
+
+[node name="Thug" type="Marker3D" parent="Bandits"]
+transform = Transform3D(-0.00000004371139, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, -0.00000004371139, 88.50, 6.50, 122.50)
+script = ExtResource("2_spawn")
+role = "thug"
+entity_name = "Thug"
+team = 1
+
+[node name="Pikeman" type="Marker3D" parent="Bandits"]
+transform = Transform3D(-0.00000004371139, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, -0.00000004371139, 95.50, 4.66, 124.50)
+script = ExtResource("2_spawn")
+role = "pikeman"
+entity_name = "Pikeman"
+team = 1
+
+[node name="ChiefsChest" type="Marker3D" parent="Bandits"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 78.50, 6.00, 120.50)
+script = ExtResource("5_container")
+display_name = "Chief's chest"
+items = Array[String](["Gold", "Gold", "Coins", "Chain shirt", "Healing potion"])
+key = "Camp key"
+
+[node name="Props" type="Node3D" parent="."]
+
+[node name="OilBarrel1" type="Marker3D" parent="Props"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 83.50, 6.50, 130.50)
+script = ExtResource("3_barrel")
+
+[node name="OilBarrel2" type="Marker3D" parent="Props"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 77.50, 6.50, 133.50)
+script = ExtResource("3_barrel")
+
+[node name="OilBarrel3" type="Marker3D" parent="Props"]
+transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 89.50, 6.50, 128.50)
+script = ExtResource("3_barrel")
+
+[node name="Forest" type="Node3D" parent="."]
+
+[node name="Tree1" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.45575577020645, 0.0, -1.06087470054626, 0.0, 1.15462911128998, 0.0, 1.06087470054626, 0.0, -0.45575577020645, 180.50, 3.02, 121.50)
+
+[node name="Tree2" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.18442046642303, 0.0, -1.10025155544281, 0.0, 1.11560046672821, 0.0, 1.10025155544281, 0.0, -0.18442046642303, 141.50, 2.33, 103.50)
+
+[node name="Tree3" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.73865652084351, 0.0, 0.86248910427094, 0.0, 1.1355619430542, 0.0, -0.86248910427094, 0.0, -0.73865652084351, 134.50, 2.55, 124.50)
+
+[node name="Tree4" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.82790750265121, 0.0, 0.55846327543259, 0.0, 0.99865514039993, 0.0, -0.55846327543259, 0.0, 0.82790750265121, 145.50, 2.47, 105.50)
+
+[node name="Tree5" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.01637464761734, 0.0, -0.93654650449753, 0.0, 0.93668967485428, 0.0, 0.93654650449753, 0.0, 0.01637464761734, 196.50, 3.21, 148.50)
+
+[node name="Tree6" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-1.05289387702942, 0.0, -0.36852154135704, 0.0, 1.11552393436432, 0.0, 0.36852154135704, 0.0, -1.05289387702942, 179.50, 3.19, 140.50)
+
+[node name="Tree7" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-1.09868288040161, 0.0, 0.11417738348246, 0.0, 1.10459971427917, 0.0, -0.11417738348246, 0.0, -1.09868288040161, 126.50, 2.53, 131.50)
+
+[node name="Tree8" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.9115406870842, 0.0, -0.1739117205143, 0.0, 0.92798256874084, 0.0, 0.1739117205143, 0.0, 0.9115406870842, 131.50, 2.80, 138.50)
+
+[node name="Tree9" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.99920111894608, 0.0, 0.22665448486805, 0.0, 1.02458536624908, 0.0, -0.22665448486805, 0.0, -0.99920111894608, 156.50, 3.09, 116.50)
+
+[node name="Tree10" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.93425595760345, 0.0, -0.78056639432907, 0.0, 1.21742272377014, 0.0, 0.78056639432907, 0.0, 0.93425595760345, 192.50, 3.04, 136.50)
+
+[node name="Tree11" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-1.2293746471405, 0.0, -0.32829031348228, 0.0, 1.2724529504776, 0.0, 0.32829031348228, 0.0, -1.2293746471405, 178.50, 2.98, 114.50)
+
+[node name="Tree12" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.91062062978745, 0.0, -0.2756005525589, 0.0, 0.95141243934631, 0.0, 0.2756005525589, 0.0, 0.91062062978745, 147.50, 2.91, 124.50)
+
+[node name="Tree13" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.52390295267105, 0.0, -1.14910495281219, 0.0, 1.26290011405945, 0.0, 1.14910495281219, 0.0, 0.52390295267105, 183.50, 3.12, 141.50)
+
+[node name="Tree14" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.84494167566299, 0.0, -0.19471520185471, 0.0, 0.86708736419678, 0.0, 0.19471520185471, 0.0, -0.84494167566299, 119.50, 2.24, 125.50)
+
+[node name="Tree15" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-1.06371796131134, 0.0, -0.52309089899063, 0.0, 1.18537759780884, 0.0, 0.52309089899063, 0.0, -1.06371796131134, 137.50, 2.96, 154.50)
+
+[node name="Tree16" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.77554130554199, 0.0, 0.88501936197281, 0.0, 1.17674279212952, 0.0, -0.88501936197281, 0.0, -0.77554130554199, 148.50, 2.80, 141.50)
+
+[node name="Tree17" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.99684572219849, 0.0, -0.23242565989494, 0.0, 1.02358341217041, 0.0, 0.23242565989494, 0.0, -0.99684572219849, 167.50, 3.44, 131.50)
+
+[node name="Tree18" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.03150267899036, 0.0, 0.91432178020477, 0.0, 0.91486430168152, 0.0, -0.91432178020477, 0.0, 0.03150267899036, 169.50, 3.55, 143.50)
+
+[node name="Tree19" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.85198163986206, 0.0, 0.36093652248383, 0.0, 0.92528259754181, 0.0, -0.36093652248383, 0.0, 0.85198163986206, 122.50, 2.86, 161.50)
+
+[node name="Tree20" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.79017060995102, 0.0, -0.51376324892044, 0.0, 0.94250851869583, 0.0, 0.51376324892044, 0.0, 0.79017060995102, 161.50, 3.25, 153.50)
+
+[node name="Tree21" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.09591279178858, 0.0, 1.06286132335663, 0.0, 1.06718015670776, 0.0, -1.06286132335663, 0.0, 0.09591279178858, 117.50, 2.65, 155.50)
+
+[node name="Tree22" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.94063830375671, 0.0, 0.10242139548063, 0.0, 0.94619792699814, 0.0, -0.10242139548063, 0.0, -0.94063830375671, 174.50, 2.95, 158.50)
+
+[node name="Tree23" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.11891876161098, 0.0, 1.10094022750854, 0.0, 1.10734415054321, 0.0, -1.10094022750854, 0.0, -0.11891876161098, 135.50, 2.62, 110.50)
+
+[node name="Tree24" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.89291834831238, 0.0, -0.41483637690544, 0.0, 0.98457729816437, 0.0, 0.41483637690544, 0.0, 0.89291834831238, 159.50, 3.27, 142.50)
+
+[node name="Tree25" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.37446522712708, 0.0, 1.09403765201569, 0.0, 1.15634882450104, 0.0, -1.09403765201569, 0.0, 0.37446522712708, 185.50, 3.09, 137.50)
+
+[node name="Tree26" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.31504911184311, 0.0, 0.93857777118683, 0.0, 0.99004250764847, 0.0, -0.93857777118683, 0.0, 0.31504911184311, 161.50, 3.22, 118.50)
+
+[node name="Tree27" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(1.06301379203796, 0.0, 0.00361133622937, 0.0, 1.06301999092102, 0.0, -0.00361133622937, 0.0, 1.06301379203796, 168.50, 3.24, 154.50)
+
+[node name="Tree28" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.13104200363159, 0.0, 1.24270224571228, 0.0, 1.24959230422974, 0.0, -1.24270224571228, 0.0, -0.13104200363159, 121.50, 2.65, 155.50)
+
+[node name="Tree29" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.92321485280991, 0.0, 0.39942780137062, 0.0, 1.00591659545898, 0.0, -0.39942780137062, 0.0, 0.92321485280991, 188.50, 2.78, 159.50)
+
+[node name="Tree30" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.87591177225113, 0.0, 0.38771298527718, 0.0, 0.9578845500946, 0.0, -0.38771298527718, 0.0, 0.87591177225113, 134.50, 2.57, 106.50)
+
+[node name="Tree31" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.8501592874527, 0.0, -0.23624682426453, 0.0, 0.88237369060516, 0.0, 0.23624682426453, 0.0, -0.8501592874527, 147.50, 2.37, 98.50)
+
+[node name="Tree32" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.48646810650826, 0.0, 0.98689103126526, 0.0, 1.10027503967285, 0.0, -0.98689103126526, 0.0, -0.48646810650826, 176.50, 3.22, 130.50)
+
+[node name="Tree33" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.07638242840767, 0.0, 1.20740568637848, 0.0, 1.20981931686401, 0.0, -1.20740568637848, 0.0, 0.07638242840767, 167.50, 3.35, 124.50)
+
+[node name="Tree34" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-1.16377949714661, 0.0, -0.00197261408903, 0.0, 1.16378116607666, 0.0, 0.00197261408903, 0.0, -1.16377949714661, 171.50, 3.26, 125.50)
+
+[node name="Tree35" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(1.01328992843628, 0.0, 0.49069064855576, 0.0, 1.12584805488586, 0.0, -0.49069064855576, 0.0, 1.01328992843628, 158.50, 3.27, 127.50)
+
+[node name="Tree36" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.54030680656433, 0.0, -0.92577707767487, 0.0, 1.07191169261932, 0.0, 0.92577707767487, 0.0, -0.54030680656433, 159.50, 3.20, 134.50)
+
+[node name="Tree37" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.49904379248619, 0.0, 0.79585921764374, 0.0, 0.93938100337982, 0.0, -0.79585921764374, 0.0, -0.49904379248619, 151.50, 2.85, 145.50)
+
+[node name="Tree38" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.31175005435944, 0.0, 1.19076657295227, 0.0, 1.23089933395386, 0.0, -1.19076657295227, 0.0, 0.31175005435944, 157.50, 3.13, 153.50)
+
+[node name="Tree39" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.6097936630249, 0.0, -0.7340801358223, 0.0, 0.95431756973267, 0.0, 0.7340801358223, 0.0, -0.6097936630249, 130.50, 2.53, 125.50)
+
+[node name="Tree40" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.67959845066071, 0.0, 0.67676305770874, 0.0, 0.95909452438354, 0.0, -0.67676305770874, 0.0, 0.67959845066071, 151.50, 2.92, 128.50)
+
+[node name="Tree41" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-1.19719445705414, 0.0, 0.50348502397537, 0.0, 1.29875779151917, 0.0, -0.50348502397537, 0.0, -1.19719445705414, 170.50, 3.18, 116.50)
+
+[node name="Tree42" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.21321651339531, 0.0, -0.9224317073822, 0.0, 0.94675314426422, 0.0, 0.9224317073822, 0.0, 0.21321651339531, 137.50, 2.94, 139.50)
+
+[node name="Tree43" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.84153240919113, 0.0, 0.60961323976517, 0.0, 1.03913676738739, 0.0, -0.60961323976517, 0.0, -0.84153240919113, 165.50, 3.33, 122.50)
+
+[node name="Tree44" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.38565143942833, 0.0, -0.80743026733398, 0.0, 0.89480203390121, 0.0, 0.80743026733398, 0.0, -0.38565143942833, 124.50, 2.75, 110.50)
+
+[node name="Tree45" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.90896952152252, 0.0, -0.15804632008076, 0.0, 0.92260730266571, 0.0, 0.15804632008076, 0.0, -0.90896952152252, 181.50, 3.12, 146.50)
+
+[node name="Tree46" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-1.28566920757294, 0.0, -0.01942929811776, 0.0, 1.28581595420837, 0.0, 0.01942929811776, 0.0, -1.28566920757294, 178.50, 2.97, 154.50)
+
+[node name="Tree47" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.9437775015831, 0.0, 0.76834374666214, 0.0, 1.21699142456055, 0.0, -0.76834374666214, 0.0, 0.9437775015831, 128.50, 2.75, 158.50)
+
+[node name="Tree48" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.89852505922318, 0.0, 0.06467741727829, 0.0, 0.90084981918335, 0.0, -0.06467741727829, 0.0, 0.89852505922318, 153.50, 2.83, 105.50)
+
+[node name="Tree49" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.90979290008545, 0.0, 0.26610478758812, 0.0, 0.94791078567505, 0.0, -0.26610478758812, 0.0, 0.90979290008545, 185.50, 2.99, 132.50)
+
+[node name="Tree50" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(1.06566560268402, 0.0, 0.17073933780193, 0.0, 1.079256772995, 0.0, -0.17073933780193, 0.0, 1.06566560268402, 154.50, 3.05, 126.50)
+
+[node name="Tree51" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.98791068792343, 0.0, -0.27802774310112, 0.0, 1.02628791332245, 0.0, 0.27802774310112, 0.0, -0.98791068792343, 120.50, 2.67, 113.50)
+
+[node name="Tree52" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.36464214324951, 0.0, 1.09720921516418, 0.0, 1.15621447563171, 0.0, -1.09720921516418, 0.0, 0.36464214324951, 174.50, 3.04, 118.50)
+
+[node name="Tree53" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.32561221718788, 0.0, -0.9298090338707, 0.0, 0.9851741194725, 0.0, 0.9298090338707, 0.0, 0.32561221718788, 138.50, 2.76, 128.50)
+
+[node name="Tree54" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.67330825328827, 0.0, 0.97211790084839, 0.0, 1.18252158164978, 0.0, -0.97211790084839, 0.0, 0.67330825328827, 155.50, 2.99, 137.50)
+
+[node name="Tree55" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.8653137087822, 0.0, 0.58983308076859, 0.0, 1.04722058773041, 0.0, -0.58983308076859, 0.0, -0.8653137087822, 164.50, 3.40, 149.50)
+
+[node name="Tree56" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.81565433740616, 0.0, 0.34604093432426, 0.0, 0.88602274656296, 0.0, -0.34604093432426, 0.0, -0.81565433740616, 195.50, 3.17, 143.50)
+
+[node name="Tree57" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.84588944911957, 0.0, -0.97018849849701, 0.0, 1.28716540336609, 0.0, 0.97018849849701, 0.0, 0.84588944911957, 154.50, 2.97, 143.50)
+
+[node name="Tree58" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.74204504489899, 0.0, 0.67309319972992, 0.0, 1.00184094905853, 0.0, -0.67309319972992, 0.0, 0.74204504489899, 133.50, 2.72, 149.50)
+
+[node name="Tree59" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.65342199802399, 0.0, 0.74634796380997, 0.0, 0.99196553230286, 0.0, -0.74634796380997, 0.0, 0.65342199802399, 189.50, 3.15, 142.50)
+
+[node name="Tree60" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.48737099766731, 0.0, 0.96110141277313, 0.0, 1.07761144638062, 0.0, -0.96110141277313, 0.0, -0.48737099766731, 135.50, 2.89, 136.50)
+
+[node name="Tree61" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.56964540481567, 0.0, 1.02969777584076, 0.0, 1.17676401138306, 0.0, -1.02969777584076, 0.0, -0.56964540481567, 178.50, 2.89, 103.50)
+
+[node name="Tree62" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(1.10356283187866, 0.0, -0.57089823484421, 0.0, 1.24248766899109, 0.0, 0.57089823484421, 0.0, 1.10356283187866, 123.50, 2.56, 102.50)
+
+[node name="Tree63" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-1.12143242359161, 0.0, -0.25665080547333, 0.0, 1.15042614936829, 0.0, 0.25665080547333, 0.0, -1.12143242359161, 194.50, 2.87, 120.50)
+
+[node name="Tree64" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(1.03856360912323, 0.0, -0.6057220697403, 0.0, 1.20229518413544, 0.0, 0.6057220697403, 0.0, 1.03856360912323, 165.50, 3.43, 135.50)
+
+[node name="Tree65" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.01513079833239, 0.0, 0.95160108804703, 0.0, 0.95172137022018, 0.0, -0.95160108804703, 0.0, 0.01513079833239, 153.50, 3.04, 119.50)
+
+[node name="Tree66" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.30728831887245, 0.0, -0.82656407356262, 0.0, 0.88183575868607, 0.0, 0.82656407356262, 0.0, 0.30728831887245, 169.50, 3.44, 149.50)
+
+[node name="Tree67" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.93310290575027, 0.0, -0.08919605612755, 0.0, 0.93735635280609, 0.0, 0.08919605612755, 0.0, -0.93310290575027, 188.50, 2.95, 152.50)
+
+[node name="Tree68" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.81883269548416, 0.0, 0.45803564786911, 0.0, 0.93823432922363, 0.0, -0.45803564786911, 0.0, 0.81883269548416, 124.50, 2.55, 146.50)
+
+[node name="Tree69" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.69451594352722, 0.0, 0.53569036722183, 0.0, 0.87710690498352, 0.0, -0.53569036722183, 0.0, 0.69451594352722, 188.50, 2.88, 100.50)
+
+[node name="Tree70" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(1.18507409095764, 0.0, -0.07012007385492, 0.0, 1.18714678287506, 0.0, 0.07012007385492, 0.0, 1.18507409095764, 177.50, 2.83, 159.50)
+
+[node name="Tree71" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.47132128477097, 0.0, -0.95287621021271, 0.0, 1.06306958198547, 0.0, 0.95287621021271, 0.0, 0.47132128477097, 122.50, 2.37, 136.50)
+
+[node name="Tree72" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.83607077598572, 0.0, -0.96195846796036, 0.0, 1.27451109886169, 0.0, 0.96195846796036, 0.0, 0.83607077598572, 169.50, 3.40, 129.50)
+
+[node name="Tree73" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.70168954133987, 0.0, -0.56682729721069, 0.0, 0.90203177928925, 0.0, 0.56682729721069, 0.0, -0.70168954133987, 152.50, 2.81, 101.50)
+
+[node name="Tree74" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-1.18774473667145, 0.0, 0.21830597519875, 0.0, 1.20764029026031, 0.0, -0.21830597519875, 0.0, -1.18774473667145, 181.50, 3.15, 137.50)
+
+[node name="Tree75" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-1.14911711215973, 0.0, 0.23561733961105, 0.0, 1.17302417755127, 0.0, -0.23561733961105, 0.0, -1.14911711215973, 167.50, 3.22, 117.50)
+
+[node name="Tree76" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.24311229586601, 0.0, 1.2497136592865, 0.0, 1.2731409072876, 0.0, -1.2497136592865, 0.0, 0.24311229586601, 142.50, 2.89, 128.50)
+
+[node name="Tree77" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.01092535909265, 0.0, -1.17020499706268, 0.0, 1.17025601863861, 0.0, 1.17020499706268, 0.0, 0.01092535909265, 148.50, 2.91, 122.50)
+
+[node name="Tree78" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.44862169027328, 0.0, 0.75428116321564, 0.0, 0.87761121988297, 0.0, -0.75428116321564, 0.0, 0.44862169027328, 138.50, 2.67, 124.50)
+
+[node name="Tree79" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-1.20403754711151, 0.0, -0.40445578098297, 0.0, 1.27015388011932, 0.0, 0.40445578098297, 0.0, -1.20403754711151, 165.50, 3.47, 130.50)
+
+[node name="Tree80" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.32139348983765, 0.0, 1.15892267227173, 0.0, 1.2026618719101, 0.0, -1.15892267227173, 0.0, 0.32139348983765, 138.50, 2.97, 151.50)
+
+[node name="Tree81" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.60594511032104, 0.0, -1.07854914665222, 0.0, 1.23710858821869, 0.0, 1.07854914665222, 0.0, -0.60594511032104, 119.50, 2.50, 150.50)
+
+[node name="Tree82" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(1.00655627250671, 0.0, 0.66965925693512, 0.0, 1.2089661359787, 0.0, -0.66965925693512, 0.0, 1.00655627250671, 119.50, 2.66, 109.50)
+
+[node name="Tree83" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.42714074254036, 0.0, 1.10831677913666, 0.0, 1.18777751922607, 0.0, -1.10831677913666, 0.0, -0.42714074254036, 131.50, 2.64, 146.50)
+
+[node name="Tree84" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.91449058055878, 0.0, 0.37436550855637, 0.0, 0.98815107345581, 0.0, -0.37436550855637, 0.0, 0.91449058055878, 199.50, 3.09, 153.50)
+
+[node name="Tree85" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.63708013296127, 0.0, -1.10188710689545, 0.0, 1.27280259132385, 0.0, 1.10188710689545, 0.0, 0.63708013296127, 151.50, 2.84, 138.50)
+
+[node name="Tree86" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.72770208120346, 0.0, -0.93907064199448, 0.0, 1.18802523612976, 0.0, 0.93907064199448, 0.0, 0.72770208120346, 122.50, 2.31, 131.50)
+
+[node name="Tree87" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.62379395961761, 0.0, -0.79617613554001, 0.0, 1.01144218444824, 0.0, 0.79617613554001, 0.0, 0.62379395961761, 195.50, 2.86, 132.50)
+
+[node name="Tree88" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.6530447602272, 0.0, -0.78305584192276, 0.0, 1.01962924003601, 0.0, 0.78305584192276, 0.0, 0.6530447602272, 197.50, 2.86, 100.50)
+
+[node name="Tree89" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.6984738111496, 0.0, -0.52799129486084, 0.0, 0.87558007240295, 0.0, 0.52799129486084, 0.0, -0.6984738111496, 131.50, 2.65, 130.50)
+
+[node name="Tree90" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(1.02283370494843, 0.0, 0.20387104153633, 0.0, 1.04295361042023, 0.0, -0.20387104153633, 0.0, 1.02283370494843, 184.50, 3.02, 148.50)
+
+[node name="Tree91" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.22880239784718, 0.0, 1.21473169326782, 0.0, 1.23609209060669, 0.0, -1.21473169326782, 0.0, 0.22880239784718, 163.50, 3.30, 157.50)
+
+[node name="Tree92" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.22828081250191, 0.0, -1.00751936435699, 0.0, 1.03305733203888, 0.0, 1.00751936435699, 0.0, -0.22828081250191, 140.50, 2.91, 159.50)
+
+[node name="Tree93" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.94162875413895, 0.0, 0.33410960435867, 0.0, 0.99914664030075, 0.0, -0.33410960435867, 0.0, 0.94162875413895, 176.50, 3.11, 124.50)
+
+[node name="Tree94" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.11948771029711, 0.0, -0.9634382724762, 0.0, 0.97081959247589, 0.0, 0.9634382724762, 0.0, -0.11948771029711, 129.50, 2.72, 108.50)
+
+[node name="Tree95" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.11663110554218, 0.0, 1.0203605890274, 0.0, 1.02700471878052, 0.0, -1.0203605890274, 0.0, -0.11663110554218, 166.50, 3.56, 142.50)
+
+[node name="Tree96" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.80037301778793, 0.0, 0.33705112338066, 0.0, 0.86844712495804, 0.0, -0.33705112338066, 0.0, -0.80037301778793, 174.50, 3.28, 137.50)
+
+[node name="Tree97" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.69667208194733, 0.0, -0.83196419477463, 0.0, 1.08513426780701, 0.0, 0.83196419477463, 0.0, -0.69667208194733, 134.50, 2.81, 144.50)
+
+[node name="Tree98" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.94756376743317, 0.0, -0.25298511981964, 0.0, 0.98075407743454, 0.0, 0.25298511981964, 0.0, 0.94756376743317, 195.50, 3.03, 137.50)
+
+[node name="Tree99" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.982157766819, 0.0, -0.03082507476211, 0.0, 0.98264139890671, 0.0, 0.03082507476211, 0.0, 0.982157766819, 195.50, 2.93, 117.50)
+
+[node name="Tree100" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.3885905444622, 0.0, 1.23171842098236, 0.0, 1.29156219959259, 0.0, -1.23171842098236, 0.0, 0.3885905444622, 184.50, 2.94, 126.50)
+
+[node name="Tree101" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-1.01464736461639, 0.0, 0.7399537563324, 0.0, 1.25580286979675, 0.0, -0.7399537563324, 0.0, -1.01464736461639, 185.50, 2.95, 103.50)
+
+[node name="Tree102" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.4250762462616, 0.0, 1.04710721969604, 0.0, 1.13009881973267, 0.0, -1.04710721969604, 0.0, -0.4250762462616, 180.50, 3.10, 128.50)
+
+[node name="Tree103" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.83529579639435, 0.0, -0.3216832280159, 0.0, 0.89509731531143, 0.0, 0.3216832280159, 0.0, -0.83529579639435, 139.50, 2.40, 105.50)
+
+[node name="Tree104" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.89797824621201, 0.0, 0.59392154216766, 0.0, 1.07661867141724, 0.0, -0.59392154216766, 0.0, 0.89797824621201, 173.50, 3.07, 155.50)
+
+[node name="Tree105" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.38123020529747, 0.0, 0.9014732837677, 0.0, 0.97876989841461, 0.0, -0.9014732837677, 0.0, 0.38123020529747, 134.50, 2.88, 140.50)
+
+[node name="Tree106" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(1.07757139205933, 0.0, -0.23028580844402, 0.0, 1.10190367698669, 0.0, 0.23028580844402, 0.0, 1.07757139205933, 191.50, 2.71, 127.50)
+
+[node name="Tree107" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.87611716985703, 0.0, 0.0215605404228, 0.0, 0.87638241052628, 0.0, -0.0215605404228, 0.0, -0.87611716985703, 144.50, 2.88, 124.50)
+
+[node name="Tree108" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.98442155122757, 0.0, -0.40052708983421, 0.0, 1.06278300285339, 0.0, 0.40052708983421, 0.0, -0.98442155122757, 128.50, 2.63, 152.50)
+
+[node name="Tree109" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.70747625827789, 0.0, -0.6300922036171, 0.0, 0.94738525152206, 0.0, 0.6300922036171, 0.0, -0.70747625827789, 138.50, 2.90, 136.50)
+
+[node name="Tree110" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.08967101573944, 0.0, -1.2032482624054, 0.0, 1.20658493041992, 0.0, 1.2032482624054, 0.0, 0.08967101573944, 195.50, 2.87, 160.50)
+
+[node name="Tree111" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.44612792134285, 0.0, 0.73571729660034, 0.0, 0.86041271686554, 0.0, -0.73571729660034, 0.0, -0.44612792134285, 186.50, 2.83, 155.50)
+
+[node name="Tree112" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.12639328837395, 0.0, -0.94196844100952, 0.0, 0.9504103064537, 0.0, 0.94196844100952, 0.0, 0.12639328837395, 162.50, 3.44, 144.50)
+
+[node name="Tree113" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.94602954387665, 0.0, 0.34255838394165, 0.0, 1.00614023208618, 0.0, -0.34255838394165, 0.0, -0.94602954387665, 190.50, 2.95, 117.50)
+
+[node name="Tree114" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.68453407287598, 0.0, -0.91431111097336, 0.0, 1.142169713974, 0.0, 0.91431111097336, 0.0, 0.68453407287598, 174.50, 2.89, 102.50)
+
+[node name="Tree115" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.25074297189713, 0.0, 1.21596133708954, 0.0, 1.24154508113861, 0.0, -1.21596133708954, 0.0, -0.25074297189713, 151.50, 2.87, 149.50)
+
+[node name="Tree116" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.84879875183105, 0.0, 0.17297308146954, 0.0, 0.86624419689178, 0.0, -0.17297308146954, 0.0, -0.84879875183105, 192.50, 2.92, 103.50)
+
+[node name="Tree117" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.88567900657654, 0.0, -0.37961122393608, 0.0, 0.96360367536545, 0.0, 0.37961122393608, 0.0, 0.88567900657654, 168.50, 3.46, 138.50)
+
+[node name="Tree118" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.19742572307587, 0.0, -1.2619297504425, 0.0, 1.27727973461151, 0.0, 1.2619297504425, 0.0, -0.19742572307587, 182.50, 2.88, 102.50)
+
+[node name="Tree119" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.87358725070953, 0.0, 0.63071221113205, 0.0, 1.07747507095337, 0.0, -0.63071221113205, 0.0, -0.87358725070953, 161.50, 2.96, 99.50)
+
+[node name="Tree120" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.64330750703812, 0.0, -0.85961854457855, 0.0, 1.07367992401123, 0.0, 0.85961854457855, 0.0, -0.64330750703812, 149.50, 2.92, 152.50)
+
+[node name="Tree121" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.37197458744049, 0.0, -0.97126662731171, 0.0, 1.0400595664978, 0.0, 0.97126662731171, 0.0, -0.37197458744049, 175.50, 3.04, 114.50)
+
+[node name="Tree122" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.69273352622986, 0.0, 0.67838823795319, 0.0, 0.96958255767822, 0.0, -0.67838823795319, 0.0, -0.69273352622986, 137.50, 2.92, 148.50)
+
+[node name="Tree123" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.13950079679489, 0.0, 0.94807851314545, 0.0, 0.95828664302826, 0.0, -0.94807851314545, 0.0, 0.13950079679489, 176.50, 3.29, 141.50)
+
+[node name="Tree124" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-1.11323261260986, 0.0, -0.36436161398888, 0.0, 1.17134380340576, 0.0, 0.36436161398888, 0.0, -1.11323261260986, 187.50, 2.83, 128.50)
+
+[node name="Tree125" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.4074943959713, 0.0, -1.1268572807312, 0.0, 1.19827342033386, 0.0, 1.1268572807312, 0.0, 0.4074943959713, 161.50, 3.34, 122.50)
+
+[node name="Tree126" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(1.01203215122223, 0.0, -0.27717962861061, 0.0, 1.04930341243744, 0.0, 0.27717962861061, 0.0, 1.01203215122223, 186.50, 3.00, 115.50)
+
+[node name="Tree127" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.39031073451042, 0.0, -0.9781454205513, 0.0, 1.05314338207245, 0.0, 0.9781454205513, 0.0, 0.39031073451042, 132.50, 2.75, 153.50)
+
+[node name="Tree128" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.66021555662155, 0.0, -0.88602298498154, 0.0, 1.1049530506134, 0.0, 0.88602298498154, 0.0, 0.66021555662155, 182.50, 2.99, 115.50)
+
+[node name="Tree129" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.37681916356087, 0.0, -0.77675521373749, 0.0, 0.86333155632019, 0.0, 0.77675521373749, 0.0, -0.37681916356087, 122.50, 2.64, 105.50)
+
+[node name="Tree130" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.86240375041962, 0.0, -0.35655173659325, 0.0, 0.93320381641388, 0.0, 0.35655173659325, 0.0, 0.86240375041962, 190.50, 2.88, 132.50)
+
+[node name="Tree131" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.79920905828476, 0.0, 0.74685001373291, 0.0, 1.09385561943054, 0.0, -0.74685001373291, 0.0, 0.79920905828476, 148.50, 2.82, 136.50)
+
+[node name="Tree132" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.4706583917141, 0.0, -1.14920854568481, 0.0, 1.24185335636139, 0.0, 1.14920854568481, 0.0, 0.4706583917141, 147.50, 2.99, 156.50)
+
+[node name="Tree133" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.53689187765121, 0.0, 0.66014349460602, 0.0, 0.85090672969818, 0.0, -0.66014349460602, 0.0, -0.53689187765121, 150.50, 2.76, 107.50)
+
+[node name="Tree134" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.98727029561996, 0.0, -0.07062106579542, 0.0, 0.98979294300079, 0.0, 0.07062106579542, 0.0, 0.98727029561996, 137.50, 2.81, 132.50)
+
+[node name="Tree135" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.77847051620483, 0.0, 0.65922689437866, 0.0, 1.02009630203247, 0.0, -0.65922689437866, 0.0, -0.77847051620483, 191.50, 3.16, 148.50)
+
+[node name="Tree136" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.03996616974473, 0.0, -0.85313409566879, 0.0, 0.85406970977783, 0.0, 0.85313409566879, 0.0, 0.03996616974473, 143.50, 2.86, 138.50)
+
+[node name="Tree137" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.15402880311012, 0.0, -0.85084420442581, 0.0, 0.86467373371124, 0.0, 0.85084420442581, 0.0, 0.15402880311012, 191.50, 2.77, 123.50)
+
+[node name="Tree138" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.48249945044518, 0.0, 0.83136564493179, 0.0, 0.96123594045639, 0.0, -0.83136564493179, 0.0, 0.48249945044518, 152.50, 3.12, 156.50)
+
+[node name="Tree139" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-1.07598888874054, 0.0, -0.32935708761215, 0.0, 1.1252681016922, 0.0, 0.32935708761215, 0.0, -1.07598888874054, 125.50, 2.59, 150.50)
+
+[node name="Tree140" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.30509954690933, 0.0, -1.08705687522888, 0.0, 1.12906086444855, 0.0, 1.08705687522888, 0.0, 0.30509954690933, 156.50, 3.17, 122.50)
+
+[node name="Tree141" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.69343322515488, 0.0, -0.51627457141876, 0.0, 0.86451667547226, 0.0, 0.51627457141876, 0.0, 0.69343322515488, 183.50, 3.04, 131.50)
+
+[node name="Tree142" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.52201098203659, 0.0, 1.04653251171112, 0.0, 1.16949808597565, 0.0, -1.04653251171112, 0.0, 0.52201098203659, 142.50, 2.59, 109.50)
+
+[node name="Tree143" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-1.05214214324951, 0.0, 0.08243430405855, 0.0, 1.05536651611328, 0.0, -0.08243430405855, 0.0, -1.05214214324951, 135.50, 2.84, 134.50)
+
+[node name="Tree144" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(1.26896226406097, 0.0, -0.12600666284561, 0.0, 1.27520310878754, 0.0, 0.12600666284561, 0.0, 1.26896226406097, 171.50, 3.05, 160.50)
+
+[node name="Tree145" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(1.28683483600616, 0.0, 0.12580667436123, 0.0, 1.2929699420929, 0.0, -0.12580667436123, 0.0, 1.28683483600616, 127.50, 2.59, 142.50)
+
+[node name="Tree146" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.9362530708313, 0.0, 0.74427407979965, 0.0, 1.19604086875916, 0.0, -0.74427407979965, 0.0, -0.9362530708313, 161.50, 3.35, 139.50)
+
+[node name="Tree147" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.94409096240997, 0.0, 0.69567114114761, 0.0, 1.17271733283997, 0.0, -0.69567114114761, 0.0, -0.94409096240997, 183.50, 3.10, 135.50)
+
+[node name="Tree148" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.87513774633408, 0.0, -0.63580995798111, 0.0, 1.08172106742859, 0.0, 0.63580995798111, 0.0, -0.87513774633408, 163.50, 3.42, 132.50)
+
+[node name="Tree149" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.18242537975311, 0.0, 1.01758742332459, 0.0, 1.0338100194931, 0.0, -1.01758742332459, 0.0, -0.18242537975311, 127.50, 2.58, 102.50)
+
+[node name="Tree150" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(1.00641453266144, 0.0, 0.29203593730927, 0.0, 1.04792904853821, 0.0, -0.29203593730927, 0.0, 1.00641453266144, 184.50, 3.08, 145.50)
+
+[node name="Tree151" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(1.25283789634705, 0.0, 0.26621615886688, 0.0, 1.28080987930298, 0.0, -0.26621615886688, 0.0, 1.25283789634705, 118.50, 2.40, 140.50)
+
+[node name="Tree152" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.49147000908852, 0.0, -1.20094680786133, 0.0, 1.29761934280396, 0.0, 1.20094680786133, 0.0, 0.49147000908852, 172.50, 3.31, 133.50)
+
+[node name="Tree153" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.66704100370407, 0.0, -0.94842499494553, 0.0, 1.15950584411621, 0.0, 0.94842499494553, 0.0, -0.66704100370407, 159.50, 3.22, 138.50)
+
+[node name="Tree154" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.39520463347435, 0.0, 1.20517528057098, 0.0, 1.26831936836243, 0.0, -1.20517528057098, 0.0, -0.39520463347435, 184.50, 2.88, 153.50)
+
+[node name="Tree155" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.58518648147583, 0.0, 0.82823759317398, 0.0, 1.01411080360413, 0.0, -0.82823759317398, 0.0, -0.58518648147583, 175.50, 2.81, 98.50)
+
+[node name="Tree156" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.73395764827728, 0.0, 0.42988327145576, 0.0, 0.8505842089653, 0.0, -0.42988327145576, 0.0, -0.73395764827728, 181.50, 2.96, 152.50)
+
+[node name="Tree157" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-1.16230666637421, 0.0, -0.44861659407616, 0.0, 1.24587869644165, 0.0, 0.44861659407616, 0.0, -1.16230666637421, 143.50, 2.98, 151.50)
+
+[node name="Tree158" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.26219084858894, 0.0, -0.86935436725616, 0.0, 0.9080314040184, 0.0, 0.86935436725616, 0.0, 0.26219084858894, 144.50, 2.97, 155.50)
+
+[node name="Tree159" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.39244416356087, 0.0, 1.16867935657501, 0.0, 1.23281145095825, 0.0, -1.16867935657501, 0.0, 0.39244416356087, 192.50, 3.21, 145.50)
+
+[node name="Tree160" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.22201679646969, 0.0, 0.86847162246704, 0.0, 0.89640080928802, 0.0, -0.86847162246704, 0.0, 0.22201679646969, 120.50, 2.45, 98.50)
+
+[node name="Tree161" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.73822003602982, 0.0, 0.42826586961746, 0.0, 0.85345208644867, 0.0, -0.42826586961746, 0.0, 0.73822003602982, 192.50, 2.83, 97.50)
+
+[node name="Tree162" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.39389714598656, 0.0, -0.97620606422424, 0.0, 1.05267906188965, 0.0, 0.97620606422424, 0.0, -0.39389714598656, 199.50, 2.84, 132.50)
+
+[node name="Tree163" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.46678367257118, 0.0, -1.16409075260162, 0.0, 1.25419068336487, 0.0, 1.16409075260162, 0.0, -0.46678367257118, 189.50, 3.12, 147.50)
+
+[node name="Tree164" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.94708782434464, 0.0, -0.86357444524765, 0.0, 1.28169274330139, 0.0, 0.86357444524765, 0.0, 0.94708782434464, 151.50, 2.86, 134.50)
+
+[node name="Tree165" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.34913039207458, 0.0, -0.99723225831985, 0.0, 1.05658137798309, 0.0, 0.99723225831985, 0.0, -0.34913039207458, 153.50, 3.01, 153.50)
+
+[node name="Tree166" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.49678802490234, 0.0, -0.7063547372818, 0.0, 0.86355972290039, 0.0, 0.7063547372818, 0.0, -0.49678802490234, 158.50, 3.38, 159.50)
+
+[node name="Tree167" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.72814202308655, 0.0, -0.99172306060791, 0.0, 1.23032736778259, 0.0, 0.99172306060791, 0.0, 0.72814202308655, 174.50, 3.24, 128.50)
+
+[node name="Tree168" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(1.20790219306946, 0.0, -0.44670453667641, 0.0, 1.28785586357117, 0.0, 0.44670453667641, 0.0, 1.20790219306946, 171.50, 2.94, 102.50)
+
+[node name="Tree169" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.95541018247604, 0.0, -0.57593858242035, 0.0, 1.1155778169632, 0.0, 0.57593858242035, 0.0, -0.95541018247604, 125.50, 2.80, 115.50)
+
+[node name="Tree170" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.81455338001251, 0.0, -0.99336940050125, 0.0, 1.28463220596313, 0.0, 0.99336940050125, 0.0, 0.81455338001251, 156.50, 3.04, 147.50)
+
+[node name="Tree171" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.67905509471893, 0.0, -1.02900457382202, 0.0, 1.23286914825439, 0.0, 1.02900457382202, 0.0, 0.67905509471893, 192.50, 3.06, 76.50)
+
+[node name="Tree172" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-1.12805366516113, 0.0, 0.49274146556854, 0.0, 1.23097491264343, 0.0, -0.49274146556854, 0.0, -1.12805366516113, 207.50, 2.79, 64.50)
+
+[node name="Tree173" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.94932341575623, 0.0, -0.21932256221771, 0.0, 0.97432917356491, 0.0, 0.21932256221771, 0.0, 0.94932341575623, 221.50, 2.98, 86.50)
+
+[node name="Tree174" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.29467332363129, 0.0, 0.8608261346817, 0.0, 0.90986484289169, 0.0, -0.8608261346817, 0.0, 0.29467332363129, 206.50, 2.87, 72.50)
+
+[node name="Tree175" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-1.13374793529511, 0.0, -0.42266547679901, 0.0, 1.20997130870819, 0.0, 0.42266547679901, 0.0, -1.13374793529511, 204.50, 2.96, 82.50)
+
+[node name="Tree176" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.16639766097069, 0.0, 0.87162548303604, 0.0, 0.88736641407013, 0.0, -0.87162548303604, 0.0, -0.16639766097069, 210.50, 2.92, 84.50)
+
+[node name="Tree177" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.40396997332573, 0.0, 1.13786137104034, 0.0, 1.20744371414185, 0.0, -1.13786137104034, 0.0, -0.40396997332573, 207.50, 2.73, 92.50)
+
+[node name="Tree178" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.93305677175522, 0.0, 0.41473293304443, 0.0, 1.02107703685761, 0.0, -0.41473293304443, 0.0, 0.93305677175522, 221.50, 3.05, 82.50)
+
+[node name="Tree179" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.21960027515888, 0.0, -1.02530443668365, 0.0, 1.0485577583313, 0.0, 1.02530443668365, 0.0, -0.21960027515888, 203.50, 2.94, 85.50)
+
+[node name="Tree180" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.05129129067063, 0.0, -0.90801239013672, 0.0, 0.90945988893509, 0.0, 0.90801239013672, 0.0, -0.05129129067063, 197.50, 2.95, 59.50)
+
+[node name="Tree181" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-1.08664262294769, 0.0, 0.3788113296032, 0.0, 1.15077805519104, 0.0, -0.3788113296032, 0.0, -1.08664262294769, 221.50, 2.97, 59.50)
+
+[node name="Tree182" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.90868878364563, 0.0, -0.14040394127369, 0.0, 0.91947191953659, 0.0, 0.14040394127369, 0.0, -0.90868878364563, 218.50, 3.05, 73.50)
+
+[node name="Tree183" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.25863340497017, 0.0, 1.2387672662735, 0.0, 1.26547837257385, 0.0, -1.2387672662735, 0.0, -0.25863340497017, 199.50, 2.74, 93.50)
+
+[node name="Tree184" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.10165388137102, 0.0, -0.93413704633713, 0.0, 0.93965184688568, 0.0, 0.93413704633713, 0.0, 0.10165388137102, 191.50, 2.75, 94.50)
+
+[node name="Tree185" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.47665458917618, 0.0, -1.0171879529953, 0.0, 1.12333023548126, 0.0, 1.0171879529953, 0.0, 0.47665458917618, 219.50, 3.17, 79.50)
+
+[node name="Tree186" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-1.06974136829376, 0.0, -0.73776173591614, 0.0, 1.29947638511658, 0.0, 0.73776173591614, 0.0, -1.06974136829376, 219.50, 2.91, 56.50)
+
+[node name="Tree187" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.78677588701248, 0.0, -0.67489403486252, 0.0, 1.03658008575439, 0.0, 0.67489403486252, 0.0, 0.78677588701248, 211.50, 2.85, 88.50)
+
+[node name="Tree188" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.3402855694294, 0.0, -0.82859790325165, 0.0, 0.89575040340424, 0.0, 0.82859790325165, 0.0, 0.3402855694294, 192.50, 3.09, 80.50)
+
+[node name="Tree189" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.76544576883316, 0.0, 0.70549762248993, 0.0, 1.04097747802734, 0.0, -0.70549762248993, 0.0, -0.76544576883316, 202.50, 2.84, 61.50)
+
+[node name="Tree190" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.83572572469711, 0.0, -0.74251371622086, 0.0, 1.11792850494385, 0.0, 0.74251371622086, 0.0, 0.83572572469711, 223.50, 2.96, 63.50)
+
+[node name="Tree191" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.33352401852608, 0.0, 1.14021277427673, 0.0, 1.18799138069153, 0.0, -1.14021277427673, 0.0, -0.33352401852608, 215.50, 3.06, 83.50)
+
+[node name="Tree192" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.76076418161392, 0.0, 0.63800656795502, 0.0, 0.99288195371628, 0.0, -0.63800656795502, 0.0, -0.76076418161392, 199.50, 2.92, 56.50)
+
+[node name="Tree193" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.7639867067337, 0.0, -0.63025969266891, 0.0, 0.99040544033051, 0.0, 0.63025969266891, 0.0, 0.7639867067337, 215.50, 3.01, 72.50)
+
+[node name="Tree194" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.68922871351242, 0.0, 0.74420869350433, 0.0, 1.01433861255646, 0.0, -0.74420869350433, 0.0, -0.68922871351242, 205.50, 2.79, 62.50)
+
+[node name="Tree195" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-1.00002157688141, 0.0, 0.6527196764946, 0.0, 1.19418847560883, 0.0, -0.6527196764946, 0.0, -1.00002157688141, 214.50, 3.06, 81.50)
+
+[node name="Tree196" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.15921264886856, 0.0, 0.95317769050598, 0.0, 0.96638315916061, 0.0, -0.95317769050598, 0.0, 0.15921264886856, 205.50, 2.92, 78.50)
+
+[node name="Tree197" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.70086252689362, 0.0, -0.85085153579712, 0.0, 1.10234141349792, 0.0, 0.85085153579712, 0.0, -0.70086252689362, 212.50, 2.99, 79.50)
+
+[node name="Tree198" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.93871629238129, 0.0, -0.81669217348099, 0.0, 1.24425661563873, 0.0, 0.81669217348099, 0.0, 0.93871629238129, 194.50, 3.14, 66.50)
+
+[node name="Tree199" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.10917925834656, 0.0, 1.29095220565796, 0.0, 1.29556083679199, 0.0, -1.29095220565796, 0.0, 0.10917925834656, 190.50, 2.79, 89.50)
+
+[node name="Tree200" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(1.0957818031311, 0.0, 0.09833773225546, 0.0, 1.10018539428711, 0.0, -0.09833773225546, 0.0, 1.0957818031311, 201.50, 2.99, 83.50)
+
+[node name="Tree201" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.37792074680328, 0.0, -0.9303931593895, 0.0, 1.0042188167572, 0.0, 0.9303931593895, 0.0, 0.37792074680328, 217.50, 2.79, 93.50)
+
+[node name="Tree202" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(1.03302395343781, 0.0, -0.44333630800247, 0.0, 1.12413763999939, 0.0, 0.44333630800247, 0.0, 1.03302395343781, 197.50, 2.94, 68.50)
+
+[node name="Tree203" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.36057308316231, 0.0, -0.81954032182693, 0.0, 0.8953543305397, 0.0, 0.81954032182693, 0.0, 0.36057308316231, 202.50, 2.83, 73.50)
+
+[node name="Tree204" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.9315379858017, 0.0, -0.13925191760063, 0.0, 0.94188857078552, 0.0, 0.13925191760063, 0.0, 0.9315379858017, 211.50, 2.78, 65.50)
+
+[node name="Tree205" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.00183119508438, 0.0, -1.21527242660522, 0.0, 1.2152738571167, 0.0, 1.21527242660522, 0.0, 0.00183119508438, 222.50, 2.92, 71.50)
+
+[node name="Tree206" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.9422886967659, 0.0, 0.33808782696724, 0.0, 1.00110507011414, 0.0, -0.33808782696724, 0.0, -0.9422886967659, 194.50, 2.82, 88.50)
+
+[node name="Tree207" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.9318482875824, 0.0, 0.70105803012848, 0.0, 1.16611480712891, 0.0, -0.70105803012848, 0.0, -0.9318482875824, 205.50, 2.85, 88.50)
+
+[node name="Tree208" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.31467136740685, 0.0, 1.01755702495575, 0.0, 1.065101146698, 0.0, -1.01755702495575, 0.0, 0.31467136740685, 211.50, 2.74, 58.50)
+
+[node name="Tree209" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-1.15861737728119, 0.0, -0.2464831918478, 0.0, 1.18454563617706, 0.0, 0.2464831918478, 0.0, -1.15861737728119, 211.50, 2.93, 72.50)
+
+[node name="Tree210" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.83597260713577, 0.0, 0.61786961555481, 0.0, 1.03952538967133, 0.0, -0.61786961555481, 0.0, -0.83597260713577, 205.50, 2.80, 58.50)
+
+[node name="Tree211" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(1.00752389431, 0.0, -0.73744082450867, 0.0, 1.24856853485107, 0.0, 0.73744082450867, 0.0, 1.00752389431, 219.50, 2.85, 53.50)
+
+[node name="Tree212" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.31031969189644, 0.0, 0.98737061023712, 0.0, 1.034987449646, 0.0, -0.98737061023712, 0.0, -0.31031969189644, 198.50, 2.87, 87.50)
+
+[node name="Tree213" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-1.05567061901093, 0.0, 0.58179998397827, 0.0, 1.20537614822388, 0.0, -0.58179998397827, 0.0, -1.05567061901093, 193.50, 3.05, 71.50)
+
+[node name="Tree214" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.14613603055477, 0.0, -0.97727638483047, 0.0, 0.98814213275909, 0.0, 0.97727638483047, 0.0, -0.14613603055477, 200.50, 2.91, 77.50)
+
+[node name="Tree215" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.00254837609828, 0.0, -1.12204384803772, 0.0, 1.12204670906067, 0.0, 1.12204384803772, 0.0, 0.00254837609828, 209.50, 2.87, 87.50)
+
+[node name="Tree216" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.84091341495514, 0.0, -0.80904269218445, 0.0, 1.16691279411316, 0.0, 0.80904269218445, 0.0, 0.84091341495514, 209.50, 2.90, 77.50)
+
+[node name="Tree217" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.02460369654, 0.0, -1.03773844242096, 0.0, 1.0380300283432, 0.0, 1.03773844242096, 0.0, -0.02460369654, 217.50, 2.84, 60.50)
+
+[node name="Tree218" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.74646282196045, 0.0, -0.56343936920166, 0.0, 0.935238301754, 0.0, 0.56343936920166, 0.0, 0.74646282196045, 212.50, 2.84, 54.50)
+
+[node name="Tree219" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-1.2383519411087, 0.0, 0.09860803186893, 0.0, 1.24227178096771, 0.0, -0.09860803186893, 0.0, -1.2383519411087, 216.50, 2.84, 55.50)
+
+[node name="Tree220" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.64030522108078, 0.0, 0.72552961111069, 0.0, 0.96766936779022, 0.0, -0.72552961111069, 0.0, 0.64030522108078, 202.50, 2.81, 89.50)
+
+[node name="Tree221" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.37251755595207, 0.0, 1.01435732841492, 0.0, 1.0805971622467, 0.0, -1.01435732841492, 0.0, -0.37251755595207, 214.50, 2.75, 63.50)
+
+[node name="Tree222" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.82892376184464, 0.0, 0.58006417751312, 0.0, 1.01172578334808, 0.0, -0.58006417751312, 0.0, -0.82892376184464, 219.50, 2.89, 90.50)
+
+[node name="Tree223" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.86140203475952, 0.0, 0.10355833172798, 0.0, 0.86760461330414, 0.0, -0.10355833172798, 0.0, -0.86140203475952, 264.50, 2.74, 211.50)
+
+[node name="Tree224" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.12519161403179, 0.0, -1.1081657409668, 0.0, 1.1152149438858, 0.0, 1.1081657409668, 0.0, 0.12519161403179, 256.50, 2.89, 208.50)
+
+[node name="Tree225" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.7348113656044, 0.0, -0.81628304719925, 0.0, 1.09830129146576, 0.0, 0.81628304719925, 0.0, -0.7348113656044, 255.50, 3.20, 228.50)
+
+[node name="Tree226" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.13297241926193, 0.0, 0.98647034168243, 0.0, 0.9953920841217, 0.0, -0.98647034168243, 0.0, -0.13297241926193, 259.50, 3.11, 225.50)
+
+[node name="Tree227" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.98474025726318, 0.0, -0.67629039287567, 0.0, 1.19460535049438, 0.0, 0.67629039287567, 0.0, -0.98474025726318, 273.50, 2.53, 222.50)
+
+[node name="Tree228" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.79042148590088, 0.0, 0.63593739271164, 0.0, 1.01448631286621, 0.0, -0.63593739271164, 0.0, -0.79042148590088, 251.50, 3.10, 227.50)
+
+[node name="Tree229" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.05082176625729, 0.0, 1.01173138618469, 0.0, 1.01300704479218, 0.0, -1.01173138618469, 0.0, 0.05082176625729, 259.50, 2.88, 218.50)
+
+[node name="Tree230" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.84756833314896, 0.0, 0.53606903553009, 0.0, 1.0028669834137, 0.0, -0.53606903553009, 0.0, -0.84756833314896, 257.50, 3.22, 234.50)
+
+[node name="Tree231" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.59259271621704, 0.0, 1.00519502162933, 0.0, 1.1668689250946, 0.0, -1.00519502162933, 0.0, -0.59259271621704, 286.50, 2.33, 220.50)
+
+[node name="Tree232" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.97699195146561, 0.0, -0.0556061565876, 0.0, 0.97857308387756, 0.0, 0.0556061565876, 0.0, -0.97699195146561, 272.50, 2.51, 212.50)
+
+[node name="Tree233" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.46158465743065, 0.0, 0.76454228162766, 0.0, 0.89307630062103, 0.0, -0.76454228162766, 0.0, 0.46158465743065, 250.50, 2.90, 212.50)
+
+[node name="Tree234" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(1.03575837612152, 0.0, -0.39760529994965, 0.0, 1.10945272445679, 0.0, 0.39760529994965, 0.0, 1.03575837612152, 256.50, 3.04, 220.50)
+
+[node name="Tree235" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.86958634853363, 0.0, -0.60734510421753, 0.0, 1.06068301200867, 0.0, 0.60734510421753, 0.0, 0.86958634853363, 256.50, 2.90, 216.50)
+
+[node name="Tree236" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.9907723069191, 0.0, -0.15489332377911, 0.0, 1.00280690193176, 0.0, 0.15489332377911, 0.0, -0.9907723069191, 267.50, 2.51, 214.50)
+
+[node name="Tree237" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.90355455875397, 0.0, -0.8938906788826, 0.0, 1.2710040807724, 0.0, 0.8938906788826, 0.0, -0.90355455875397, 256.50, 2.80, 213.50)
+
+[node name="Tree238" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(1.17335379123688, 0.0, -0.5019913315773, 0.0, 1.27622663974762, 0.0, 0.5019913315773, 0.0, 1.17335379123688, 248.50, 3.12, 232.50)
+
+[node name="Tree239" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.88505816459656, 0.0, -0.75765740871429, 0.0, 1.16506338119507, 0.0, 0.75765740871429, 0.0, 0.88505816459656, 283.50, 2.74, 233.50)
+
+[node name="Tree240" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.04060171917081, 0.0, -1.26260638237, 0.0, 1.26325905323029, 0.0, 1.26260638237, 0.0, 0.04060171917081, 253.50, 2.91, 214.50)
+
+[node name="Tree241" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.00027421477716, 0.0, -0.88468903303146, 0.0, 0.88468909263611, 0.0, 0.88468903303146, 0.0, 0.00027421477716, 251.50, 3.06, 217.50)
+
+[node name="Tree242" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.83976930379868, 0.0, 0.6601637005806, 0.0, 1.0681893825531, 0.0, -0.6601637005806, 0.0, 0.83976930379868, 284.50, 2.42, 214.50)
+
+[node name="Tree243" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.57302743196487, 0.0, -0.70293670892715, 0.0, 0.906907081604, 0.0, 0.70293670892715, 0.0, 0.57302743196487, 256.50, 3.14, 224.50)
+
+[node name="Tree244" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.92382943630219, 0.0, -0.20726725459099, 0.0, 0.94679486751556, 0.0, 0.20726725459099, 0.0, 0.92382943630219, 273.50, 2.41, 216.50)
+
+[node name="Tree245" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.66075921058655, 0.0, 0.75163823366165, 0.0, 1.00078105926514, 0.0, -0.75163823366165, 0.0, -0.66075921058655, 273.50, 2.94, 232.50)
+
+[node name="Tree246" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.26504135131836, 0.0, 1.05282998085022, 0.0, 1.0856785774231, 0.0, -1.05282998085022, 0.0, -0.26504135131836, 274.50, 2.87, 208.50)
+
+[node name="Tree247" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.62385869026184, 0.0, -0.67336297035217, 0.0, 0.91794192790985, 0.0, 0.67336297035217, 0.0, 0.62385869026184, 264.50, 2.62, 216.50)
+
+[node name="Tree248" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.35460594296455, 0.0, 1.16390645503998, 0.0, 1.21672654151917, 0.0, -1.16390645503998, 0.0, -0.35460594296455, 269.50, 2.63, 223.50)
+
+[node name="Tree249" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.95739203691483, 0.0, -0.61061990261078, 0.0, 1.13554227352142, 0.0, 0.61061990261078, 0.0, 0.95739203691483, 276.50, 2.50, 219.50)
+
+[node name="Tree250" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-1.14030992984772, 0.0, -0.21499842405319, 0.0, 1.16040122509003, 0.0, 0.21499842405319, 0.0, -1.14030992984772, 282.50, 2.41, 217.50)
+
+[node name="Tree251" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.00987707916647, 0.0, -1.04122769832611, 0.0, 1.0412745475769, 0.0, 1.04122769832611, 0.0, -0.00987707916647, 280.50, 2.46, 223.50)
+
+[node name="Tree252" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.256815969944, 0.0, -1.19071757793427, 0.0, 1.21809804439545, 0.0, 1.19071757793427, 0.0, 0.256815969944, 271.50, 2.85, 230.50)
+
+[node name="Tree253" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-1.03258216381073, 0.0, -0.18689547479153, 0.0, 1.0493597984314, 0.0, 0.18689547479153, 0.0, -1.03258216381073, 265.50, 2.90, 227.50)
+
+[node name="Tree254" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.45094206929207, 0.0, 0.85497808456421, 0.0, 0.96661072969437, 0.0, -0.85497808456421, 0.0, 0.45094206929207, 249.50, 2.88, 209.50)
+
+[node name="Tree255" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.17927351593971, 0.0, 0.86655014753342, 0.0, 0.88490009307861, 0.0, -0.86655014753342, 0.0, 0.17927351593971, 271.50, 2.51, 219.50)
+
+[node name="Tree256" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.69133174419403, 0.0, 0.87325286865234, 0.0, 1.11378192901611, 0.0, -0.87325286865234, 0.0, 0.69133174419403, 287.50, 2.40, 226.50)
+
+[node name="Tree257" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.88350588083267, 0.0, -0.17182944715023, 0.0, 0.90005999803543, 0.0, 0.17182944715023, 0.0, -0.88350588083267, 251.50, 3.09, 223.50)
+
+[node name="Tree258" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.76663303375244, 0.0, -0.46262344717979, 0.0, 0.89540302753448, 0.0, 0.46262344717979, 0.0, -0.76663303375244, 274.50, 2.67, 228.50)
+
+[node name="Tree259" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.86751914024353, 0.0, -0.78586757183075, 0.0, 1.17054569721222, 0.0, 0.78586757183075, 0.0, -0.86751914024353, 33.50, 2.91, 124.50)
+
+[node name="Tree260" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.99178385734558, 0.0, 0.34679102897644, 0.0, 1.05066609382629, 0.0, -0.34679102897644, 0.0, 0.99178385734558, 45.50, 2.85, 123.50)
+
+[node name="Tree261" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.80208307504654, 0.0, 0.96797025203705, 0.0, 1.25710129737854, 0.0, -0.96797025203705, 0.0, -0.80208307504654, 44.50, 2.56, 105.50)
+
+[node name="Tree262" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.89913791418076, 0.0, -0.60595428943634, 0.0, 1.08426451683044, 0.0, 0.60595428943634, 0.0, -0.89913791418076, 30.50, 2.80, 101.50)
+
+[node name="Tree263" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.44961622357368, 0.0, -1.00989091396332, 0.0, 1.10545659065247, 0.0, 1.00989091396332, 0.0, -0.44961622357368, 48.50, 2.72, 112.50)
+
+[node name="Tree264" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(1.17977404594421, 0.0, 0.44913041591644, 0.0, 1.26237273216248, 0.0, -0.44913041591644, 0.0, 1.17977404594421, 36.50, 2.83, 127.50)
+
+[node name="Tree265" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.77182060480118, 0.0, -0.77719509601593, 0.0, 1.09532606601715, 0.0, 0.77719509601593, 0.0, 0.77182060480118, 26.50, 3.12, 129.50)
+
+[node name="Tree266" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.79116797447205, 0.0, -0.36404296755791, 0.0, 0.87090414762497, 0.0, 0.36404296755791, 0.0, -0.79116797447205, 50.50, 2.82, 117.50)
+
+[node name="Tree267" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-1.00444912910461, 0.0, 0.47736036777496, 0.0, 1.11211109161377, 0.0, -0.47736036777496, 0.0, -1.00444912910461, 30.50, 2.99, 126.50)
+
+[node name="Tree268" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.35335657000542, 0.0, 0.91087251901627, 0.0, 0.97701054811478, 0.0, -0.91087251901627, 0.0, 0.35335657000542, 46.50, 2.89, 119.50)
+
+[node name="Tree269" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.78120839595795, 0.0, -0.65171420574188, 0.0, 1.01735830307007, 0.0, 0.65171420574188, 0.0, 0.78120839595795, 31.50, 2.87, 113.50)
+
+[node name="Tree270" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.11509205400944, 0.0, -1.10994935035706, 0.0, 1.11590039730072, 0.0, 1.10994935035706, 0.0, -0.11509205400944, 23.50, 3.21, 129.50)
+
+[node name="Tree271" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(1.27777850627899, 0.0, 0.21796004474163, 0.0, 1.29623472690582, 0.0, -0.21796004474163, 0.0, 1.27777850627899, 53.50, 2.87, 128.50)
+
+[node name="Tree272" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.07203619927168, 0.0, 0.86664468050003, 0.0, 0.86963337659836, 0.0, -0.86664468050003, 0.0, 0.07203619927168, 55.50, 2.72, 95.50)
+
+[node name="Tree273" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-1.05532324314117, 0.0, -0.53936380147934, 0.0, 1.18516683578491, 0.0, 0.53936380147934, 0.0, -1.05532324314117, 40.50, 2.86, 124.50)
+
+[node name="Tree274" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.91532361507416, 0.0, -0.84473729133606, 0.0, 1.24555146694183, 0.0, 0.84473729133606, 0.0, -0.91532361507416, 35.50, 2.91, 97.50)
+
+[node name="Tree275" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-1.18762528896332, 0.0, -0.40173268318176, 0.0, 1.25373160839081, 0.0, 0.40173268318176, 0.0, -1.18762528896332, 39.50, 2.74, 104.50)
+
+[node name="Tree276" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.07653442770243, 0.0, -1.01857995986938, 0.0, 1.0214512348175, 0.0, 1.01857995986938, 0.0, 0.07653442770243, 38.50, 2.87, 99.50)
+
+[node name="Tree277" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.98584848642349, 0.0, -0.3517884016037, 0.0, 1.04673409461975, 0.0, 0.3517884016037, 0.0, -0.98584848642349, 49.50, 2.50, 100.50)
+
+[node name="Tree278" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.53614884614944, 0.0, 0.79542601108551, 0.0, 0.95924872159958, 0.0, -0.79542601108551, 0.0, 0.53614884614944, 24.50, 2.87, 105.50)
+
+[node name="Tree279" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.10326224565506, 0.0, -1.03331577777863, 0.0, 1.03846263885498, 0.0, 1.03331577777863, 0.0, -0.10326224565506, 42.50, 2.65, 102.50)
+
+[node name="Tree280" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.51862949132919, 0.0, 1.07515776157379, 0.0, 1.19370877742767, 0.0, -1.07515776157379, 0.0, 0.51862949132919, 44.50, 2.75, 97.50)
+
+[node name="Tree281" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.98456239700317, 0.0, -0.84783935546875, 0.0, 1.29930543899536, 0.0, 0.84783935546875, 0.0, -0.98456239700317, 24.50, 3.11, 123.50)
+
+[node name="Tree282" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.15144866704941, 0.0, 1.20031714439392, 0.0, 1.20983386039734, 0.0, -1.20031714439392, 0.0, 0.15144866704941, 52.50, 2.85, 121.50)
+
+[node name="Tree283" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.11479279398918, 0.0, 0.96131312847137, 0.0, 0.96814274787903, 0.0, -0.96131312847137, 0.0, 0.11479279398918, 44.50, 2.76, 126.50)
+
+[node name="Tree284" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.8149049282074, 0.0, -0.72441500425339, 0.0, 1.09034264087677, 0.0, 0.72441500425339, 0.0, 0.8149049282074, 32.50, 2.93, 130.50)
+
+[node name="Tree285" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.89892637729645, 0.0, 0.37627428770065, 0.0, 0.97450041770935, 0.0, -0.37627428770065, 0.0, 0.89892637729645, 53.50, 2.76, 116.50)
+
+[node name="Tree286" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(1.0100884437561, 0.0, 0.0871561691165, 0.0, 1.01384162902832, 0.0, -0.0871561691165, 0.0, 1.0100884437561, 41.50, 2.83, 98.50)
+
+[node name="Tree287" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.17605172097683, 0.0, 1.20845031738281, 0.0, 1.22120690345764, 0.0, -1.20845031738281, 0.0, 0.17605172097683, 25.50, 2.42, 99.50)
+
+[node name="Tree288" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.5514879822731, 0.0, -0.67230236530304, 0.0, 0.8695570230484, 0.0, 0.67230236530304, 0.0, 0.5514879822731, 27.50, 2.96, 112.50)
+
+[node name="Tree289" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.01855598948896, 0.0, 1.08750295639038, 0.0, 1.0876612663269, 0.0, -1.08750295639038, 0.0, -0.01855598948896, 52.50, 2.59, 106.50)
+
+[node name="Tree290" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.35349652171135, 0.0, 1.09606289863586, 0.0, 1.1516569852829, 0.0, -1.09606289863586, 0.0, 0.35349652171135, 53.50, 2.71, 113.50)
+
+[node name="Tree291" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(0.33480578660965, 0.0, 1.23500967025757, 0.0, 1.27958738803864, 0.0, -1.23500967025757, 0.0, 0.33480578660965, 33.50, 2.85, 99.50)
+
+[node name="Tree292" parent="Forest" instance=ExtResource("8_tree")]
+transform = Transform3D(-0.48471948504448, 0.0, -0.82276332378387, 0.0, 0.95493060350418, 0.0, 0.82276332378387, 0.0, -0.48471948504448, 40.50, 2.93, 120.50)
+
+[node name="Party" type="Node3D" parent="."]
+
+[node name="Ari" type="Marker3D" parent="Party"]
+transform = Transform3D(-0.00000004371139, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, -0.00000004371139, 295.50, 4.50, 158.50)
+script = ExtResource("2_spawn")
+role = "vanguard"
+entity_name = "Ari"
+team = 0
+inventory = Array[String](["Healing potion", "Bread", "Bedroll"])
+equipment = Array[String](["Leather armour", "Leather boots"])
+gold = 15
+
+[node name="Bram" type="Marker3D" parent="Party"]
+transform = Transform3D(-0.00000004371139, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, -0.00000004371139, 297.50, 4.50, 158.50)
+script = ExtResource("2_spawn")
+role = "pyromancer"
+entity_name = "Bram"
+team = 0
+inventory = Array[String](["Healing potion", "Bread"])
+equipment = Array[String](["Leather cap", "Belt"])
+gold = 15
+
+[node name="Cel" type="Marker3D" parent="Party"]
+transform = Transform3D(-0.00000004371139, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, -0.00000004371139, 295.50, 4.50, 160.50)
+script = ExtResource("2_spawn")
+role = "trickster"
+entity_name = "Cel"
+team = 0
+player = 1
+inventory = Array[String](["Healing potion", "Bread"])
+equipment = Array[String](["Leather boots", "Copper ring"])
+gold = 15
+
+[node name="Dov" type="Marker3D" parent="Party"]
+transform = Transform3D(-0.00000004371139, 0.0, 1.0, 0.0, 1.0, 0.0, -1.0, 0.0, -0.00000004371139, 297.50, 4.50, 160.50)
+script = ExtResource("2_spawn")
+role = "tidecaller"
+entity_name = "Dov"
+team = 0
+player = 1
+inventory = Array[String](["Healing potion", "Bread"])
+equipment = Array[String](["Leather leggings"])
+gold = 15

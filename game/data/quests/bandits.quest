@@ -4,7 +4,7 @@
 === quest bandits
 title: The bandit problem
 known: bandits_known
-active: Bandits hold the old camp on the hill east of the village and stop every cart. The merchant promised a silver ring to whoever clears them out.
+active: Bandits hold the old camp past the forest, west of the village, and stop every cart. The merchant promised a silver ring to whoever clears them out.
 outcome turned: hostile.Village
     We gave the village good reason to hate us. Nobody there will thank us for anything now.
 outcome cleared: alive.Bandits == 0

@@ -30,6 +30,8 @@ var _size := Vector2i.ZERO
 ## Column index -> true for every mask texel currently painted.
 var _painted := {}
 var _mesh_cells := PackedInt32Array()
+## The grid and surface version last drawn: unchanged surfaces aren't redrawn.
+var _drawn := []
 
 
 func _ready() -> void:
@@ -39,6 +41,10 @@ func _ready() -> void:
 
 
 func render(grid: SimGrid) -> void:
+	var now := [grid.get_instance_id(), grid.surface_version, grid.solid_version, grid.size]
+	if now == _drawn:
+		return
+	_drawn = now
 	_fit(grid)
 	var cells := PackedInt32Array()
 	if grid.has_any(SimGrid.FIELD_SURFACES):

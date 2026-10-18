@@ -53,6 +53,15 @@ var _owned := _ALL_FIELDS
 ## Fields that may hold something. Rules clear a bit when they find the field
 ## empty (an idle world then skips whole-grid scans); edit_*() sets it again.
 var _maybe := _ALL_FIELDS
+## Bumped by edit_surfaces() / edit_solid(), so rules and renderers can tell
+## that nothing changed since they last looked (not saved: derived).
+var surface_version := 0
+var solid_version := 0
+## [surface_version, solid_version] when liquids last found nothing to move:
+## until either changes, the next step would move nothing too.
+var liquids_still_at := [-1, -1]
+## surface_version when there was last no ice anywhere.
+var no_ice_at := -1
 
 
 func _init(p_size: Vector3i, allocate: bool = true) -> void:
@@ -121,6 +130,7 @@ func edit_solid() -> void:
 	if (_owned & FIELD_SOLID) == 0:
 		solid = solid.duplicate()
 		_owned |= FIELD_SOLID
+	solid_version += 1
 
 
 func edit_surfaces() -> void:
@@ -129,6 +139,7 @@ func edit_surfaces() -> void:
 		surface_amount = surface_amount.duplicate()
 		_owned |= FIELD_SURFACES
 	_maybe |= FIELD_SURFACES
+	surface_version += 1
 
 
 ## Gives up ownership of the surface arrays: the next edit copies them, so the
@@ -355,6 +366,10 @@ func duplicate_grid() -> SimGrid:
 	copy.heat_cells = heat_cells.duplicate()
 	copy.fire_cells = fire_cells.duplicate()
 	copy._maybe = _maybe
+	copy.surface_version = surface_version
+	copy.solid_version = solid_version
+	copy.liquids_still_at = liquids_still_at.duplicate()
+	copy.no_ice_at = no_ice_at
 	copy._owned = 0
 	_owned = 0
 	return copy

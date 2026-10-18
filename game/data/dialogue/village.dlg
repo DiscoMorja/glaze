@@ -4,9 +4,9 @@
 === merchant
 {self.suspicious} Merchant: Keep your hands where I can see them, friend.
 {quest.bandits.cleared and not merchant_paid} -> merchant_reward
-{quest.bandits.cleared and merchant_paid} Merchant: Carts on the hill road again. Thank you, truly.
+{quest.bandits.cleared and merchant_paid} Merchant: Carts on the west road again. Thank you, truly.
 {quest.bandits.cleared} -> END
-{not bandits_known} Merchant: Travellers! You came by the hill road? Then you were lucky.
+{not bandits_known} Merchant: Travellers! Off a boat, and not the road? Then you were lucky.
 {bandits_known} Merchant: Any news about the camp on the hill?
 * {not bandits_known} [Lucky how?] -> merchant_bandits
 * {bandits_known} [Tell me about the bandits again.] -> merchant_bandits
@@ -15,7 +15,7 @@
 * [Goodbye.] -> END
 
 === merchant_bandits
-Merchant: Bandits took the old camp up by the ramp, east of here. Six of them, maybe more.
+Merchant: Bandits took the old camp past the forest, west along the road. Six of them, maybe more.
 Merchant: They stop every cart. The guard won't go up alone, and I don't blame him.
 ~ bandits_known = 1
 Merchant: Clear them out and I'll make it worth your while. I've a silver ring put by.
@@ -54,7 +54,7 @@ Merchant: You did it? The camp is empty? Then here, as I promised.
 {self.suspicious} Guard: I've got my eye on you. One wrong move.
 {quest.bandits.cleared} Guard: The camp's quiet. Didn't think anyone could do it.
 {quest.bandits.cleared} -> END
-Guard: Move along. And stay off the hill road unless you want a knife in you.
+Guard: Move along. And stay off the west road unless you want a knife in you.
 * [Why don't you deal with the bandits?] -> guard_bandits
 * [Fine.] -> END
 

@@ -30,6 +30,10 @@ const MAX_CROSSINGS := 16
 
 ## Builds the sim state for this level. Waits for physics so structure
 ## collision exists. Also tells WorldSpace about the terrain.
+## Most liquid steps the bake runs to let placed liquids come to rest.
+const LIQUID_SETTLE_STEPS := 400
+
+
 func bake(seed_value: int = 1) -> SimState:
 	await get_tree().physics_frame
 	await get_tree().physics_frame
@@ -38,6 +42,9 @@ func bake(seed_value: int = 1) -> SimState:
 	_bake_structures(grid)
 	var state := SimState.new(grid, seed_value)
 	_place_markers(state)
+	# Ponds and puddles placed by markers flow into place now, so the world
+	# starts calm instead of spending its first ticks spreading them.
+	LiquidRules.settle(state, LIQUID_SETTLE_STEPS)
 	state.drain_events()
 	if start_in_combat:
 		state.apply_command(StartCombatCommand.new())

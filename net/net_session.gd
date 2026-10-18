@@ -292,7 +292,7 @@ func host_tick() -> void:
 	authority.step()
 	authority.drain_events()
 	var op := {"k": "tick"}
-	if authority.tick % CHECKSUM_EVERY_TICKS == 0:
+	if _guest_peer != -1 and authority.tick % CHECKSUM_EVERY_TICKS == 0:
 		op["sum"] = authority.checksum()
 	_broadcast(op)
 
@@ -344,11 +344,20 @@ func _accept(slot: int, data: Dictionary) -> void:
 	var command := SimCommandRegistry.from_dict(data)
 	if command == null or not _allowed(slot, command) or not command.validate(authority):
 		return
+	var resolved := command.to_dict()  # e.g. with the route the host found
 	authority.apply_command(command)
 	authority.drain_events()
 	if command is EndTurnCommand:
 		ready_slots.clear()
-	_broadcast({"k": "cmd", "c": data, "slot": slot, "sum": authority.checksum()})
+	var op := {"k": "cmd", "c": resolved, "slot": slot}
+	# Checks only matter with a guest to compare against. Commands check the
+	# cheap part of the state; turn ends and every CHECKSUM_EVERY_TICKS ticks
+	# check the grid too.
+	if _guest_peer != -1:
+		var full := command is EndTurnCommand
+		op["sum"] = authority.checksum(full)
+		op["full"] = full
+	_broadcast(op)
 
 
 func _allowed(slot: int, command: SimCommand) -> bool:
@@ -385,7 +394,7 @@ func _deliver(op: Dictionary) -> void:
 ## Guest: whether a state that has just played `op` agrees with the host.
 ## On a mismatch it asks for a fresh snapshot and returns false.
 func verify(state: SimState, op: Dictionary) -> bool:
-	if mode != Mode.GUEST or not op.has("sum") or state.checksum() == op.sum:
+	if mode != Mode.GUEST or not op.has("sum") or state.checksum(op.get("full", true)) == op.sum:
 		return true
 	push_warning("Desync at op %d; asking the host for a snapshot" % op.seq)
 	request_snapshot()

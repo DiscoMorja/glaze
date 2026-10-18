@@ -137,3 +137,57 @@ func test_slowed_walks_at_half_speed() -> void:
 	state.apply_command(TravelCommand.new(1, Vector3i(9, Y, 5)))
 	state.step_ticks(8)
 	assert_eq(hero.cell, Vector3i(5, Y, 5), "four cells in eight ticks")
+
+
+func test_a_travel_command_carries_its_route_and_replays_without_searching() -> void:
+	var state := Fixtures.flat_state(Vector3i(12, 4, 12))
+	var hero := state.add_entity(SimEntity.character("Hero", SimEntity.Faction.PLAYERS, Vector3i(1, Fixtures.FLOOR_Y, 1), 20))
+	var command := TravelCommand.new(hero.id, Vector3i(8, Fixtures.FLOOR_Y, 6))
+	assert_true(command.validate(state))
+	var data := command.to_dict()
+	assert_true(data.has("route"), "the route found goes with the command")
+	var replica := SimState.from_snapshot(state.to_snapshot())
+	var replayed := SimCommandRegistry.from_dict(data) as TravelCommand
+	assert_true(replayed.validate(replica))
+	assert_eq(replayed.route(replica), command.route(state))
+
+
+func test_a_bad_carried_route_is_searched_again() -> void:
+	var state := Fixtures.flat_state(Vector3i(12, 4, 12))
+	var hero := state.add_entity(SimEntity.character("Hero", SimEntity.Faction.PLAYERS, Vector3i(1, Fixtures.FLOOR_Y, 1), 20))
+	var to := Vector3i(8, Fixtures.FLOOR_Y, 1)
+	var data := {"type": TravelCommand.TYPE, "entity_id": hero.id, "destination": to,
+			"route": [Vector3i(5, Fixtures.FLOOR_Y, 1), to]}  # jumps cells: not a walk
+	var command := SimCommandRegistry.from_dict(data) as TravelCommand
+	assert_true(command.validate(state))
+	assert_eq(command.route(state).size(), 7, "a proper path instead")
+
+
+func test_a_route_found_elsewhere_is_used_as_is() -> void:
+	var state := Fixtures.flat_state(Vector3i(12, 4, 12))
+	var hero := state.add_entity(SimEntity.character("Hero", SimEntity.Faction.PLAYERS, Vector3i(1, Fixtures.FLOOR_Y, 1), 20))
+	var to := Vector3i(8, Fixtures.FLOOR_Y, 1)
+	var route: Array[Vector3i] = []
+	for x in range(2, 9):
+		route.append(Vector3i(x, Fixtures.FLOOR_Y, 1))
+	var command := TravelCommand.new(hero.id, to)
+	command.set_route(route)
+	assert_true(command.validate(state))
+	assert_eq(command.route(state), route)
+
+
+func test_a_walker_that_moved_on_picks_the_route_up_where_it_stands() -> void:
+	var state := Fixtures.flat_state(Vector3i(12, 4, 12))
+	var y := Fixtures.FLOOR_Y
+	var hero := state.add_entity(SimEntity.character("Hero", SimEntity.Faction.PLAYERS, Vector3i(1, y, 1), 20))
+	var to := Vector3i(8, y, 1)
+	var route: Array[Vector3i] = []
+	for x in range(2, 9):
+		route.append(Vector3i(x, y, 1))
+	# The route was searched from (1, y, 1); meanwhile it stepped to (2, y, 2).
+	EntityOps.place(state, hero, Vector3i(2, y, 2))
+	var command := TravelCommand.new(hero.id, to)
+	command.set_route(route)
+	assert_true(command.validate(state))
+	assert_eq(command.route(state)[0], Vector3i(3, y, 1), "joins at the farthest neighbour")
+	assert_eq(command.route(state).back(), to)

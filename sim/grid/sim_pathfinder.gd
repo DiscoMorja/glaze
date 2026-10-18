@@ -19,6 +19,7 @@ const DIRS_8 := [
 ## top, a roof, a walled-off spot) is a pocket: find_path checks it first, so
 ## unreachable pockets are rejected without searching the whole level.
 const POCKET_LIMIT := 128
+const STRUCTURE_POCKET_LIMIT := 1500
 
 const _INDEX_BITS := 24
 const _INDEX_MASK := (1 << 24) - 1
@@ -64,26 +65,62 @@ static func _climbable(grid: SimGrid, a: Vector3i, b: Vector3i) -> bool:
 
 
 static func _neighbors(grid: SimGrid, occupied: Dictionary, c: Vector3i, mover_id: int) -> Array[Vector3i]:
+	# The hot loop of every search: direct array reads instead of the grid's
+	# helper calls (same rules as _standable / _climbable).
 	var result: Array[Vector3i] = []
+	var solid := grid.solid
+	var sx := grid.size.x
+	var sy := grid.size.y
+	var sz := grid.size.z
+	var layer := sx * sz
+	var floors := grid.terrain_floor
+	var heights := grid.terrain_height_cm
+	var has_terrain := not floors.is_empty()
+	var cx := c.x
+	var cy := c.y
+	var cz := c.z
+	var c_column := cx + cz * sx
+	var c_terrain := has_terrain and floors[c_column] == cy
+	var c_cm: int = heights[c_column] if c_terrain else cy * 100
+	var up_blocked := cy + 1 >= sy or solid[c_column + (cy + 1) * layer] != 0
 	for d: Vector3i in DIRS_8:
+		var nx := cx + d.x
+		var nz := cz + d.z
 		var diagonal := d.x != 0 and d.z != 0
-		if diagonal and (grid.is_solid(c + Vector3i(d.x, 0, 0)) or grid.is_solid(c + Vector3i(0, 0, d.z))):
+		if diagonal and (_solid(solid, sx, sy, sz, nx, cy, cz) or _solid(solid, sx, sy, sz, cx, cy, nz)):
 			continue  # no cutting corners
-		var n := c + d
-		if _standable(grid, occupied, n, mover_id):
-			if _climbable(grid, c, n):
-				result.append(n)
+		if nx < 0 or nz < 0 or nx >= sx or nz >= sz:
+			continue
+		var column := nx + nz * sx
+		var ny := cy
+		var here := column + ny * layer
+		var n_solid := solid[here] != 0
+		if not n_solid and (ny == 0 or solid[here - layer] != 0):
+			pass  # standable floor at the same level
 		elif diagonal:
 			continue
-		elif grid.is_solid(n):
-			var up := n + Vector3i.UP
-			if not grid.is_solid(c + Vector3i.UP) and _standable(grid, occupied, up, mover_id) and _climbable(grid, c, up):
-				result.append(up)
-		elif not grid.is_supported(n):
-			var down := n + Vector3i.DOWN
-			if _standable(grid, occupied, down, mover_id) and _climbable(grid, c, down):
-				result.append(down)
+		elif n_solid:
+			ny = cy + 1  # step up onto it
+			if up_blocked or ny >= sy or solid[column + ny * layer] != 0:
+				continue
+		else:
+			ny = cy - 1  # step down off an edge
+			if ny < 0 or solid[column + ny * layer] != 0 or (ny > 0 and solid[column + (ny - 1) * layer] == 0):
+				continue
+		var n := Vector3i(nx, ny, nz)
+		var occupant: int = occupied.get(n, -1)
+		if occupant != -1 and occupant != mover_id:
+			continue
+		var n_terrain := has_terrain and floors[column] == ny
+		var n_cm: int = heights[column] if n_terrain else ny * 100
+		var limit := MAX_SLOPE_CM if c_terrain and n_terrain else MAX_CLIMB_CM
+		if absi(c_cm - n_cm) <= limit:
+			result.append(n)
 	return result
+
+
+static func _solid(solid: PackedByteArray, sx: int, sy: int, sz: int, x: int, y: int, z: int) -> bool:
+	return x < 0 or y < 0 or z < 0 or x >= sx or y >= sy or z >= sz or solid[x + z * sx + y * sx * sz] != 0
 
 
 ## Cost of one step between neighbouring cells, without hazard penalties.
@@ -123,47 +160,11 @@ static func affordable_prefix(from: Vector3i, path: Array[Vector3i], budget: int
 ## route around fire and ice. With max_cells > 0 the search gives up after
 ## settling that many cells, so a far or unreachable goal costs a bounded
 ## amount. Returns [] when there is no path or no move is needed.
+## SimPathSearch runs the same search a bit at a time.
 static func find_path(state: SimState, from: Vector3i, to: Vector3i, mover_id: int = -1, stop_adjacent: bool = false, avoid_hazards: bool = true, max_cells: int = 0) -> Array[Vector3i]:
-	var grid := state.grid
-	var none: Array[Vector3i] = []
-	if not grid.in_bounds(from) or not grid.in_bounds(to):
-		return none
-	var occupied := occupancy(state)
-	if not stop_adjacent and not _standable(grid, occupied, to, mover_id):
-		return none
-	if not stop_adjacent and _in_pocket_without(grid, occupied, to, from, mover_id):
-		return none
-
-	var start := grid.index(from)
-	var g := {start: 0}
-	var came_from := {}
-	var closed := {}
-	var heap := PackedInt64Array()
-	_push(heap, distance(from, to), start)
-
-	while not heap.is_empty():
-		var idx := _pop(heap) & _INDEX_MASK
-		if closed.has(idx):
-			continue
-		closed[idx] = true
-		if max_cells > 0 and closed.size() > max_cells:
-			return none
-		var c := grid.coord(idx)
-		if _is_goal(c, to, stop_adjacent):
-			return _reconstruct(grid, came_from, idx, start)
-		var base_cost: int = g[idx]
-		for n in _neighbors(grid, occupied, c, mover_id):
-			var ni := grid.index(n)
-			if closed.has(ni):
-				continue
-			var cost := base_cost + step_cost(c, n)
-			if avoid_hazards:
-				cost += _hazard_cost(grid, ni)
-			if not g.has(ni) or cost < g[ni]:
-				g[ni] = cost
-				came_from[ni] = idx
-				_push(heap, cost + distance(n, to), ni)
-	return none
+	var search := SimPathSearch.new(state, from, to, mover_id, stop_adjacent, avoid_hazards, max_cells)
+	search.step()
+	return search.path
 
 
 ## Every cell reachable from `from` within a movement budget (no hazard
@@ -197,7 +198,12 @@ static func reachable(state: SimState, from: Vector3i, budget: int, mover_id: in
 
 ## Whether the cells walkable from `goal` run out within POCKET_LIMIT without
 ## reaching `start` (walking is symmetric, so then start can't reach goal).
+## A goal on a structure (a roof, a pier, a balcony) gets a bigger budget and
+## counts as connected as soon as the walk reaches open ground, so a large
+## roof is turned down cheaply instead of by a whole failed search.
 static func _in_pocket_without(grid: SimGrid, occupied: Dictionary, goal: Vector3i, start: Vector3i, mover_id: int) -> bool:
+	var on_structure := not grid.terrain_floor.is_empty() and not grid.is_terrain_floor(goal)
+	var limit := STRUCTURE_POCKET_LIMIT if on_structure else POCKET_LIMIT
 	var seen := {goal: true}
 	var queue: Array[Vector3i] = [goal]
 	var head := 0
@@ -205,12 +211,12 @@ static func _in_pocket_without(grid: SimGrid, occupied: Dictionary, goal: Vector
 		var c := queue[head]
 		head += 1
 		for n in _neighbors(grid, occupied, c, mover_id):
-			if n == start:
+			if n == start or (on_structure and grid.is_terrain_floor(n)):
 				return false
 			if seen.has(n):
 				continue
 			seen[n] = true
-			if seen.size() > POCKET_LIMIT:
+			if seen.size() > limit:
 				return false
 			queue.append(n)
 	return true

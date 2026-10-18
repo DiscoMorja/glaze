@@ -62,3 +62,14 @@ func test_chill_puts_out_fire() -> void:
 	state.apply_command(IgniteCommand.new(c))
 	state.apply_command(ChillCommand.new(c))
 	assert_eq(grid.fire[grid.index(c)], 0)
+
+
+func test_ice_made_after_an_ice_free_scan_still_melts() -> void:
+	var state := Fixtures.flat_state()
+	state.grid.add_surface(Vector3i(1, Y, 1), WATER, 3)
+	ThermalRules.step(state)  # water but no ice: remembered
+	assert_eq(state.grid.no_ice_at, state.grid.surface_version)
+	var i := state.grid.index(Vector3i(4, Y, 4))
+	state.grid.add_surface(Vector3i(4, Y, 4), ICE, 3)
+	ThermalRules.step(state)
+	assert_eq(state.grid.surface_type[i], WATER, "at ambient it melts")

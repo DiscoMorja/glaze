@@ -3,11 +3,12 @@ extends Control
 ## a new game on a level, or a saved game (solo or hosted).
 ## The same choices work from the command line (after "--"), for testing two
 ## instances on one machine:
-##   --solo | --host | --join=ADDRESS   [--level=arena|start|highlands]
+##   --solo | --host | --join=ADDRESS   [--level=slice|start|arena|highlands]
 ##   [--load=SLOT | --load=latest]
 
 const LEVELS := {
-	"start": {"label": "Start area", "scene": "res://game/world/world.tscn"},
+	"slice": {"label": "Vertical slice", "scene": "res://game/world/vertical_slice.tscn"},
+	"start": {"label": "Start area (test)", "scene": "res://game/world/world.tscn"},
 	"arena": {"label": "Arena", "scene": "res://game/combat/combat_arena.tscn"},
 	"highlands": {"label": "Highlands (stress test)", "scene": "res://game/world/highlands.tscn"},
 }
