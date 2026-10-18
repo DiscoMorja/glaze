@@ -4,14 +4,16 @@ extends RefCounted
 ## the walls down to stubs, so the camera sees in, and tells cursor picking to
 ## look past what was cut. A building is a CSG structure with an "Inside"
 ## subtraction and a "Roof" child; hiding the roof drops it from the CSG shape,
-## and a subtraction box added here cuts the walls. Presentation only: the sim
-## grid keeps walls and roof (it was baked at load).
+## and a subtraction box added here cuts the walls. An optional "Dressing" child
+## (window frames, doors, lamps: visuals without collision) is hidden with the
+## roof. Presentation only: the sim grid keeps walls and roof (it was baked at
+## load).
 
 ## Wall left standing above the floor while cut away, in metres (cells).
 const STUB := 1
 
 ## One entry per building: [roof node, interior box, cut height (first cell
-## row cut away), footprint box, wall cut node].
+## row cut away), footprint box, wall cut node, dressing node or null].
 var _buildings: Array = []
 ## Indices into _buildings that are cut away.
 var _cut: Array[int] = []
@@ -39,7 +41,7 @@ func setup(level: Node) -> void:
 		cut.size = Vector3(footprint.size.x + 1.0, footprint.end.y - low + 1.0, footprint.size.z + 1.0)
 		building.add_child(cut)
 		cut.global_position = Vector3(footprint.get_center().x, low + cut.size.y / 2.0, footprint.get_center().z)
-		_buildings.append([roof, interior, floor_y + STUB, footprint, cut])
+		_buildings.append([roof, interior, floor_y + STUB, footprint, cut, building.get_node_or_null("Dressing") as Node3D])
 
 
 ## Updates which buildings are cut away for characters standing in `cells`. Returns
@@ -56,9 +58,12 @@ func update(cells: Array[Vector3i]) -> bool:
 	for i in _buildings.size():
 		var roof: CSGShape3D = _buildings[i][0]
 		var walls: CSGShape3D = _buildings[i][4]
+		var dressing: Node3D = _buildings[i][5]
 		if is_instance_valid(roof):
 			roof.visible = not cut.has(i)
 			walls.visible = cut.has(i)
+		if is_instance_valid(dressing):
+			dressing.visible = not cut.has(i)
 	_cut = cut
 	return true
 
