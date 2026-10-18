@@ -30,6 +30,10 @@ static func description(action: int) -> String:
 			return "Hits everything adjacent with your weapon, allies too."
 		SimAbilities.Ability.BLINK:
 			return "Jump to a free cell you can see."
+		SimAbilities.Ability.SHOCKWAVE:
+			return "Slam the ground: a %d-cell line toward the target, %d stagger to everyone on it (allies too). Walls stop it; it doesn't need sight." % [SimAbilities.SHOCKWAVE_LENGTH, SimAbilities.SHOCKWAVE_STAGGER]
+		SimAbilities.Ability.LOW_BLOW:
+			return "A dirty trip: %d stagger to someone next to you, enough to knock most down on its own." % SimAbilities.LOW_BLOW_STAGGER
 		SimAbilities.Ability.PICKPOCKET:
 			return "Outside combat: lift an item from someone next to you. Anyone who sees it reacts — sneak (C) and come from behind."
 		SimAbilities.Ability.REVIVE:

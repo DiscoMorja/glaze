@@ -88,6 +88,8 @@ static func describe(state: SimState, e: SimEvent) -> String:
 			return "%s recognizes the stolen goods on %s!" % [who, other]
 		SimEvent.Type.PICKPOCKETED:
 			return "%s lifts %s from %s." % [other, e.text, who]
+		SimEvent.Type.SHOCKWAVE:
+			return "%s slams the ground." % who
 		SimEvent.Type.ITEM_USED:
 			return "%s uses %s." % [other, e.text] if e.other_id == e.entity_id else "%s gives %s %s." % [other, who, e.text]
 		SimEvent.Type.RESTED:

@@ -135,6 +135,8 @@ Characters, barrels, chairs, doors, chests and potions share **one property mode
 | Mend | 2 | 5 | Heals 6 (self or others) |
 | Cleave | 2 | adjacent | Weapon hit on everything adjacent, allies included |
 | Blink | 1 | 4 | Caster jumps to a free cell in sight |
+| Shockwave | 2 | 5 | A 5-cell ground line toward the target: 2 stagger to everyone on it (allies too); walls stop it; no sight needed; every 2 turns |
+| Low Blow | 1 | 1 | 3 stagger to one adjacent character (knocks most down alone); every 3 turns |
 
 Ranged verbs need line of sight. Every verb except Attack has a **cooldown** in combat: the number of the user's turns until it is ready again (Firebolt and Shove once per turn; Rain, Steal, Frost, Oil Flask, Cleave and Blink every 2 turns; Teleport and Mend every 3). Cooldowns count down at the start of the user's side turn and don't apply outside combat. Mend's cooldown keeps healers from out-healing damage forever. Every verb works on properties and the
 material sim, so roles combo with each other and with the environment.
@@ -147,9 +149,9 @@ Each character is built from a role: HP, weapon, mass and verbs. Roles are tuned
 
 | Role | Verbs | Job |
 |---|---|---|
-| Vanguard | Shove, Cleave | Front line; pushes enemies into hazards and off ledges |
+| Vanguard | Shove, Cleave, Shockwave | Front line; pushes enemies into hazards and off ledges, staggers lines |
 | Pyromancer | Firebolt, Oil Flask | Area damage; lays oil, then lights it |
-| Trickster | Steal, Blink, Teleport | Control; disarms, repositions enemies into fire or the air |
+| Trickster | Steal, Blink, Teleport, Low Blow | Control; disarms, repositions enemies into fire or the air, trips one down |
 | Tidecaller | Rain, Frost, Mend | Support; heals, douses, makes ice that trips people |
 
 **Enemies:** Brute (Shove, Cleave), Firecaller (Firebolt, Teleport), Skirmisher (Steal, Blink — takes items, never player weapons), Shaman (Mend, Rain, Frost), Pikeman (Shove), Thug (melee only).
@@ -403,4 +405,5 @@ Levels are built freely in Godot and baked into the sim (`GameLevel.bake()`, run
 | 2026-10-18 | One UI standard: a shared theme and window style (`UiStyle`) and one item slot (`ItemSlot`) for inventory, paperdoll, trading and loot; trade and loot windows are icon grids with prices/details like the inventory. |
 | 2026-10-18 | Animated placeholder characters (modular male/female for party and bandits, villagers, a knight for the guard) with weapon models swapped by the equipped weapon (main and off hand); idle/run/combat idle loops, attack/cast/hit/drink/death one-shots driven by sim events. Other equipment stays invisible for now. |
 | 2026-10-18 | Frost chills one level (was two): one bolt makes Cold, freezing needs Rain (or a second chill) first. |
+| 2026-10-18 | Stagger tools: Vanguard Shockwave (2 stagger along a 5-cell line, 2-turn cooldown), Trickster Low Blow (3 stagger on one adjacent, 3-turn cooldown). |
 | 2026-10-17 | Scope: Prologue (1 hub + 1 zone, 2–3 h co-op) targeted at 12–18 months, 6–8 h/week, Claude Code writes the code. |

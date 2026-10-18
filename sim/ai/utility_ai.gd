@@ -171,7 +171,10 @@ static func candidates(state: SimState, e: SimEntity, walk: Dictionary = {}) -> 
 			SimAbilities.Ability.FIREBOLT:
 				for c in _fire_targets(state, e, opponents):
 					result.append(CastCommand.new(e.id, ability, c))
-			SimAbilities.Ability.SHOVE, SimAbilities.Ability.STEAL, SimAbilities.Ability.CLEAVE:
+			SimAbilities.Ability.SHOCKWAVE:
+				for o in opponents:
+					result.append(CastCommand.new(e.id, ability, o.cell))
+			SimAbilities.Ability.SHOVE, SimAbilities.Ability.STEAL, SimAbilities.Ability.CLEAVE, SimAbilities.Ability.LOW_BLOW:
 				for o in opponents:
 					if SimAbilities.is_adjacent(e.cell, o.cell):
 						result.append(CastCommand.new(e.id, ability, o.cell))

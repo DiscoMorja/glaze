@@ -21,8 +21,8 @@ const ROLES := {
 	# --- Party ---
 	"vanguard": {
 		"title": "Vanguard", "hp": 26, "weapon": "Greatsword", "damage": 5, "mass": 90, "stagger": 4,
-		"abilities": [A.SHOVE, A.CLEAVE],
-		"blurb": "Front line. Shoves enemies into hazards and off ledges; Cleave hits everything around it.",
+		"abilities": [A.SHOVE, A.CLEAVE, A.SHOCKWAVE],
+		"blurb": "Front line. Shoves enemies into hazards and off ledges; Cleave hits everything around it; Shockwave staggers a whole line.",
 	},
 	"pyromancer": {
 		"title": "Pyromancer", "hp": 16, "weapon": "Staff", "damage": 2, "mass": 65,
@@ -31,8 +31,8 @@ const ROLES := {
 	},
 	"trickster": {
 		"title": "Trickster", "hp": 18, "weapon": "Daggers", "damage": 3, "mass": 60,
-		"abilities": [A.STEAL, A.BLINK, A.TELEPORT],
-		"blurb": "Control. Steals weapons, blinks around, teleports enemies into fire or the air.",
+		"abilities": [A.STEAL, A.BLINK, A.TELEPORT, A.LOW_BLOW],
+		"blurb": "Control. Steals weapons, blinks around, teleports enemies into fire or the air, and trips people up with a Low Blow.",
 	},
 	"tidecaller": {
 		"title": "Tidecaller", "hp": 18, "weapon": "Staff", "damage": 2, "mass": 65,

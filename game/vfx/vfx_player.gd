@@ -35,6 +35,12 @@ func play(state: SimState, events: Array[SimEvent]) -> void:
 		match e.type:
 			SimEvent.Type.CAST:
 				delay = _cast(state, e, delay)
+			SimEvent.Type.SHOCKWAVE:
+				# Dust rolls out along the line, cell by cell.
+				for i in e.cells.size():
+					var at := _feet(e.cells[i])
+					_later(delay + i * 0.06, func() -> void: VfxFactory.burst(self, at, "dust", 1.1))
+				shake_requested.emit(0.18)
 			SimEvent.Type.DAMAGED:
 				var text := "-%d" % e.amount
 				var big := e.amount >= BIG_HIT
@@ -180,7 +186,7 @@ func _cast(state: SimState, e: SimEvent, delay: float) -> float:
 			if caster != null:
 				var caster_at := _feet(caster.cell)
 				_later(delay, func() -> void: PackVfx.play(self, "nature_cast", caster_at))
-		SimAbilities.Ability.CLEAVE, SimAbilities.Ability.SHOVE:
+		SimAbilities.Ability.CLEAVE, SimAbilities.Ability.SHOVE, SimAbilities.Ability.LOW_BLOW:
 			if caster != null:
 				var at := _body(caster.cell)
 				_later(delay, func() -> void: _fx("strike", at, "slash", 1.5))

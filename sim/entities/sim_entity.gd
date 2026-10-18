@@ -225,6 +225,7 @@ static func from_dict(data: Dictionary) -> SimEntity:
 	e.inventory.assign(data.get("inventory", []))
 	e.abilities.assign(data.get("abilities", []))
 	e.cooldowns = PackedInt32Array(data.get("cooldowns", e.cooldowns))
+	e.cooldowns.resize(SimAbilities.NAMES.size())  # older saves know fewer abilities
 	e.travel.assign(data.get("travel", []))
 	e.sight = data.get("sight", e.sight)
 	e.facing = data.get("facing", e.facing)

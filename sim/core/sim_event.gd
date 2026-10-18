@@ -20,6 +20,7 @@ enum Type {
 	# Loot
 	LOOTED, UNLOCKED,
 	# Items, trade, progression
+	SHOCKWAVE,
 	ITEM_USED, RESTED, TRADE_OFFERED, TRADED, EQUIPPED, XP_GAINED, LEVELED_UP,
 }
 

@@ -4,16 +4,17 @@ extends RefCounted
 ## with materials and each other (GDD §5.3). Which character knows which verbs
 ## comes from SimArchetypes.
 
-enum Ability { FIREBOLT, RAIN, TELEPORT, SHOVE, STEAL, FROST, OIL_FLASK, MEND, CLEAVE, BLINK, HELP_UP, REVIVE, PICKPOCKET }
+## New abilities go at the end: saves store cooldowns by this order.
+enum Ability { FIREBOLT, RAIN, TELEPORT, SHOVE, STEAL, FROST, OIL_FLASK, MEND, CLEAVE, BLINK, HELP_UP, REVIVE, PICKPOCKET, SHOCKWAVE, LOW_BLOW }
 
-const NAMES := ["Firebolt", "Rain", "Teleport", "Shove", "Steal", "Frost", "Oil Flask", "Mend", "Cleave", "Blink", "Help up", "Revive", "Pickpocket"]
-const AP_COST := [2, 2, 2, 1, 1, 2, 1, 2, 2, 1, 1, 0, 0]
+const NAMES := ["Firebolt", "Rain", "Teleport", "Shove", "Steal", "Frost", "Oil Flask", "Mend", "Cleave", "Blink", "Help up", "Revive", "Pickpocket", "Shockwave", "Low Blow"]
+const AP_COST := [2, 2, 2, 1, 1, 2, 1, 2, 2, 1, 1, 0, 0, 2, 1]
 ## Reach in cells. 1 means adjacent only (diagonals count).
-const RANGE := [7, 7, 7, 1, 1, 6, 6, 5, 1, 4, 1, 1, 1]
+const RANGE := [7, 7, 7, 1, 1, 6, 6, 5, 1, 4, 1, 1, 1, 5, 1]
 ## Turns until an ability can be used again by its user: 1 = once per turn,
 ## 3 = every third turn. In combat they count down at the start of the user's
 ## turn; outside combat every CombatRules.REALTIME_TICKS_PER_TURN ticks.
-const COOLDOWN := [1, 2, 3, 1, 2, 2, 2, 3, 2, 2, 0, 0, 0]
+const COOLDOWN := [1, 2, 3, 1, 2, 2, 2, 3, 2, 2, 0, 0, 0, 2, 3]
 
 const FIREBOLT_DAMAGE := 4
 ## Rain lays its whole puddle at once, like the Oil Flask: puddle-deep water
@@ -44,6 +45,13 @@ const RAIN_CHILL := 2
 ## shoved off a ledge.
 const SHOVE_STAGGER := 1
 const IMPACT_STAGGER := 1
+## Shockwave: a line from the caster toward the target this long (cells),
+## staggering everyone on it (allies too). Walls stop it.
+const SHOCKWAVE_LENGTH := 5
+const SHOCKWAVE_STAGGER := 2
+## Low Blow: a dirty trip on one adjacent character, enough to knock most
+## people down by itself.
+const LOW_BLOW_STAGGER := 3
 
 
 static func all() -> Array[int]:
@@ -83,9 +91,37 @@ static func can_reach(ability: int, from: Vector3i, to: Vector3i) -> bool:
 	return is_adjacent(from, to) if reach == 1 else in_range(from, to, reach)
 
 
-## Ranged abilities need to see their target; adjacent ones don't.
+## Ranged abilities need to see their target; adjacent ones don't, and
+## Shockwave runs along the ground until something stops it.
 static func needs_line_of_sight(ability: int) -> bool:
-	return RANGE[ability] > 1
+	return RANGE[ability] > 1 and ability != Ability.SHOCKWAVE
+
+
+## The ground cells a line from `from` toward `toward` crosses, SHOCKWAVE_LENGTH
+## long (not counting `from`), following the floor up and down a level and
+## stopping at walls.
+static func line_cells(grid: SimGrid, from: Vector3i, toward: Vector3i, length: int = SHOCKWAVE_LENGTH) -> Array[Vector3i]:
+	var cells: Array[Vector3i] = []
+	var dx := toward.x - from.x
+	var dz := toward.z - from.z
+	var steps := maxi(absi(dx), absi(dz))
+	if steps == 0:
+		return cells
+	var at := from
+	for i in range(1, length + 1):
+		# Integer steps along the line (rounded), so it is deterministic.
+		var x := from.x + _div_round(dx * i, steps)
+		var z := from.z + _div_round(dz * i, steps)
+		var floor_cell: Variant = grid.floor_near(Vector3i(x, at.y, z), 1)
+		if floor_cell == null:
+			break
+		at = floor_cell
+		cells.append(at)
+	return cells
+
+
+static func _div_round(a: int, b: int) -> int:
+	return (a * 2 + (b if a >= 0 else -b)) / (b * 2)
 
 
 ## How far something put at `c` would fall before landing (cells).
@@ -135,8 +171,10 @@ static func validate(state: SimState, caster: SimEntity, ability: int, target: V
 			return other_victim and (can_take_weapon(victim) or not victim.inventory.is_empty())
 		Ability.MEND:
 			return victim != null and victim.takes_turns() and victim.hp < victim.max_hp
-		Ability.CLEAVE:
-			return other_victim
+		Ability.CLEAVE, Ability.LOW_BLOW:
+			return other_victim and (ability == Ability.CLEAVE or victim.takes_turns())
+		Ability.SHOCKWAVE:
+			return target != caster.cell and not line_cells(state.grid, caster.cell, target).is_empty()
 		Ability.BLINK:
 			return SimPathfinder.is_standable(state, target, caster.id) and victim == null
 		Ability.HELP_UP:
@@ -197,6 +235,16 @@ static func execute(state: SimState, caster: SimEntity, ability: int, target: Ve
 			EntityOps.heal(state, victim, MEND_HEAL, caster.id)
 		Ability.CLEAVE:
 			_cleave(state, caster)
+		Ability.SHOCKWAVE:
+			var line := line_cells(state.grid, caster.cell, target)
+			var wave := state.emit_event(SimEvent.Type.SHOCKWAVE, target, caster.id)
+			wave.cells.assign(line)
+			for c in line:
+				var hit := state.entity_at(c)
+				if hit != null and hit != caster:
+					EntityOps.add_stagger(state, hit, SHOCKWAVE_STAGGER, caster.id)
+		Ability.LOW_BLOW:
+			EntityOps.add_stagger(state, victim, LOW_BLOW_STAGGER, caster.id)
 		Ability.BLINK:
 			var event := state.emit_event(SimEvent.Type.TELEPORTED, target, caster.id, caster.id)
 			event.cells.assign([caster.cell, target])

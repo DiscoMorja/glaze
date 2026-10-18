@@ -1577,6 +1577,10 @@ func _preview_outcome(command: SimCommand, actor: SimEntity, cells: Array[Vector
 	if state.combat.active:
 		forecast = after.duplicate_state()
 		forecast.step_ticks(CombatRules.TICKS_PER_SIDE_TURN)
+	if command is CastCommand and (command as CastCommand).ability == SimAbilities.Ability.SHOCKWAVE:
+		for c in SimAbilities.line_cells(state.grid, actor.cell, (command as CastCommand).target):
+			cells.append(c)
+			colors.append(COLOR_TARGET)
 	if command is CastCommand and (command as CastCommand).ability == SimAbilities.Ability.TELEPORT:
 		var moved := after.get_entity(state.entity_at((command as CastCommand).target).id)
 		cells.append(moved.cell)
