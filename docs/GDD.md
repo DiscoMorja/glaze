@@ -102,7 +102,9 @@ Explore (real time) ──► interact with world, scheme, steal, set up ──�
 
 | A | B | Result |
 |---|---|---|
-| Fire | Oil | Burning oil surface, spreads |
+| Fire | Oil | The whole connected puddle catches at once, then burns down; spreads to oil that flows into it |
+| Fire | Unit | **Burning** for 3 turns: an instance of burn damage (2) the moment fire starts under them and for every burning cell they walk over, then burn damage at the start of each of their turns. Standing in fire keeps it going. Water (puddles, Rain) puts it out. Props in fire take damage every tick instead. |
+| Unit | Oil | Slowed for 2 turns (this one and the next): moving costs double AP, walking takes twice as long |
 | Fire | Water | Steam cloud, fire out |
 | Cold | Water | Ice (slippery) |
 | Fire | Ice | Water |
@@ -129,7 +131,7 @@ Characters, barrels, chairs, doors, chests and potions share **one property mode
 | Shove | 1 | adjacent | Pushes 2 cells; walls and bodies hurt, ledges drop |
 | Steal | 1 | adjacent | Takes an enemy's weapon, otherwise an item. Player characters can't be disarmed |
 | Frost | 2 | 6 | Chills a radius: freezes water to ice now, puts out fire, 2 damage |
-| Oil Flask | 1 | 6 | Oil in a radius, ready to be lit |
+| Oil Flask | 1 | 6 | Splashes a radius-2 puddle at once, ready to be lit (thick oil stays put on flat ground) |
 | Mend | 2 | 5 | Heals 6 (self or others) |
 | Cleave | 2 | adjacent | Weapon hit on everything adjacent, allies included |
 | Blink | 1 | 4 | Caster jumps to a free cell in sight |
@@ -186,6 +188,8 @@ Needed for pickpocketing, crime and abusing systems:
 ### 5.5.1 Effects
 
 Effects come from the BinbunVFX_Vol2 pack where it has one (`PackVfx`: spell casts, Firebolt and Frost projectiles, fire/water areas, flames on burning cells, ice, heal, teleport and hit/impact effects) and fall back to procedural particles (`VfxFactory`) otherwise, so the game runs without the pack. The pack lives in git-ignored `assetlibs/` (see CLAUDE.md). `VfxPlayer` turns sim events into effects: projectiles for Firebolt, Frost and Oil Flask (the hit waits for the bolt to land), bursts for hits, fire, steam, ice, spills, teleports and collisions, floating damage and heal numbers, impact flashes and light camera shake. `FireField` keeps a looping flame on every burning cell. Presets live in `VfxFactory.PRESETS`, so authored effects can replace them one at a time.
+
+**Feedback rules.** Every hit shows a floating damage number coloured by its element (`EntityOps.Element`): white physical, orange fire, blue frost/water. Every debuff shows a coloured tag above the character's name with its turns left, and plays a looping effect on the character while it lasts (Burning: flames; Slowed: dripping oil). New debuffs follow both rules (`SimEntityRenderer.STATUS_LOOKS`). Damage at the start of a turn (burning) is shown with the turn change.
 
 ### 5.6 Generated Narration
 
@@ -322,6 +326,9 @@ Levels are built freely in Godot and baked into the sim (`GameLevel.bake()`, run
 | 2026-10-17 | Turn presentation: animated world advance, telegraphed enemy actions with camera follow and captions, AI on a worker thread. |
 | 2026-10-17 | Abilities have cooldowns (in turns, per user, combat only); fixes endless heal-vs-damage duels. |
 | 2026-10-17 | Exploration prototype before co-op: real-time walking on the sim grid (not navmesh) in both modes; combat starts on sight or hostility; levels are Terrain3D + collision structures + markers, baked to the sim grid at load. |
+| 2026-10-18 | Feedback rules: damage numbers coloured by element; every debuff gets a tag and a looping effect. |
+| 2026-10-18 | Burning status: fire under a character hits at once and burns for 3 turns (turn-start damage); each burning cell walked over hits again; water douses. |
+| 2026-10-18 | Oil: flask splashes its full puddle instantly and oil puddles don't creep on flat ground; lighting oil ignites the whole connected puddle at once; walking through oil slows (double move cost) for 2 turns. |
 | 2026-10-18 | Art direction refined: low-poly early-2000s look (soft, fogged, Gouraud) rather than full PSX pixelation, which read as too blocky. |
 | 2026-10-18 | Art direction: low-poly, PSX-inspired look (not high fidelity), fitting a solo content pipeline. Engine stays Godot; a GDExtension port of `sim/` is the escape hatch if sim speed becomes the limit. |
 | 2026-10-18 | Fights are local: the party plus spotting/provoked enemies and their packs; other packs sit out. Sim grid copies are copy-on-write; fire and heat keep sparse cell sets. Stress level `levels/highlands` (256 m, 32 packs). |

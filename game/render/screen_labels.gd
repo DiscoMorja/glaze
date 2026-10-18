@@ -13,7 +13,8 @@ const REFERENCE_DISTANCE := 25.0
 const MIN_SCALE := 0.8
 const MAX_SCALE := 1.2
 
-## Labels following a node: [label, anchor node, offset].
+## Labels following a node: [label (Label or RichTextLabel), anchor node,
+## world offset, screen offset in pixels (scaled with the label)].
 var _followers: Array = []
 ## Labels at a world point: [label, point].
 var _fixed: Array = []
@@ -33,7 +34,25 @@ func _exit_tree() -> void:
 ## A label that follows `anchor` (offset in world units), until it is freed.
 func follow(anchor: Node3D, offset: Vector3, font_size: int = 15) -> Label:
 	var label := _make(font_size)
-	_followers.append([label, anchor, offset])
+	_followers.append([label, anchor, offset, Vector2.ZERO])
+	return label
+
+
+## Like follow(), with BBCode (e.g. [color]) in its text, drawn screen_offset
+## pixels from the anchor point (e.g. stacked above another label).
+func follow_rich(anchor: Node3D, offset: Vector3, screen_offset: Vector2 = Vector2.ZERO, font_size: int = 13) -> RichTextLabel:
+	var label := RichTextLabel.new()
+	label.bbcode_enabled = true
+	label.fit_content = true
+	label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	label.scroll_active = false
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.add_theme_font_size_override("normal_font_size", font_size)
+	label.add_theme_constant_override("outline_size", maxi(font_size / 3, 3))
+	label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	label.visible = false
+	add_child(label)
+	_followers.append([label, anchor, offset, screen_offset])
 	return label
 
 
@@ -74,7 +93,7 @@ func _process(_delta: float) -> void:
 	var camera := get_viewport().get_camera_3d()
 	for i in range(_followers.size() - 1, -1, -1):
 		var entry: Array = _followers[i]
-		var label: Label = entry[0]
+		var label: Control = entry[0]
 		var anchor: Node3D = entry[1]
 		if not is_instance_valid(label) or not is_instance_valid(anchor):
 			if is_instance_valid(label):
@@ -84,19 +103,23 @@ func _process(_delta: float) -> void:
 		if not anchor.is_visible_in_tree():
 			label.visible = false
 			continue
-		_place(label, anchor.global_position + entry[2], camera)
+		_place(label, anchor.global_position + entry[2], camera, entry[3])
 	for entry: Array in _fixed:
 		_place(entry[0], entry[1], camera)
 
 
-func _place(label: Label, at: Vector3, camera: Camera3D) -> void:
-	if camera == null or camera.is_position_behind(at):
+func _place(label: Control, at: Vector3, camera: Camera3D, screen_offset: Vector2 = Vector2.ZERO) -> void:
+	var empty: bool = label.get("text") == ""
+	if camera == null or empty or camera.is_position_behind(at):
 		label.visible = false
 		return
 	var scale := clampf(REFERENCE_DISTANCE / camera.global_position.distance_to(at), MIN_SCALE, MAX_SCALE)
 	label.scale = Vector2(scale, scale)
 	var size := label.get_combined_minimum_size()
+	if label is RichTextLabel:
+		var rich := label as RichTextLabel
+		size = Vector2(rich.get_content_width(), rich.get_content_height())
 	label.size = size
 	label.pivot_offset = Vector2(size.x / 2.0, size.y)
-	label.position = (camera.unproject_position(at) - Vector2(size.x / 2.0, size.y)).round()
+	label.position = (camera.unproject_position(at) + screen_offset * scale - Vector2(size.x / 2.0, size.y)).round()
 	label.visible = true

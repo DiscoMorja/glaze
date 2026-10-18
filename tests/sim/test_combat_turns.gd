@@ -79,7 +79,8 @@ func test_walking_through_fire_hurts() -> void:
 	for z in 3:
 		state.apply_command(IgniteCommand.new(Vector3i(3, Y, z)))
 	state.apply_command(MoveCommand.new(e.id, Vector3i(6, Y, 1)))
-	assert_eq(e.hp, 10 - EntityOps.FIRE_DAMAGE_PER_TICK)
+	assert_eq(e.hp, 10 - EntityOps.BURN_DAMAGE)
+	assert_eq(e.burning, EntityOps.BURN_TURNS)
 
 
 func test_slipping_on_ice_ends_movement() -> void:
@@ -104,4 +105,4 @@ func test_move_goes_through_fire_when_detour_is_too_expensive() -> void:
 		state.grid.set_fire(state.grid.index(Vector3i(4, Y, z)), SimMaterials.FIRE_MAX)
 	assert_true(state.apply_command(MoveCommand.new(1, Vector3i(6, Y, 2))))
 	assert_eq(hero.cell, Vector3i(6, Y, 2))
-	assert_eq(hero.hp, 20 - EntityOps.FIRE_DAMAGE_PER_TICK)
+	assert_eq(hero.hp, 20 - EntityOps.BURN_DAMAGE)

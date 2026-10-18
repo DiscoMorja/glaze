@@ -23,8 +23,10 @@ const SHOVE_MAX_MASS := 120
 const SHOVE_DISTANCE := 2
 const FROST_DAMAGE := 2
 const FROST_RADIUS := 1
-const OIL_FLASK_AMOUNT := 30
-const OIL_FLASK_RADIUS := 1
+## The flask splashes its whole puddle at once: puddle-deep oil on every cell
+## of the disc, so it doesn't creep afterwards.
+const OIL_FLASK_AMOUNT := 24
+const OIL_FLASK_RADIUS := 2
 const MEND_HEAL := 6
 
 
@@ -40,6 +42,20 @@ static func is_adjacent(a: Vector3i, b: Vector3i) -> bool:
 
 
 ## Horizontal circular range check (height is ignored).
+## Ground cells a splash of `radius` around target covers: the disc's columns,
+## each landing on its floor within a level of the target.
+static func splash_cells(grid: SimGrid, target: Vector3i, radius: int) -> Array[Vector3i]:
+	var cells: Array[Vector3i] = []
+	for dz in range(-radius, radius + 1):
+		for dx in range(-radius, radius + 1):
+			if dx * dx + dz * dz > radius * radius:
+				continue
+			var floor_cell: Variant = grid.floor_near(target + Vector3i(dx, 0, dz), 1)
+			if floor_cell != null:
+				cells.append(floor_cell)
+	return cells
+
+
 static func in_range(from: Vector3i, to: Vector3i, range_cells: int) -> bool:
 	var dx := to.x - from.x
 	var dz := to.z - from.z
@@ -107,11 +123,14 @@ static func execute(state: SimState, caster: SimEntity, ability: int, target: Ve
 	match ability:
 		Ability.FIREBOLT:
 			if victim != null:
-				EntityOps.damage(state, victim, FIREBOLT_DAMAGE, caster.id)
+				EntityOps.damage(state, victim, FIREBOLT_DAMAGE, caster.id, EntityOps.Element.FIRE)
 			FireRules.ignite(state, target)
 		Ability.RAIN:
 			for c in state.grid.disc_cells(target, RAIN_RADIUS):
 				state.grid.add_surface(c, SimMaterials.Surface.WATER, RAIN_AMOUNT)
+				var soaked := state.entity_at(c)
+				if soaked != null:
+					EntityOps.douse(state, soaked)
 		Ability.TELEPORT:
 			var event := state.emit_event(SimEvent.Type.TELEPORTED, destination, victim.id, caster.id)
 			event.cells.assign([victim.cell, destination])
@@ -123,7 +142,7 @@ static func execute(state: SimState, caster: SimEntity, ability: int, target: Ve
 		Ability.FROST:
 			_frost(state, caster, target)
 		Ability.OIL_FLASK:
-			for c in state.grid.disc_cells(target, OIL_FLASK_RADIUS):
+			for c in splash_cells(state.grid, target, OIL_FLASK_RADIUS):
 				state.grid.add_surface(c, SimMaterials.Surface.OIL, OIL_FLASK_AMOUNT)
 		Ability.MEND:
 			EntityOps.heal(state, victim, MEND_HEAL, caster.id)
@@ -199,7 +218,7 @@ static func _frost(state: SimState, caster: SimEntity, target: Vector3i) -> void
 			state.emit_event(SimEvent.Type.FROZE, c)
 		var occupant := state.entity_at(c)
 		if occupant != null:
-			EntityOps.damage(state, occupant, FROST_DAMAGE, caster.id)
+			EntityOps.damage(state, occupant, FROST_DAMAGE, caster.id, EntityOps.Element.FROST)
 
 
 ## Hits every entity adjacent to the caster, friend or foe.

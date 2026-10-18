@@ -18,6 +18,10 @@ const PRESETS := {
 	"water": {"color": Color(0.35, 0.6, 1.0), "amount": 18, "lifetime": 0.5, "speed": Vector2(1.5, 3.0), "spread": 70.0, "gravity": -9.0, "size": 0.22, "radius": 0.4, "additive": false},
 	"oil": {"color": Color(0.15, 0.1, 0.05), "amount": 18, "lifetime": 0.5, "speed": Vector2(1.5, 3.0), "spread": 70.0, "gravity": -9.0, "size": 0.24, "radius": 0.4, "additive": false},
 	"coins": {"color": Color(1.0, 0.85, 0.2), "amount": 12, "lifetime": 0.7, "speed": Vector2(2.0, 3.5), "spread": 35.0, "gravity": -8.0, "size": 0.18, "radius": 0.1, "additive": false},
+	# Status loops: "ring" emits from a tube of that height around a character,
+	# just outside its body, so the particles aren't hidden inside it.
+	"burning_body": {"color": Color(1.0, 0.5, 0.1), "amount": 36, "lifetime": 0.55, "speed": Vector2(0.6, 1.6), "spread": 15.0, "gravity": 1.5, "size": 0.32, "radius": 0.42, "ring": 1.2, "additive": true},
+	"oil_drip": {"color": Color(0.2, 0.13, 0.05), "amount": 16, "lifetime": 0.8, "speed": Vector2(0.1, 0.4), "spread": 20.0, "gravity": -5.0, "size": 0.15, "radius": 0.4, "ring": 1.0, "additive": false},
 	"slash": {"color": Color(1.0, 1.0, 1.0), "amount": 20, "lifetime": 0.25, "speed": Vector2(3.0, 5.0), "spread": 180.0, "gravity": 0.0, "size": 0.1, "radius": 0.2, "additive": true},
 }
 
@@ -62,8 +66,15 @@ static func _process_material(preset: Dictionary, scale: float) -> ParticleProce
 	pm.initial_velocity_min = preset.speed.x * scale
 	pm.initial_velocity_max = preset.speed.y * scale
 	pm.gravity = Vector3(0, preset.gravity, 0)
-	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
-	pm.emission_sphere_radius = preset.radius * scale
+	if preset.has("ring"):
+		pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_RING
+		pm.emission_ring_axis = Vector3.UP
+		pm.emission_ring_radius = preset.radius * scale
+		pm.emission_ring_inner_radius = preset.radius * scale * 0.85
+		pm.emission_ring_height = preset.ring * scale
+	else:
+		pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+		pm.emission_sphere_radius = preset.radius * scale
 	pm.scale_min = 0.6
 	pm.scale_max = 1.2
 	pm.color = preset.color

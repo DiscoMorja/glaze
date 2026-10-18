@@ -12,16 +12,44 @@ const MOVE_SECONDS_PER_CELL := 0.1
 const TARGETABLE_GLOW := Color(1.0, 0.8, 0.15)
 ## How long a bar stays up after the entity's HP changes.
 const RECENT_SECONDS := 3.0
+## Every debuff gets a tag colour and looping effects on the character. Each
+## effect is a BinbunVFX pack effect ("pack", skipped if the pack is missing)
+## or a procedural VfxFactory emitter ("emitter"), at a height above the feet.
+## Keep them outside the body (rings, above the head) so the capsule doesn't
+## hide them.
+const STATUS_LOOKS := {
+	"burning": {"label": "Burning", "color": "ff8a2a", "effects": [
+		{"emitter": "burning_body", "scale": 1.0, "height": 0.75},
+		{"pack": "burning", "scale": 0.8, "height": 1.6},
+	]},
+	"slowed": {"label": "Slowed", "color": "c9a061", "effects": [
+		{"emitter": "oil_drip", "scale": 1.0, "height": 0.8},
+	]},
+}
 
 ## When > 0 (real-time exploration), each move glides linearly over this many
 ## seconds, matching the sim tick, instead of playing a combat walk animation.
 var walk_seconds := 0.0
 
 var show_all_bars := false
+## Lends pooled pack flames to burning characters (optional).
+var fire_field: FireField
 
 var _views := {}  # entity id -> _View
 var _hovered_id := -1
 var _preview := {}  # entity id -> [now_hp, later_hp]
+
+
+## Runs each status emitter once out of sight, so its particle shaders are
+## compiled before the first character catches fire (no hitch then).
+func _ready() -> void:
+	for status: String in STATUS_LOOKS:
+		for effect: Dictionary in STATUS_LOOKS[status].effects:
+			if effect.has("emitter"):
+				var warm := VfxFactory.emitter(effect.emitter, effect.scale)
+				add_child(warm)
+				warm.position = Vector3(0, -50, 0)
+				get_tree().create_timer(1.0).timeout.connect(warm.queue_free)
 
 
 func _process(_delta: float) -> void:
@@ -42,13 +70,16 @@ func render(state: SimState, events: Array[SimEvent] = []) -> void:
 		var view: _View = _views.get(e.id)
 		if view == null:
 			view = _View.new(e)
+			view.fire_field = fire_field
 			add_child(view)
 			_views[e.id] = view
 			view.position = cell_position(e.cell)
 		view.visible = e.is_alive()
 		if view.set_stats(e):
 			view.recent_until = now + RECENT_SECONDS
-		view.move_to(cell_position(e.cell), paths.get(e.id, []), walk_seconds)
+		# Slowed characters take twice as long per cell.
+		var pace := 2.0 if e.slowed > 0 else 1.0
+		view.move_to(cell_position(e.cell), paths.get(e.id, []), walk_seconds * pace, pace)
 
 
 ## The view node for an entity (e.g. for the camera to follow), or null.
@@ -89,6 +120,11 @@ class _View:
 	var _body: MeshInstance3D
 	## Name and AP: a ScreenLabels label when the scene has one, else a Label3D.
 	var _label: Node
+	## Debuff tags, coloured, above the name (ScreenLabels only).
+	var _status: RichTextLabel
+	## Status name -> its looping effect nodes.
+	var _loops := {}
+	var fire_field: FireField
 	var _bar: HealthBar
 	var _material: StandardMaterial3D
 	var _base_color: Color
@@ -130,6 +166,7 @@ class _View:
 
 		if ScreenLabels.instance != null:
 			_label = ScreenLabels.instance.follow(self, Vector3(0, top + 0.34, 0))
+			_status = ScreenLabels.instance.follow_rich(self, Vector3(0, top + 0.34, 0), Vector2(0, -20))
 		else:
 			var label := Label3D.new()
 			label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -142,11 +179,58 @@ class _View:
 
 	## Updates the label and bar. Returns true if HP changed since last time.
 	func set_stats(e: SimEntity) -> bool:
-		_label.set("text", "%s  AP %d" % [e.name, e.ap] if e.takes_turns() else e.name)
+		var text := "%s  AP %d" % [e.name, e.ap] if e.takes_turns() else e.name
+		var turns := {"burning": e.burning, "slowed": e.slowed}
+		var tags: Array[String] = []
+		for status: String in STATUS_LOOKS:
+			var look: Dictionary = STATUS_LOOKS[status]
+			var active: bool = turns[status] > 0 and e.is_alive()
+			if active:
+				tags.append("[color=#%s]%s %d[/color]" % [look.color, look.label, turns[status]])
+			_set_loop(status, active)
+		if _status != null:
+			_status.text = "[center]%s[/center]" % "  ".join(tags) if not tags.is_empty() else ""
+		elif not tags.is_empty():
+			text += "  " + " ".join(tags)
+		_label.set("text", text)
 		var changed := _hp >= 0 and e.hp != _hp
 		_hp = e.hp
 		_max_hp = e.max_hp
 		return changed
+
+	## Starts or stops a debuff's looping effect.
+	func _set_loop(status: String, active: bool) -> void:
+		if active == _loops.has(status):
+			return
+		if not active:
+			for node: Node3D in _loops[status]:
+				if node.has_meta("borrowed"):
+					fire_field.give_back(node)
+				else:
+					PackVfx.stop(node)
+			_loops.erase(status)
+			return
+		var nodes: Array[Node3D] = []
+		for effect: Dictionary in STATUS_LOOKS[status].effects:
+			var at := Vector3(0, effect.height, 0)
+			var node: Node3D = null
+			if effect.has("pack") and effect.pack == "burning" and fire_field != null and is_inside_tree():
+				# Pooled flame: building a pack flame on the spot hitches.
+				node = fire_field.borrow(global_position + at)
+				node.reparent(self)
+				node.position = at
+				node.scale = Vector3.ONE * effect.scale
+				node.set_meta("borrowed", true)
+			elif effect.has("pack"):
+				if is_inside_tree():
+					node = PackVfx.start(self, effect.pack, global_position + at, effect.scale)
+			else:
+				node = VfxFactory.emitter(effect.emitter, effect.scale)
+				add_child(node)
+				node.position = at
+			if node != null:
+				nodes.append(node)
+		_loops[status] = nodes
 
 	func show_bar(shown: bool, predicted: Array) -> void:
 		_bar.visible = shown
@@ -172,7 +256,7 @@ class _View:
 		_material.emission_enabled = _selected or _targetable
 		_material.emission = TARGETABLE_GLOW if _targetable else _base_color * 0.4
 
-	func move_to(target: Vector3, path: Array, glide_seconds: float = 0.0) -> void:
+	func move_to(target: Vector3, path: Array, glide_seconds: float = 0.0, pace: float = 1.0) -> void:
 		if position.is_equal_approx(target):
 			return
 		if _tween != null:
@@ -182,5 +266,5 @@ class _View:
 			_tween.tween_property(self, "position", target, glide_seconds)
 			return
 		for c: Vector3i in path:
-			_tween.tween_property(self, "position", SimEntityRenderer.cell_position(c), MOVE_SECONDS_PER_CELL)
-		_tween.tween_property(self, "position", target, MOVE_SECONDS_PER_CELL * 2.0)
+			_tween.tween_property(self, "position", SimEntityRenderer.cell_position(c), MOVE_SECONDS_PER_CELL * pace)
+		_tween.tween_property(self, "position", target, MOVE_SECONDS_PER_CELL * 2.0 * pace)

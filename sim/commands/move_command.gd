@@ -1,7 +1,9 @@
 class_name MoveCommand
 extends SimCommand
-## Walks an entity to a destination along SimPathfinder's path. Walking through
-## fire burns; stepping onto ice makes you slip, ending your movement and turn.
+## Walks an entity to a destination along SimPathfinder's path. Every burning
+## cell walked over burns (an instance of damage and burning); stepping onto
+## ice makes you slip, ending your movement and turn; stepping into oil slows
+## you (moves cost double AP); water puts you out.
 
 const TYPE := "move"
 
@@ -25,13 +27,13 @@ func validate(state: SimState) -> bool:
 	var path := path_for(state, e, destination)
 	if path.is_empty():
 		return false
-	return not state.combat.active or ap_cost(e.cell, path) <= e.ap
+	return not state.combat.active or ap_cost(e, e.cell, path) <= e.ap
 
 
 func execute(state: SimState) -> void:
 	var e := state.get_entity(entity_id)
 	var path := path_for(state, e, destination)
-	CombatRules.spend(state, e, ap_cost(e.cell, path))
+	CombatRules.spend(state, e, ap_cost(e, e.cell, path))
 	var walked: Array[Vector3i] = []
 	var start := e.cell
 	for c in path:
@@ -39,9 +41,10 @@ func execute(state: SimState) -> void:
 		walked.append(c)
 		var i := state.grid.index(c)
 		if state.grid.fire[i] > 0:
-			EntityOps.damage(state, e, EntityOps.FIRE_DAMAGE_PER_TICK)
+			EntityOps.burn(state, e)
 			if not e.is_alive():
 				break
+		EntityOps.on_ground(state, e)
 		if state.grid.surface_type[i] == SimMaterials.Surface.ICE:
 			e.ap = 0
 			state.emit_event(SimEvent.Type.SLIPPED, c, e.id)
@@ -55,14 +58,16 @@ func execute(state: SimState) -> void:
 ## the cheapest path straight through them.
 static func path_for(state: SimState, e: SimEntity, to: Vector3i) -> Array[Vector3i]:
 	var safe := SimPathfinder.find_path(state, e.cell, to, e.id)
-	if not state.combat.active or (not safe.is_empty() and ap_cost(e.cell, safe) <= e.ap):
+	if not state.combat.active or (not safe.is_empty() and ap_cost(e, e.cell, safe) <= e.ap):
 		return safe
 	var direct := SimPathfinder.find_path(state, e.cell, to, e.id, false, false)
 	return direct if not direct.is_empty() else safe
 
 
-static func ap_cost(from: Vector3i, path: Array[Vector3i]) -> int:
-	return CombatRules.move_ap_cost(SimPathfinder.movement_cost(from, path))
+## AP for walking path; double while slowed.
+static func ap_cost(e: SimEntity, from: Vector3i, path: Array[Vector3i]) -> int:
+	var cost := SimPathfinder.movement_cost(from, path)
+	return CombatRules.move_ap_cost(cost * 2 if e.slowed > 0 else cost)
 
 
 func to_dict() -> Dictionary:

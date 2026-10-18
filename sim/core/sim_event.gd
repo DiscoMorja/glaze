@@ -7,7 +7,7 @@ enum Type {
 	# Materials
 	IGNITED, EXTINGUISHED, BURNED_OUT, FROZE, MELTED,
 	# Entities
-	MOVED, SLIPPED, DAMAGED, DIED, SPILLED, FELL, ATTACKED, CAST, TELEPORTED, SHOVED, COLLIDED, STOLEN, HEALED,
+	MOVED, SLIPPED, DAMAGED, DIED, SPILLED, FELL, ATTACKED, CAST, TELEPORTED, SHOVED, COLLIDED, STOLEN, HEALED, SLOWED, BURNING,
 	# Combat flow
 	COMBAT_STARTED, TURN_STARTED, COMBAT_ENDED, SPOTTED,
 }
@@ -24,6 +24,8 @@ var amount: int
 var cells: Array[Vector3i] = []
 ## Type-specific text, e.g. the item stolen.
 var text: String = ""
+## DAMAGED: what dealt it (EntityOps.Element).
+var element: int = 0
 
 
 func _init(p_type: Type, p_cell: Vector3i = Vector3i.ZERO, p_entity_id: int = -1, p_other_id: int = -1, p_amount: int = 0) -> void:

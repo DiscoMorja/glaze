@@ -11,16 +11,21 @@ const SURFACE_NAMES := ["nothing", "water", "oil", "ice"]
 ## per-tick burn damage doesn't flood the log.
 static func describe_all(state: SimState, events: Array[SimEvent]) -> Array[String]:
 	var lines: Array[String] = []
-	var world_damage := {}  # entity id -> total
+	var world_damage := {}  # [entity id, element] -> total
 	for e in events:
 		if e.type == SimEvent.Type.DAMAGED and e.other_id < 0:
-			world_damage[e.entity_id] = world_damage.get(e.entity_id, 0) + e.amount
+			var key := [e.entity_id, e.element]
+			world_damage[key] = world_damage.get(key, 0) + e.amount
 			continue
 		var line := describe(state, e)
 		if line != "":
 			lines.append(line)
-	for id: int in world_damage:
-		lines.append("%s takes %d damage from the environment." % [_name(state, id), world_damage[id]])
+	for key: Array in world_damage:
+		var who := _name(state, key[0])
+		if key[1] == EntityOps.Element.FIRE:
+			lines.append("%s burns for %d." % [who, world_damage[key]])
+		else:
+			lines.append("%s takes %d damage." % [who, world_damage[key]])
 	return lines
 
 
@@ -63,6 +68,10 @@ static func describe(state: SimState, e: SimEvent) -> String:
 			return "Combat!"
 		SimEvent.Type.SLIPPED:
 			return "%s slips on the ice and goes down." % who
+		SimEvent.Type.BURNING:
+			return "%s catches fire!" % who
+		SimEvent.Type.SLOWED:
+			return "%s wades into the oil and slows down." % who
 	return ""
 
 

@@ -10,6 +10,12 @@ const PROJECTILE_SECONDS := 0.35
 ## Per batch, so a spreading fire doesn't spawn hundreds of bursts at once.
 const MAX_IGNITE_BURSTS := 12
 const BIG_HIT := 5
+## Damage number colour and hit burst per EntityOps.Element.
+const ELEMENT_LOOK := {
+	EntityOps.Element.PHYSICAL: {"color": Color(1.0, 1.0, 1.0), "burst": "blood"},
+	EntityOps.Element.FIRE: {"color": Color(1.0, 0.55, 0.15), "burst": "fire"},
+	EntityOps.Element.FROST: {"color": Color(0.5, 0.8, 1.0), "burst": "ice"},
+}
 
 signal shake_requested(strength: float)
 
@@ -32,11 +38,12 @@ func play(state: SimState, events: Array[SimEvent]) -> void:
 			SimEvent.Type.DAMAGED:
 				var text := "-%d" % e.amount
 				var big := e.amount >= BIG_HIT
+				var look: Dictionary = ELEMENT_LOOK.get(e.element, ELEMENT_LOOK[EntityOps.Element.PHYSICAL])
 				_later(delay, func() -> void:
 					var at := _body(e.cell)
-					VfxFactory.burst(self, at, "blood", 1.0)
-					VfxFactory.burst(self, at, "spark", 0.8)
-					VfxFactory.floating_text(self, at + Vector3(0, 0.6, 0), text, Color(1.0, 0.35, 0.3), 96 if big else 72)
+					VfxFactory.burst(self, at, look.burst, 0.8)
+					VfxFactory.burst(self, at, "spark", 0.6)
+					VfxFactory.floating_text(self, at + Vector3(0, 0.6, 0), text, look.color, 96 if big else 72)
 					if big:
 						shake_requested.emit(0.25))
 			SimEvent.Type.HEALED:
@@ -84,6 +91,12 @@ func play(state: SimState, events: Array[SimEvent]) -> void:
 				_later(delay, func() -> void:
 					VfxFactory.burst(self, _feet(e.cell), "ice", 0.6)
 					VfxFactory.floating_text(self, _body(e.cell) + Vector3(0, 1.0, 0), "Slipped!", Color(0.7, 0.92, 1.0), 60))
+			SimEvent.Type.BURNING:
+				_later(delay, func() -> void:
+					VfxFactory.floating_text(self, _body(e.cell) + Vector3(0, 1.3, 0), "Burning", Color(1.0, 0.55, 0.15), 56))
+			SimEvent.Type.SLOWED:
+				_later(delay, func() -> void:
+					VfxFactory.floating_text(self, _body(e.cell) + Vector3(0, 1.0, 0), "Slowed", Color(0.85, 0.7, 0.4), 56))
 			SimEvent.Type.STOLEN:
 				var stolen := "Stole %s" % e.text
 				_later(delay, func() -> void:

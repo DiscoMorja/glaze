@@ -51,6 +51,21 @@ func clear() -> void:
 	_flames.clear()
 
 
+## Lends a pooled flame (e.g. for a burning character) without the cost of
+## building one; return it with give_back().
+func borrow(at: Vector3) -> Node3D:
+	return _light(at)
+
+
+func give_back(flame: Node3D) -> void:
+	if not is_instance_valid(flame):
+		return
+	if flame.get_parent() != self:
+		flame.reparent(self)
+	flame.scale = Vector3.ONE
+	_put_out(flame)
+
+
 func _light(at: Vector3) -> Node3D:
 	if not _pool.is_empty():
 		var reused: Node3D = _pool.pop_back()

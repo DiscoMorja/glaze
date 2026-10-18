@@ -484,9 +484,13 @@ func _finish_side(faction: int) -> void:
 			return
 	_view = null
 	state.apply_command(EndTurnCommand.new(faction))
+	# The ticks were already shown on the ghost; show the turn change and
+	# everything that happens at the new turn's start (burning, joiners).
 	var flow: Array[SimEvent] = []
+	var turn_started := false
 	for e in state.drain_events():
-		if e.type in [SimEvent.Type.TURN_STARTED, SimEvent.Type.COMBAT_ENDED, SimEvent.Type.COMBAT_STARTED]:
+		turn_started = turn_started or e.type == SimEvent.Type.TURN_STARTED
+		if turn_started or e.type in [SimEvent.Type.COMBAT_ENDED, SimEvent.Type.COMBAT_STARTED]:
 			flow.append(e)
 	_present(state, flow)
 	if not state.combat.active:
@@ -858,7 +862,7 @@ func _update_range_now() -> void:
 				cells.append(c)
 				colors.append(COLOR_DANGER)
 		elif action == ActionInfo.NONE:
-			var reach := SimPathfinder.reachable(state, actor.cell, actor.ap * CombatRules.MOVE_COST_PER_AP, actor.id)
+			var reach := SimPathfinder.reachable(state, actor.cell, CombatRules.move_budget(actor), actor.id)
 			for c: Vector3i in reach:
 				cells.append(c)
 				colors.append(COLOR_RANGE)
@@ -1093,6 +1097,7 @@ func _build_scene() -> void:
 	_vfx = VfxPlayer.new()
 	add_child(_vfx)
 	_entity_renderer = SimEntityRenderer.new()
+	_entity_renderer.fire_field = _fire_field
 	add_child(_entity_renderer)
 	_range_markers = CellMarkers.new()
 	add_child(_range_markers)

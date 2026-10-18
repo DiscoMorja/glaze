@@ -29,12 +29,57 @@ func test_destroyed_barrel_spills_contents() -> void:
 	assert_eq(state.grid.surface_type[state.grid.index(Vector3i(5, Y, 4))], OIL)
 
 
-func test_standing_in_fire_burns() -> void:
+func test_fire_under_a_character_burns_at_once() -> void:
 	var state := Fixtures.duel_state()
 	var hero := Fixtures.hero(state)
 	state.apply_command(IgniteCommand.new(hero.cell))
+	assert_eq(hero.hp, hero.max_hp - EntityOps.BURN_DAMAGE, "an instance of damage right away")
+	assert_eq(hero.burning, EntityOps.BURN_TURNS)
 	state.step_ticks(3)
-	assert_eq(hero.hp, hero.max_hp - 3 * EntityOps.FIRE_DAMAGE_PER_TICK)
+	assert_eq(hero.hp, hero.max_hp - EntityOps.BURN_DAMAGE, "standing in it keeps the burn going without extra hits")
+	assert_eq(hero.burning, EntityOps.BURN_TURNS)
+
+
+func test_burning_hurts_at_each_turn_start_for_its_turns() -> void:
+	var state := Fixtures.duel_state()
+	var hero := Fixtures.hero(state)
+	hero.burning = EntityOps.BURN_TURNS
+	for _i in EntityOps.BURN_TURNS + 2:
+		state.apply_command(EndTurnCommand.new(SimEntity.Faction.PLAYERS))
+		state.apply_command(EndTurnCommand.new(SimEntity.Faction.ENEMIES))
+	assert_eq(hero.hp, hero.max_hp - EntityOps.BURN_TURNS * EntityOps.BURN_DAMAGE)
+	assert_eq(hero.burning, 0)
+
+
+func test_each_burning_cell_walked_over_hurts() -> void:
+	var state := Fixtures.flat_state(Vector3i(10, 4, 3))
+	var walker := state.add_entity(SimEntity.character("Walker", SimEntity.Faction.PLAYERS, Vector3i(0, Y, 1), 20))
+	state.apply_command(StartCombatCommand.new())
+	for z in 3:
+		for x in [3, 4]:
+			state.grid.set_fire(state.grid.index(Vector3i(x, Y, z)), SimMaterials.FIRE_MAX)
+	assert_true(state.apply_command(MoveCommand.new(walker.id, Vector3i(6, Y, 1))))
+	assert_eq(walker.hp, 20 - 2 * EntityOps.BURN_DAMAGE, "two burning cells, two hits")
+
+
+func test_fire_spreading_under_someone_sets_them_alight() -> void:
+	var state := Fixtures.duel_state()
+	var hero := Fixtures.hero(state)
+	state.grid.add_surface(hero.cell, OIL, 20)
+	state.grid.add_surface(hero.cell + Vector3i(1, 0, 0), OIL, 20)
+	state.grid.set_fire(state.grid.index(hero.cell + Vector3i(1, 0, 0)), SimMaterials.FIRE_MAX)
+	state.step()
+	assert_eq(hero.burning, EntityOps.BURN_TURNS)
+	assert_eq(hero.hp, hero.max_hp - EntityOps.BURN_DAMAGE)
+
+
+func test_water_puts_out_burning() -> void:
+	var state := Fixtures.duel_state()
+	var hero := Fixtures.hero(state)
+	hero.burning = EntityOps.BURN_TURNS
+	state.grid.add_surface(hero.cell + Vector3i(0, 0, 1), SimMaterials.Surface.WATER, 20)
+	assert_true(state.apply_command(MoveCommand.new(hero.id, hero.cell + Vector3i(0, 0, 1))))
+	assert_eq(hero.burning, 0)
 
 
 func test_burning_oil_barrel_chain_reaction() -> void:
@@ -60,3 +105,23 @@ func test_falling_damage_scales_with_height() -> void:
 func test_entity_round_trips_through_dict() -> void:
 	var e := SimEntity.character("Cel", SimEntity.Faction.PLAYERS, Vector3i(1, 2, 3), 16, "Dagger", 3, ["Key"])
 	assert_eq(SimEntity.from_dict(e.to_dict()).to_dict(), e.to_dict())
+
+
+func test_burn_damage_is_fire_and_follows_turn_start() -> void:
+	var state := Fixtures.duel_state()
+	var hero := Fixtures.hero(state)
+	hero.burning = EntityOps.BURN_TURNS
+	state.apply_command(EndTurnCommand.new(SimEntity.Faction.PLAYERS))
+	state.drain_events()
+	state.apply_command(EndTurnCommand.new(SimEntity.Faction.ENEMIES))
+	var events := state.drain_events()
+	var turn_index := -1
+	var burn_index := -1
+	for i in events.size():
+		if events[i].type == SimEvent.Type.TURN_STARTED:
+			turn_index = i
+		if events[i].type == SimEvent.Type.DAMAGED and events[i].entity_id == hero.id:
+			burn_index = i
+			assert_eq(events[i].element, EntityOps.Element.FIRE)
+	assert_gt(burn_index, turn_index, "shown with the new turn")
+	assert_gt(turn_index, -1)

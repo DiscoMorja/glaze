@@ -50,6 +50,10 @@ static func step(state: SimState) -> void:
 			var ni := grid.index(nc)
 			if not _can_receive(types, next_types, ni, t):
 				continue
+			# A thick, shallow puddle doesn't creep onto dry, flat ground.
+			if amount <= SimMaterials.puddle_hold(t) and grid.is_supported(nc) \
+					and amounts[ni] == 0 and not next_types.has(ni):
+				continue
 			# Over a ledge the neighbour holds nothing for long, so drain as if it were empty.
 			var diff: int = amount if not grid.is_supported(nc) else amount - amounts[ni]
 			var flow := diff / viscosity

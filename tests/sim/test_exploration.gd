@@ -127,3 +127,12 @@ func test_route_search_gives_up_on_a_walled_off_goal() -> void:
 	state.grid.fill_solid(Vector3i(9, Y, 4), Vector3i(11, Y + 3, 6))
 	state.grid.fill_solid(Vector3i(10, Y, 5), Vector3i(10, Y + 3, 5), false)
 	assert_eq(SimPathfinder.find_path(state, Fixtures.hero(state).cell, Vector3i(10, Y, 5), 1, false, true, 50).size(), 0)
+
+
+func test_slowed_walks_at_half_speed() -> void:
+	var state := _field(0)
+	var hero := Fixtures.hero(state)
+	hero.slowed = 99
+	state.apply_command(TravelCommand.new(1, Vector3i(9, Y, 5)))
+	state.step_ticks(8)
+	assert_eq(hero.cell, Vector3i(5, Y, 5), "four cells in eight ticks")

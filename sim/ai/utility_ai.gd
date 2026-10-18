@@ -264,7 +264,7 @@ static func _drop_spots(state: SimState, e: SimEntity, target: SimEntity) -> Arr
 ## nearest one, a safe cell if standing in fire, and (for ranged units) cells
 ## at a good distance with sight of an opponent.
 static func _move_targets(state: SimState, e: SimEntity, opponents: Array[SimEntity]) -> Array[Vector3i]:
-	var budget := e.ap * CombatRules.MOVE_COST_PER_AP if state.combat.active else 1 << 20
+	var budget := CombatRules.move_budget(e) if state.combat.active else 1 << 20
 	var reach := SimPathfinder.reachable(state, e.cell, budget, e.id)
 	var grid := state.grid
 	var scored := []  # [priority, cell]

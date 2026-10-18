@@ -34,6 +34,11 @@ var abilities: Array[int] = []
 var cooldowns := PackedInt32Array()
 ## Cells still to walk in real time (exploration), one per tick.
 var travel: Array[Vector3i] = []
+## Turns left of being slowed (walking through oil): moving costs double AP in
+## combat and walking takes twice as long in real time.
+var slowed := 0
+## Turns left of burning: fire damage at the start of each of the entity's turns.
+var burning := 0
 ## How far (cells) this entity notices opponents outside combat; 0 = never.
 var sight := 0
 ## Entities sharing a pack (> 0) join fights together; 0 = on its own.
@@ -59,6 +64,12 @@ func tick_cooldowns() -> void:
 			cooldowns[i] -= 1
 
 
+## Counts timed statuses down by one turn.
+func tick_statuses() -> void:
+	if slowed > 0:
+		slowed -= 1
+
+
 func is_alive() -> bool:
 	return hp > 0
 
@@ -82,6 +93,8 @@ func to_dict() -> Dictionary:
 		"cooldowns": cooldowns.duplicate(),
 		"travel": travel.duplicate(),
 		"sight": sight,
+		"slowed": slowed,
+		"burning": burning,
 		"pack": pack,
 		"in_combat": in_combat,
 	}
@@ -110,6 +123,8 @@ static func from_dict(data: Dictionary) -> SimEntity:
 	e.cooldowns = PackedInt32Array(data.cooldowns)
 	e.travel.assign(data.travel)
 	e.sight = data.sight
+	e.slowed = data.slowed
+	e.burning = data.burning
 	e.pack = data.pack
 	e.in_combat = data.in_combat
 	return e

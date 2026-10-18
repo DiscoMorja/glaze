@@ -216,6 +216,17 @@ func disc_cells(center: Vector3i, radius: int) -> Array[Vector3i]:
 	return cells
 
 
+## The open, supported cell in c's column nearest c within `reach` levels (a
+## splash lands on the ground below or on the step above), or null.
+func floor_near(c: Vector3i, reach: int) -> Variant:
+	for d in reach + 1:
+		for dy: int in ([0] if d == 0 else [-d, d]):
+			var n := c + Vector3i(0, dy, 0)
+			if in_bounds(n) and not is_solid(n) and is_supported(n):
+				return n
+	return null
+
+
 ## Adds liquid/surface to a cell. Fails if the cell holds a different surface.
 func add_surface(c: Vector3i, type: int, amount: int) -> bool:
 	var i := index(c)

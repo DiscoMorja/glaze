@@ -16,6 +16,9 @@ const _SURFACE_FLAMMABLE := [false, false, true,  false]
 const _SURFACE_VISCOSITY := [1,     5,     8,     1]
 ## Below this amount a liquid stops spreading (it stays as a puddle).
 const _SURFACE_MIN_SPREAD := [0,    4,     6,     0]
+## Puddles this deep or shallower stay put instead of creeping onto dry, flat
+## ground (oil is thick). They still run off ledges.
+const _SURFACE_HOLD :=      [0,    0,     24,    0]
 
 # Gases:                   NONE  STEAM  SMOKE
 const _GAS_DECAY :=        [0,   2,     3]
@@ -49,6 +52,10 @@ static func is_flammable(surface: int) -> bool:
 
 static func viscosity(surface: int) -> int:
 	return _SURFACE_VISCOSITY[surface]
+
+
+static func puddle_hold(surface: int) -> int:
+	return _SURFACE_HOLD[surface]
 
 
 static func min_spread(surface: int) -> int:

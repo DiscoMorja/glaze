@@ -15,7 +15,8 @@ func test_firebolt_damages_and_ignites() -> void:
 	var state := _near_duel()
 	var bandit := Fixtures.bandit(state)
 	assert_true(state.apply_command(CastCommand.new(1, A.FIREBOLT, bandit.cell)))
-	assert_eq(bandit.hp, 12 - SimAbilities.FIREBOLT_DAMAGE)
+	assert_eq(bandit.hp, 12 - SimAbilities.FIREBOLT_DAMAGE - EntityOps.BURN_DAMAGE, "the bolt, then catching fire")
+	assert_eq(bandit.burning, EntityOps.BURN_TURNS)
 	assert_gt(state.grid.fire[state.grid.index(bandit.cell)], 0)
 	assert_eq(Fixtures.hero(state).ap, 4 - 2)
 

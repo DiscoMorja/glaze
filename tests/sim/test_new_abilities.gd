@@ -28,11 +28,48 @@ func test_frost_puts_out_fire() -> void:
 	assert_eq(state.grid.fire[state.grid.index(cell)], 0)
 
 
-func test_oil_flask_spreads_oil() -> void:
+func _oil_cells(state: SimState) -> int:
+	return state.grid.surface_type.count(SimMaterials.Surface.OIL)
+
+
+func test_oil_flask_splashes_its_whole_puddle_at_once() -> void:
 	var state := _near_duel()
 	assert_true(state.apply_command(CastCommand.new(1, A.OIL_FLASK, Vector3i(5, Y, 5))))
-	assert_eq(state.grid.total_surface(SimMaterials.Surface.OIL), 5 * SimAbilities.OIL_FLASK_AMOUNT)
+	var splash := SimAbilities.splash_cells(state.grid, Vector3i(5, Y, 5), SimAbilities.OIL_FLASK_RADIUS).size()
+	assert_eq(splash, 13, "a radius-2 disc")
+	assert_eq(_oil_cells(state), splash)
+	assert_eq(state.grid.total_surface(SimMaterials.Surface.OIL), splash * SimAbilities.OIL_FLASK_AMOUNT)
 	assert_eq(Fixtures.hero(state).ap, 4 - 1)
+	state.step_ticks(8)
+	assert_eq(_oil_cells(state), splash, "and it doesn't creep afterwards")
+
+
+func test_lighting_oil_sets_the_whole_puddle_alight_at_once() -> void:
+	var state := _near_duel()
+	state.apply_command(CastCommand.new(1, A.OIL_FLASK, Vector3i(5, Y, 5)))
+	state.apply_command(IgniteCommand.new(Vector3i(5, Y, 7)))
+	assert_eq(state.grid.fire_cells.size(), _oil_cells(state), "every oil cell burns right away")
+
+
+func test_walking_through_oil_slows() -> void:
+	var state := _near_duel()
+	var hero := Fixtures.hero(state)
+	state.grid.add_surface(hero.cell + Vector3i(1, 0, 0), SimMaterials.Surface.OIL, 20)
+	assert_true(state.apply_command(MoveCommand.new(hero.id, hero.cell + Vector3i(1, 0, 0))))
+	assert_eq(hero.slowed, EntityOps.SLOW_TURNS)
+	var two_cells: Array[Vector3i] = [hero.cell + Vector3i(0, 0, 1), hero.cell + Vector3i(0, 0, 2)]
+	assert_eq(MoveCommand.ap_cost(hero, hero.cell, two_cells), 2, "moving costs double")
+	assert_eq(CombatRules.move_budget(hero), hero.ap * CombatRules.MOVE_COST_PER_AP / 2)
+
+
+func test_slow_wears_off_after_its_turns() -> void:
+	var state := _near_duel()
+	var hero := Fixtures.hero(state)
+	hero.slowed = EntityOps.SLOW_TURNS
+	for _i in EntityOps.SLOW_TURNS:
+		state.apply_command(EndTurnCommand.new(SimEntity.Faction.PLAYERS))
+		state.apply_command(EndTurnCommand.new(SimEntity.Faction.ENEMIES))
+	assert_eq(hero.slowed, 0)
 
 
 func test_mend_heals_up_to_max_and_needs_a_wound() -> void:

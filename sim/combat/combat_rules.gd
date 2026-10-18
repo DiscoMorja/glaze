@@ -150,6 +150,13 @@ static func spend(state: SimState, e: SimEntity, ap_cost: int) -> void:
 		e.ap -= ap_cost
 
 
+## Movement cost an entity can afford with its AP (halved while slowed).
+@warning_ignore("integer_division")
+static func move_budget(e: SimEntity) -> int:
+	var budget := e.ap * MOVE_COST_PER_AP
+	return budget / 2 if e.slowed > 0 else budget
+
+
 @warning_ignore("integer_division")
 static func move_ap_cost(movement_cost: int) -> int:
 	return (movement_cost + MOVE_COST_PER_AP - 1) / MOVE_COST_PER_AP
@@ -184,6 +191,7 @@ static func opponent_of(faction: SimEntity.Faction) -> SimEntity.Faction:
 
 static func _begin_side(state: SimState) -> void:
 	var combat := state.combat
+	state.emit_event(SimEvent.Type.TURN_STARTED, Vector3i.ZERO, -1, -1, combat.side)
 	# Packs that see the fight join it (and act from their side's next turn).
 	if _mark_spotters(state, true):
 		for e in state.entities:
@@ -191,5 +199,4 @@ static func _begin_side(state: SimState) -> void:
 				_join_pack(state, e)
 	for e in fighters(state, combat.side):
 		e.ap = mini(e.ap + e.max_ap, AP_CAP)
-		e.tick_cooldowns()
-	state.emit_event(SimEvent.Type.TURN_STARTED, Vector3i.ZERO, -1, -1, combat.side)
+		EntityOps.turn_start(state, e)
