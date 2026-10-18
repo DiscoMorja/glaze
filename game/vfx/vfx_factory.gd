@@ -124,6 +124,9 @@ static func flash(parent: Node, at: Vector3, color: Color, energy: float = 3.0, 
 
 ## Text that rises and fades, e.g. damage numbers.
 static func floating_text(parent: Node, at: Vector3, text: String, color: Color, size: int = 72) -> void:
+	if ScreenLabels.instance != null:
+		ScreenLabels.instance.float_text(at, text, color, roundi(size * 0.3))
+		return
 	var label := Label3D.new()
 	label.text = text
 	label.modulate = color

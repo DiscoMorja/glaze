@@ -64,8 +64,8 @@ const COLOR_ENEMY_TARGET := Color(1.0, 0.55, 0.1, 0.6)
 @export var level_scene: PackedScene
 ## Prints the perf readout to the output every 2 s (stress-test levels).
 @export var log_perf := false
-## Start with the PSX look on (P toggles it).
-@export var psx_look := false
+## Retro presentation style to start with (P cycles them).
+@export var retro_style := RetroLook.Style.OFF
 
 var state: SimState
 var _level: GameLevel
@@ -107,7 +107,7 @@ var _danger_cache := {}
 var _preview_due_msec := 0
 
 var _grid_renderer: SimGridRenderer
-var _psx: PsxLook
+var _retro: RetroLook
 var _fire_field: FireField
 var _vfx: VfxPlayer
 var _entity_renderer: SimEntityRenderer
@@ -203,7 +203,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_ENTER, KEY_KP_ENTER: _end_turn()
 			KEY_R: _restart()
 			KEY_P:
-				_psx.toggle(_level)
+				_retro.cycle(_level)
 				_refresh()
 	elif event is InputEventMouseButton and event.pressed:
 		if _confirming_end_turn:
@@ -239,10 +239,10 @@ func _restart() -> void:
 		return
 	state = baked
 	_danger_cache.clear()
-	if psx_look and not _psx.enabled:
-		_psx.set_enabled(true, _level)
+	if _retro.style == RetroLook.Style.OFF and retro_style != RetroLook.Style.OFF:
+		_retro.set_style(retro_style, _level)
 	else:
-		_psx.apply(_level)
+		_retro.apply(_level)
 	_grid_renderer.show_solids = false
 	_rig.position = Vector3(state.grid.size.x / 2.0, 2.0, state.grid.size.z / 2.0)
 	_tick_accumulator = 0.0
@@ -1099,8 +1099,9 @@ func _build_scene() -> void:
 	_markers = CellMarkers.new()
 	add_child(_markers)
 
-	_psx = PsxLook.new()
-	add_child(_psx)
+	_retro = RetroLook.new()
+	add_child(_retro)
+	add_child(ScreenLabels.new())
 
 	_rig = CameraRig.new()
 	_rig.zoom = 18.0
@@ -1222,7 +1223,7 @@ func _refresh() -> void:
 		lines.append("%s the %s   weapon: %s   carrying: %s" % [actor.name, SimArchetypes.title(actor.archetype), actor.weapon if actor.weapon != "" else "none", items])
 	lines.append("%s   %s" % [_mode_name(), _preview_text])
 	lines.append("RMB move   LMB use / select   1-9 actions   Esc cancel   F1-F4 / Tab select   Enter end turn   Space (hold) fast-forward   R restart")
-	lines.append("WASD pan   Q/E rotate   wheel zoom   P PSX look (%s)" % ("on" if _psx.enabled else "off"))
+	lines.append("WASD pan   Q/E rotate   wheel zoom   P look: %s" % _retro.style_name())
 	lines.append(_perf_text())
 	_hud.text = "\n".join(lines)
 	_log_label.text = "\n".join(_log)

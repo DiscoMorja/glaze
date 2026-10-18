@@ -87,7 +87,8 @@ class _View:
 	var recent_until := 0.0
 
 	var _body: MeshInstance3D
-	var _label: Label3D
+	## Name and AP: a ScreenLabels label when the scene has one, else a Label3D.
+	var _label: Node
 	var _bar: HealthBar
 	var _material: StandardMaterial3D
 	var _base_color: Color
@@ -127,17 +128,21 @@ class _View:
 		_bar.visible = false
 		add_child(_bar)
 
-		_label = Label3D.new()
-		_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		_label.no_depth_test = true
-		_label.pixel_size = 0.009
-		_label.outline_size = 8
-		_label.position.y = top + 0.34
-		add_child(_label)
+		if ScreenLabels.instance != null:
+			_label = ScreenLabels.instance.follow(self, Vector3(0, top + 0.34, 0))
+		else:
+			var label := Label3D.new()
+			label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			label.no_depth_test = true
+			label.pixel_size = 0.009
+			label.outline_size = 8
+			label.position.y = top + 0.34
+			add_child(label)
+			_label = label
 
 	## Updates the label and bar. Returns true if HP changed since last time.
 	func set_stats(e: SimEntity) -> bool:
-		_label.text = "%s  AP %d" % [e.name, e.ap] if e.takes_turns() else e.name
+		_label.set("text", "%s  AP %d" % [e.name, e.ap] if e.takes_turns() else e.name)
 		var changed := _hp >= 0 and e.hp != _hp
 		_hp = e.hp
 		_max_hp = e.max_hp
