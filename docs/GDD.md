@@ -228,7 +228,14 @@ A combat/event log and barks built from simulation events — e.g. *"Gerald was 
   - Granary catches fire → farmer asks for help.
   - Guard captain dies → town faction state changes.
 - Dialogue reads/writes facts directly.
-- **Dialogue tool:** Dialogue Manager (Godot addon, GDScript-native) or Yarn Spinner — decide in M4.
+
+### 6.1 Facts, dialogue and quests (M4)
+
+- **Facts** (`SimFacts`): named integers. Stored facts live in `state.facts` (set by dialogue); derived facts are read from the world: `alive.<Group>`, `dead.<Group>`, `hostile.<Group>`, `has.<Item>` (the party carries it; `_` = space), `combat`, `quest.<id>.known|done|<outcome>`, and `self.*` for the NPC being talked to. Conditions are small integer expressions (`SimExpr`: `and or not`, comparisons, `+ -`).
+- **Dialogue** is our own plain-text, ink-like format (`game/data/dialogue/*.dlg`, parsed by `SimDialogue`): `=== knot`, `Speaker: line`, `{condition}` before any statement, `~ fact = expr`, `~ give Item` / `~ take Item`, choices `* {cond} [text] -> knot`, `-> knot` / `-> END`. NPCs point at a knot with `LevelSpawn.dialogue`. It runs in the sim (deterministic, synced like any command): `TalkCommand` (outside combat, within 2 cells, not hostile) and `ChooseCommand`. Walking away or a fight ends the conversation.
+- **Quests** (`game/data/quests/*.quest`, `QuestRules`): a quest becomes known when its `known:` expression holds, and ends with the first `outcome <name>: <expr>` that holds; each outcome has its own journal text. No steps: "The bandit problem" ends as `cleared` (bandit pack dead, however) or `turned` (the village turned hostile). Banner + narration on start/end; J opens the journal.
+- **Co-op:** one talks, both see. Only the talking player chooses; the partner sees the conversation live.
+- Content is loaded by `Content.load_all()` (game layer reads the files, the sim only sees text). Parse errors are pushed as warnings and checked by a test.
 
 ---
 
@@ -236,7 +243,7 @@ A combat/event log and barks built from simulation events — e.g. *"Gerald was 
 
 - **Online only** (no split-screen). 2 players, each controls 2 characters (party of 4).
 - **Separate inventories** — players can steal from each other.
-- **Player disagreement** in dialogue (Divinity 1 rock-paper-scissors style — cheap and loved).
+- **Player disagreement** in dialogue (Divinity 1 rock-paper-scissors style — cheap and loved). Later; v1 is "one talks, both see".
 - Systems reward co-op tricks: one distracts the merchant while the other steals; split up and set a pincer before combat.
 - Design for splitting up and regrouping.
 
@@ -328,7 +335,6 @@ Levels are built freely in Godot and baked into the sim (`GameLevel.bake()`, run
 ## 10. Open Questions
 
 - Split combat (one player in combat, the other exploring) — post-Prologue?
-- Dialogue tool choice (M4).
 - Setting, tone and the four player characters.
 - Save system scope (anywhere vs checkpoints) in co-op.
 
@@ -369,4 +375,5 @@ Levels are built freely in Godot and baked into the sim (`GameLevel.bake()`, run
 | 2026-10-18 | Art direction refined: low-poly early-2000s look (soft, fogged, Gouraud) rather than full PSX pixelation, which read as too blocky. |
 | 2026-10-18 | Art direction: low-poly, PSX-inspired look (not high fidelity), fitting a solo content pipeline. Engine stays Godot; a GDExtension port of `sim/` is the escape hatch if sim speed becomes the limit. |
 | 2026-10-18 | Fights are local: the party plus spotting/provoked enemies and their packs; other packs sit out. Sim grid copies are copy-on-write; fire and heat keep sparse cell sets. Stress level `levels/highlands` (256 m, 32 packs). |
+| 2026-10-18 | M4 dialogue & quests: own ink-like text format run inside the sim (talk/choose are commands), facts as integers (stored + derived from the world), quests as outcome predicates with journal text; first quest "The bandit problem". Co-op: one talks, both see. Dialogue tool question closed (no addon). |
 | 2026-10-17 | Scope: Prologue (1 hub + 1 zone, 2–3 h co-op) targeted at 12–18 months, 6–8 h/week, Claude Code writes the code. |

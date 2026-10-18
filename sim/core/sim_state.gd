@@ -11,6 +11,12 @@ var rng: SimRng
 var tick: int = 0
 ## Set when a fighter is hurt by the other side outside combat; starts combat.
 var provoked := false
+## Remembered facts (SimFacts), set by dialogue: name -> int.
+var facts := {}
+## Quest progress (QuestRules): id -> {"known": bool, "outcome": String}.
+var quests := {}
+## The conversation in progress (SimDialogue), or empty.
+var conversation := {}
 
 var _next_entity_id := 1
 var _events: Array[SimEvent] = []
@@ -28,6 +34,9 @@ func apply_command(command: SimCommand) -> bool:
 	command.execute(self)
 	CombatRules.check_end(self)
 	CombatRules.check_start(self)
+	if combat.active and not conversation.is_empty():
+		SimDialogue.end(self)  # a fight breaks off any talk
+	QuestRules.step(self)
 	return true
 
 
@@ -40,6 +49,9 @@ func step() -> void:
 	EntityRules.step(self)
 	tick += 1
 	CombatRules.check_start(self)
+	if combat.active and not conversation.is_empty():
+		SimDialogue.end(self)
+	QuestRules.step(self)
 
 
 func step_ticks(count: int) -> void:
@@ -110,6 +122,9 @@ func duplicate_state() -> SimState:
 	copy.rng.state = rng.state
 	copy.tick = tick
 	copy.provoked = provoked
+	copy.facts = facts.duplicate(true)
+	copy.quests = quests.duplicate(true)
+	copy.conversation = conversation.duplicate(true)
 	copy._next_entity_id = _next_entity_id
 	return copy
 
@@ -123,6 +138,7 @@ func to_snapshot() -> PackedByteArray:
 	var data := {
 		"grid": grid.to_dict(), "entities": entity_data, "combat": combat.to_dict(),
 		"rng": rng.state, "tick": tick, "provoked": provoked, "next_entity_id": _next_entity_id,
+		"facts": facts, "quests": quests, "conversation": conversation,
 	}
 	var raw := var_to_bytes(data)
 	return var_to_bytes([raw.size(), raw.compress(FileAccess.COMPRESSION_ZSTD)])
@@ -139,6 +155,9 @@ static func from_snapshot(bytes: PackedByteArray) -> SimState:
 	state.rng.state = data.rng
 	state.tick = data.tick
 	state.provoked = data.provoked
+	state.facts = data.facts
+	state.quests = data.quests
+	state.conversation = data.conversation
 	state._next_entity_id = data.next_entity_id
 	return state
 
@@ -151,5 +170,6 @@ func checksum() -> String:
 	for e in entities:
 		ctx.update(var_to_bytes(e.to_dict()))
 	ctx.update(var_to_bytes(combat.to_dict()))
+	ctx.update(var_to_bytes([facts, quests, conversation]))
 	ctx.update(PackedInt64Array([tick, rng.state, _next_entity_id, 1 if provoked else 0]).to_byte_array())
 	return ctx.finish().hex_encode()

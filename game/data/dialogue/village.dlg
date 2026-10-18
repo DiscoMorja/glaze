@@ -1,0 +1,69 @@
+# The village by the pond. Knot names are global; NPCs point at them with
+# LevelSpawn.dialogue. See sim/dialogue/sim_dialogue.gd for the format.
+
+=== merchant
+{self.suspicious} Merchant: Keep your hands where I can see them, friend.
+{quest.bandits.cleared and not merchant_paid} -> merchant_reward
+{quest.bandits.cleared and merchant_paid} Merchant: Carts on the hill road again. Thank you, truly.
+{quest.bandits.cleared} -> END
+{not bandits_known} Merchant: Travellers! You came by the hill road? Then you were lucky.
+{bandits_known} Merchant: Any news about the camp on the hill?
+* {not bandits_known} [Lucky how?] -> merchant_bandits
+* {bandits_known} [Tell me about the bandits again.] -> merchant_bandits
+* [What do you sell?] -> merchant_goods
+* [Goodbye.] -> END
+
+=== merchant_bandits
+Merchant: Bandits took the old camp up by the ramp, east of here. Six of them, maybe more.
+Merchant: They stop every cart. The guard won't go up alone, and I don't blame him.
+~ bandits_known = 1
+Merchant: Clear them out and I'll make it worth your while. I've a silver ring put by.
+* [We'll deal with them.] -> merchant_promise
+* [Not our problem.] -> merchant_refuse
+
+=== merchant_promise
+~ bandits_promised = 1
+Merchant: Gods bless you. Mind the one with the fire, he's mad.
+-> END
+
+=== merchant_refuse
+Merchant: No. No, I suppose it isn't.
+-> END
+
+=== merchant_goods
+{self.has.Map} Merchant: Bread, rope, and a map of these roads, if you've coin. Nobody has coin, with the road shut.
+{not self.has.Map} Merchant: I had a map of the roads... it's gone. Funny, that.
+-> merchant
+
+=== merchant_reward
+Merchant: You did it? The camp is empty? Then here, as I promised.
+{self.has.Silver_ring} ~ give Silver ring
+{has.Silver_ring} Merchant: Wear it well.
+{not has.Silver_ring} Merchant: I had a ring for you. Someone's had it off me. I'm sorry, truly.
+~ merchant_paid = 1
+-> END
+
+=== guard
+{self.suspicious} Guard: I've got my eye on you. One wrong move.
+{quest.bandits.cleared} Guard: The camp's quiet. Didn't think anyone could do it.
+{quest.bandits.cleared} -> END
+Guard: Move along. And stay off the hill road unless you want a knife in you.
+* [Why don't you deal with the bandits?] -> guard_bandits
+* [Fine.] -> END
+
+=== guard_bandits
+Guard: One spear against six? I'd be dead by noon and the village would have no guard at all.
+Guard: Their chief keeps the camp key on him. Whatever they've taken is in his chest.
+~ bandits_known = 1
+-> END
+
+=== villager
+{quest.bandits.cleared} Villager: They say the camp is empty! Is it true?
+{quest.bandits.cleared} -> END
+Villager: Don't go up the hill. Please.
+-> END
+
+=== farmer
+{self.suspicious} Farmer: You again. Watch yourself.
+Farmer: Bandits took two of my goats. Two! If you're going up there, bring them back. Or don't. They're probably eaten.
+-> END

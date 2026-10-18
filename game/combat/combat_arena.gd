@@ -136,6 +136,8 @@ var _log_label: Label
 var _party_bar: PartyBar
 var _action_bar: ActionBar
 var _inventory: InventoryPanel
+var _dialogue: DialoguePanel
+var _journal: JournalPanel
 var _dialog: PanelContainer
 var _dialog_label: Label
 var _banner: Label
@@ -146,6 +148,7 @@ var _baked: SimState
 
 
 func _ready() -> void:
+	Content.load_all()
 	PackVfx.preload_all()
 	_build_scene()
 	_fire_field.prewarm()
@@ -222,6 +225,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouse:
 		_mouse_pos = event.position
 	if event is InputEventKey and event.pressed and not event.echo:
+		if _dialogue.handle_key(event.keycode):
+			return
 		if _confirming_end_turn:
 			match event.keycode:
 				KEY_ENTER, KEY_KP_ENTER, KEY_Y: _end_turn(true)
@@ -247,6 +252,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_C: _toggle_sneak()
 			KEY_I:
 				_inventory.toggle()
+				_refresh()
+			KEY_J:
+				_journal.toggle()
 				_refresh()
 	elif event is InputEventMouseButton and event.pressed:
 		if _confirming_end_turn:
@@ -380,6 +388,13 @@ func _toggle_sneak() -> void:
 	Net.submit(SneakCommand.new(e.id, not e.sneaking))
 
 
+## An NPC this player could start talking to (outside combat, not hostile).
+func _talkable(e: SimEntity) -> bool:
+	return (e != null and e.is_alive() and e.dialogue != "" and SimDialogue.knots.has(e.dialogue)
+			and e.faction != SimEntity.Faction.ENEMIES and e.faction != SimEntity.Faction.PLAYERS
+			and not state.combat.active and state.conversation.is_empty())
+
+
 func _can_command() -> bool:
 	return state != null and not _busy and not Net.ready_slots.has(Net.local_slot) \
 			and (_is_players_turn() or _exploring())
@@ -395,6 +410,8 @@ func _exploring() -> bool:
 ## spotted), switch over.
 func _apply_tick() -> void:
 	var t0 := Time.get_ticks_usec()
+	var selected := state.get_entity(_selected_id)
+	var was_walking := selected != null and not selected.travel.is_empty()
 	state.step()
 	_perf["tick"] = (Time.get_ticks_usec() - t0) / 1000.0
 	_present(state, state.drain_events())
@@ -404,6 +421,8 @@ func _apply_tick() -> void:
 		_select_next(true)
 		_update_range()
 		_update_preview()
+	elif was_walking and state.get_entity(_selected_id).travel.is_empty():
+		_update_preview()  # arrived: what the cursor offers may have changed (e.g. talk)
 
 
 ## Walks the selected character to `dest`; the rest of this player's party
@@ -450,6 +469,16 @@ func _left_click() -> void:
 		_select(clicked.id, false)  # the partner's too, to look at
 		return
 	if not _can_order():
+		return
+	if _action == ActionInfo.NONE and _talkable(clicked):
+		var talk := TalkCommand.new(_selected_id, clicked.id)
+		if talk.validate(state):
+			Net.submit(talk)
+		else:
+			# Walk next to them first; click again to talk.
+			var spot: Variant = _formation_cell(cell, {cell: true}, _selected_id)
+			if spot != null:
+				_travel_party(spot)
 		return
 	if _action == SimAbilities.Ability.TELEPORT and _teleport_target == null:
 		if _can_teleport_target(clicked):
@@ -865,6 +894,10 @@ func _present(s: SimState, events: Array[SimEvent]) -> void:
 	for e in events:
 		if e.type == SimEvent.Type.COMBAT_ENDED:
 			_show_banner("Victory!" if e.amount == SimEntity.Faction.PLAYERS else "Defeat")
+		elif e.type == SimEvent.Type.QUEST_STARTED and QuestRules.quests.has(e.text):
+			_show_banner("New quest: %s   (J: journal)" % QuestRules.quests[e.text].title)
+		elif e.type == SimEvent.Type.QUEST_ENDED and QuestRules.quests.has(e.text):
+			_show_banner("Quest ended: %s" % QuestRules.quests[e.text].title)
 	_entity_renderer.walk_seconds = 1.0 / EXPLORE_TICKS_PER_SECOND if not s.combat.active else 0.0
 	_grid_renderer.render(s.grid)
 	_fire_field.sync(s.grid)
@@ -1234,7 +1267,12 @@ func _update_preview_now() -> void:
 		cells.append(_teleport_target)
 		colors.append(COLOR_TARGET)
 
-	if _can_order() and _hover != null and actor != null:
+	if _can_order() and _hover != null and actor != null and _action == ActionInfo.NONE and _talkable(hovered):
+		cells.append(_hover)
+		colors.append(COLOR_CURSOR)
+		var talk := TalkCommand.new(_selected_id, hovered.id)
+		_preview_text = "Talk to %s" % hovered.name if talk.validate(state) else "Walk over to talk to %s" % hovered.name
+	elif _can_order() and _hover != null and actor != null:
 		var cell: Vector3i = _hover
 		var command := _build_command(cell)
 		if command == null:
@@ -1386,6 +1424,14 @@ func _build_scene() -> void:
 		else:
 			_end_turn())
 
+	_dialogue = DialoguePanel.new()
+	canvas.add_child(_dialogue)
+	_dialogue.chosen.connect(func(index: int) -> void:
+		if state != null and not state.conversation.is_empty():
+			Net.submit(ChooseCommand.new(state.conversation.talker, index)))
+	_journal = JournalPanel.new()
+	canvas.add_child(_journal)
+
 	_inventory = InventoryPanel.new()
 	canvas.add_child(_inventory)
 	_inventory.give_requested.connect(func(from_id: int, to_id: int, index: int) -> void:
@@ -1485,6 +1531,9 @@ func _refresh() -> void:
 		end_turn = PartyBar.EndTurn.SUGGESTED
 	_party_bar.update_party(party, _selected_id, _turn_start_ap, _preview_cost, _can_command() and _is_players_turn(), partner_ids, end_turn)
 	var actor := state.get_entity(_selected_id)
+	var talker := state.get_entity(state.conversation.get("talker", -1)) if not state.conversation.is_empty() else null
+	_dialogue.show_conversation(state, talker != null and Net.may_control(Net.local_slot, talker))
+	_journal.show_journal(state)
 	_inventory.show_for(actor, party, _selected_is_mine() and not state.combat.active, _selected_is_mine())
 	var note := "" if actor == null or _selected_is_mine() else "%s is controlled by your partner" % actor.name
 	_action_bar.show_actions(actor if actor != null and actor.is_alive() else null, _action, _can_order(), state.combat.active, note)
@@ -1498,7 +1547,7 @@ func _refresh() -> void:
 		lines.append("Round %d — %s" % [state.combat.round_number, turn])
 	elif _exploring():
 		var sneak_hint := "C: sneak" if state.get_entity(_selected_id) == null or not state.get_entity(_selected_id).sneaking else "Sneaking (C to stop) — harder to see, half speed"
-		lines.append("Exploring — red: enemies see you there, yellow: townsfolk watch   %s   I: inventory" % sneak_hint)
+		lines.append("Exploring — red: enemies see you there, yellow: townsfolk watch   %s   I: inventory   J: journal" % sneak_hint)
 	else:
 		lines.append("Combat over — press R to restart")
 	if Net.is_online():

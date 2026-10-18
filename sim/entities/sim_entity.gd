@@ -64,6 +64,11 @@ var sneaking := false
 var suspicious := false
 ## Items in the inventory that were stolen, tagged "pack:item" (CrimeRules).
 var stolen: Array[String] = []
+## Name of the group this entity belongs to (the level's pack name, e.g.
+## "Bandits", "Village"), for facts like alive.Bandits.
+var group := ""
+## The dialogue knot talking to it starts at ("" = nothing to say).
+var dialogue := ""
 ## Player slot that controls this entity in co-op (0 = host, 1 = guest), or -1
 ## for entities no player controls.
 var owner := -1
@@ -137,6 +142,8 @@ func to_dict() -> Dictionary:
 		"sneaking": sneaking,
 		"suspicious": suspicious,
 		"stolen": stolen.duplicate(),
+		"group": group,
+		"dialogue": dialogue,
 		"slowed": slowed,
 		"temperature": temperature,
 		"temp_turns": temp_turns,
@@ -178,6 +185,8 @@ static func from_dict(data: Dictionary) -> SimEntity:
 	e.sneaking = data.sneaking
 	e.suspicious = data.suspicious
 	e.stolen.assign(data.stolen)
+	e.group = data.group
+	e.dialogue = data.dialogue
 	e.slowed = data.slowed
 	e.temperature = data.temperature
 	e.temp_turns = data.temp_turns

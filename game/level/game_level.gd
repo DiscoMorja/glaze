@@ -180,6 +180,8 @@ func _place_markers(state: SimState) -> void:
 			e.owner = spawn.player
 		e.facing = spawn.facing()
 		e.home_facing = e.facing
+		e.group = spawn.group_name()
+		e.dialogue = spawn.dialogue
 		var pack_name := spawn.pack_name()
 		if pack_name != "":
 			if not packs.has(pack_name):

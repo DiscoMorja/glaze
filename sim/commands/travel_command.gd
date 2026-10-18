@@ -45,6 +45,8 @@ static func too_far(from: Vector3i, to: Vector3i) -> bool:
 
 func execute(state: SimState) -> void:
 	state.get_entity(entity_id).travel.assign(route(state))
+	if not state.conversation.is_empty() and state.conversation.talker == entity_id:
+		SimDialogue.end(state)  # walking away ends the talk
 
 
 ## The cells the walk will take (empty if there is no way there).

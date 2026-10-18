@@ -68,6 +68,11 @@ static func describe(state: SimState, e: SimEvent) -> String:
 			return "Combat!"
 		SimEvent.Type.SLIPPED:
 			return "%s slips on the ice and goes down." % who
+		SimEvent.Type.QUEST_STARTED:
+			return "New quest: %s." % (QuestRules.quests[e.text].title if QuestRules.quests.has(e.text) else e.text)
+		SimEvent.Type.QUEST_ENDED:
+			var entry := QuestRules.journal(state, e.text) if QuestRules.quests.has(e.text) else ["", ""]
+			return "Quest ended: %s — %s" % [entry[0], entry[1]]
 		SimEvent.Type.SUSPICIOUS:
 			return "%s eyes %s suspiciously." % [who, other]
 		SimEvent.Type.TURNED_HOSTILE:

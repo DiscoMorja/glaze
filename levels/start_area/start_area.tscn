@@ -221,6 +221,7 @@ script = ExtResource("2_spawn")
 role = "merchant"
 entity_name = "Merchant"
 team = 2
+dialogue = "merchant"
 inventory = Array[String](["Coins", "Silver ring", "Map"])
 
 [node name="Villager" type="Marker3D" parent="Village"]
@@ -229,6 +230,7 @@ script = ExtResource("2_spawn")
 role = "villager"
 entity_name = "Villager"
 team = 2
+dialogue = "villager"
 inventory = Array[String](["Bread"])
 
 [node name="Farmer" type="Marker3D" parent="Village"]
@@ -237,6 +239,7 @@ script = ExtResource("2_spawn")
 role = "villager"
 entity_name = "Farmer"
 team = 2
+dialogue = "farmer"
 inventory = Array[String](["Coins"])
 
 [node name="Guard" type="Marker3D" parent="Village"]
@@ -245,4 +248,5 @@ script = ExtResource("2_spawn")
 role = "guard"
 entity_name = "Guard"
 team = 2
+dialogue = "guard"
 inventory = Array[String](["Key"])

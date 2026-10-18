@@ -62,6 +62,10 @@ Don't run `--import` headless while the editor is open: it rewrites the class ca
 - Levels (`levels/<name>/<name>.tscn`, root script `GameLevel`): Terrain3D ground (collision layer 2), structures with collision on layer 1, and `LevelSpawn` / `LevelBarrel` / `LevelSurface` markers. Group enemy markers under one node per pack (they fight together). `GameLevel.bake()` builds the sim grid at load; use `WorldSpace` (not raw `c.y`) to turn cells into world positions. Nothing about the world is built in code: terrain is sculpted/painted/foliage-scattered with Terrain3D's editor tools, and each level scene owns its WorldEnvironment and Sun. Don't add generator scripts for level content. Shared terrain textures live in `levels/shared/terrain/` (CC0, see its LICENSE.txt).
 - `res://game/debug/sim_debug.tscn`: material sim sandbox on `levels/arena` (real-time ticking, paint water/oil/fire/chill/steam; characters ignored).
 
+## Written content
+
+Dialogue (`game/data/dialogue/*.dlg`) and quests (`game/data/quests/*.quest`) are plain text, loaded by `Content.load_all()` into `SimDialogue` / `QuestRules`; the format is documented at the top of `sim/dialogue/sim_dialogue.gd` and `sim/quests/quest_rules.gd` (GDD §6.1). NPCs point at a knot with `LevelSpawn.dialogue`. New data folders must be added to the export preset's include filter. `tests/sim/test_dialogue.gd` fails on parse errors in the shipped content.
+
 ## Co-op (net/)
 
 - `NetSession` (autoload `Net`) is the only way game code changes the sim: `Net.submit(command)` for player actions, `Net.submit_ai()` for enemies (host), `Net.host_tick()` for real time (host), `Net.set_ready()` for End Turn. The controller plays `Net.op_received` in order; never call `state.apply_command()` from game code outside that playback.

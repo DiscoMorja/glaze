@@ -32,5 +32,9 @@ static func from_dict(data: Dictionary) -> SimCommand:
 			return GiveCommand.from_dict(data)
 		SortItemCommand.TYPE:
 			return SortItemCommand.from_dict(data)
+		TalkCommand.TYPE:
+			return TalkCommand.from_dict(data)
+		ChooseCommand.TYPE:
+			return ChooseCommand.from_dict(data)
 	push_error("Unknown sim command type: %s" % data.get("type"))
 	return null

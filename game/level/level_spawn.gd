@@ -26,6 +26,9 @@ enum Team { PLAYERS, ENEMIES, NEUTRAL }
 ## node (group a pack under one node), or no pack if the parent is the
 ## level itself.
 @export var pack := ""
+## Dialogue knot (game/data/dialogue/*.dlg) talking to this character starts
+## at; empty = nothing to say.
+@export var dialogue := ""
 
 
 func _ready() -> void:
@@ -45,6 +48,14 @@ func faction() -> SimEntity.Faction:
 func facing() -> int:
 	var forward := -global_basis.z
 	return posmod(roundi(atan2(forward.x, -forward.z) / (PI / 4.0)), 8)
+
+
+## The group name facts use (alive.<Group>): the pack, or the parent node's name.
+func group_name() -> String:
+	if pack != "":
+		return pack
+	var parent := get_parent()
+	return "" if parent == null or parent is GameLevel else String(parent.name)
 
 
 func pack_name() -> String:
