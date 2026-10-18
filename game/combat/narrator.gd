@@ -68,6 +68,16 @@ static func describe(state: SimState, e: SimEvent) -> String:
 			return "Combat!"
 		SimEvent.Type.SLIPPED:
 			return "%s slips on the ice and goes down." % who
+		SimEvent.Type.KNOCKED_DOWN:
+			return "%s is knocked down!" % who
+		SimEvent.Type.STOOD_UP:
+			return "%s helps %s up." % [other, who] if e.other_id >= 0 else "%s gets up." % who
+		SimEvent.Type.TURN_SKIPPED:
+			return "%s can't act this turn." % who
+		SimEvent.Type.FROZEN:
+			return "%s freezes solid!" % who
+		SimEvent.Type.THAWED:
+			return "%s thaws." % who
 		SimEvent.Type.BURNING:
 			return "%s catches fire!" % who
 		SimEvent.Type.SLOWED:

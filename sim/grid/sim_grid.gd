@@ -360,6 +360,34 @@ func duplicate_grid() -> SimGrid:
 	return copy
 
 
+## Everything needed to rebuild this grid (see from_dict()), for snapshots.
+func to_dict() -> Dictionary:
+	return {
+		"size": size, "solid": solid, "surface_type": surface_type, "surface_amount": surface_amount,
+		"gas_type": gas_type, "gas_amount": gas_amount, "temperature": temperature, "fire": fire,
+		"terrain_floor": terrain_floor, "terrain_height_cm": terrain_height_cm,
+		"heat_cells": PackedInt32Array(heat_cells.keys()), "fire_cells": PackedInt32Array(fire_cells.keys()),
+	}
+
+
+static func from_dict(data: Dictionary) -> SimGrid:
+	var grid := SimGrid.new(data.size, false)
+	grid.solid = data.solid
+	grid.surface_type = data.surface_type
+	grid.surface_amount = data.surface_amount
+	grid.gas_type = data.gas_type
+	grid.gas_amount = data.gas_amount
+	grid.temperature = data.temperature
+	grid.fire = data.fire
+	grid.terrain_floor = data.terrain_floor
+	grid.terrain_height_cm = data.terrain_height_cm
+	for i: int in data.heat_cells:
+		grid.heat_cells[i] = true
+	for i: int in data.fire_cells:
+		grid.fire_cells[i] = true
+	return grid
+
+
 func hash_into(ctx: HashingContext) -> void:
 	ctx.update(PackedInt32Array([size.x, size.y, size.z]).to_byte_array())
 	ctx.update(solid)

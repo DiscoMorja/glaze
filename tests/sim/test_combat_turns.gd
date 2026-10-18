@@ -80,21 +80,22 @@ func test_walking_through_fire_hurts() -> void:
 		state.apply_command(IgniteCommand.new(Vector3i(3, Y, z)))
 	state.apply_command(MoveCommand.new(e.id, Vector3i(6, Y, 1)))
 	assert_eq(e.hp, 10 - EntityOps.BURN_DAMAGE)
-	assert_eq(e.burning, EntityOps.BURN_TURNS)
+	assert_eq(e.temperature, 1, "one fire cell: Hot")
 
 
-func test_slipping_on_ice_ends_movement() -> void:
+func test_ice_staggers_every_cell_and_enough_knocks_down() -> void:
 	var state := Fixtures.duel_state()
 	var hero := Fixtures.hero(state)
-	var ice := Vector3i(4, Y, 2)
-	state.grid.add_surface(ice, SimMaterials.Surface.ICE, 30)
-	# Make ice the only way forward.
-	state.grid.fill_solid(Vector3i(4, Y, 0), Vector3i(4, Y + 2, 1))
-	state.grid.fill_solid(Vector3i(4, Y, 3), Vector3i(4, Y + 2, 11))
+	hero.stagger_max = 2 * EntityOps.ICE_STAGGER
+	for x in range(3, 6):
+		state.grid.add_surface(Vector3i(x, Y, 2), SimMaterials.Surface.ICE, 30)
+	# Make the ice strip the only way forward.
+	state.grid.fill_solid(Vector3i(3, Y, 0), Vector3i(5, Y + 2, 1))
+	state.grid.fill_solid(Vector3i(3, Y, 3), Vector3i(5, Y + 2, 11))
 	assert_true(state.apply_command(MoveCommand.new(1, Vector3i(6, Y, 2))))
-	assert_eq(hero.cell, ice)
+	assert_eq(hero.cell, Vector3i(4, Y, 2), "down on the second ice cell")
+	assert_true(hero.knocked_down)
 	assert_eq(hero.ap, 0)
-	assert_eq(Fixtures.events_of_type(state.drain_events(), SimEvent.Type.SLIPPED).size(), 1)
 
 
 func test_move_goes_through_fire_when_detour_is_too_expensive() -> void:

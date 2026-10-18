@@ -37,10 +37,25 @@ var travel: Array[Vector3i] = []
 ## Turns left of being slowed (walking through oil): moving costs double AP in
 ## combat and walking takes twice as long in real time.
 var slowed := 0
-## Turns left of burning: fire damage at the start of each of the entity's turns.
-var burning := 0
+## Body temperature level: -2 Frozen, -1 Cold, 0 Normal, 1 Hot, 2 Burning
+## (EntityOps.change_temperature()). At an extreme, temp_turns counts the
+## turns it lasts before easing to Cold or Hot.
+var temperature := 0
+var temp_turns := 0
+## Stagger built up since this entity's last turn start; reaching
+## stagger_max knocks it down.
+var stagger := 0
+var stagger_max := 3
+## Knocked down: the turn ended and the next one is skipped, unless an ally
+## helps it up. It stays down through the skipped turn (knocked_skipping) and
+## gets up at that turn's end.
+var knocked_down := false
+var knocked_skipping := false
 ## How far (cells) this entity notices opponents outside combat; 0 = never.
 var sight := 0
+## Player slot that controls this entity in co-op (0 = host, 1 = guest), or -1
+## for entities no player controls.
+var owner := -1
 ## Entities sharing a pack (> 0) join fights together; 0 = on its own.
 var pack := 0
 ## Taking part in the current fight. Outside combat it marks an entity that
@@ -70,6 +85,19 @@ func tick_statuses() -> void:
 		slowed -= 1
 
 
+func is_burning() -> bool:
+	return temperature >= EntityOps.TEMP_MAX
+
+
+func is_frozen() -> bool:
+	return temperature <= EntityOps.TEMP_MIN
+
+
+## Moving costs double: slowed by oil, or Cold.
+func is_slowed() -> bool:
+	return slowed > 0 or temperature == EntityOps.TEMP_MIN + 1
+
+
 func is_alive() -> bool:
 	return hp > 0
 
@@ -94,8 +122,14 @@ func to_dict() -> Dictionary:
 		"travel": travel.duplicate(),
 		"sight": sight,
 		"slowed": slowed,
-		"burning": burning,
+		"temperature": temperature,
+		"temp_turns": temp_turns,
+		"stagger": stagger,
+		"stagger_max": stagger_max,
+		"knocked_down": knocked_down,
+		"knocked_skipping": knocked_skipping,
 		"pack": pack,
+		"owner": owner,
 		"in_combat": in_combat,
 	}
 
@@ -124,8 +158,14 @@ static func from_dict(data: Dictionary) -> SimEntity:
 	e.travel.assign(data.travel)
 	e.sight = data.sight
 	e.slowed = data.slowed
-	e.burning = data.burning
+	e.temperature = data.temperature
+	e.temp_turns = data.temp_turns
+	e.stagger = data.stagger
+	e.stagger_max = data.stagger_max
+	e.knocked_down = data.knocked_down
+	e.knocked_skipping = data.knocked_skipping
 	e.pack = data.pack
+	e.owner = data.owner
 	e.in_combat = data.in_combat
 	return e
 

@@ -17,6 +17,7 @@ const W_FRIENDLY := 14  ## per HP lost on our own side, self included
 const W_DISARM := 15  ## per point of attack damage taken off an opponent (lasts all fight)
 const W_LOOT := 35  ## per item taken from an opponent (a skirmisher's whole point)
 const W_HAZARD := 30  ## ending up standing in fire
+const W_DISABLE := 35  ## an opponent knocked down or frozen (or an ally got back up)
 const W_DISTANCE := 1  ## per cell away from where the unit wants to be
 ## Cells from the nearest opponent that ranged units try to keep.
 const PREFERRED_RANGE := 5
@@ -123,12 +124,21 @@ static func _compare(reference: SimState, after: SimState, e: SimEntity, walk: D
 			value += (before.inventory.size() - now.inventory.size()) * W_LOOT
 			if before.is_alive() and not now.is_alive():
 				value += W_KILL
+			if _disabled(now) and not _disabled(before):
+				value += W_DISABLE
 		elif before.faction == e.faction:
 			value -= lost * W_FRIENDLY
 			if before.is_alive() and not now.is_alive():
 				value -= W_KILL
+			if _disabled(before) != _disabled(now):
+				value += W_DISABLE if _disabled(before) else -W_DISABLE
 	value += _position_value(after, after.get_entity(e.id), walk) - _position_value(baseline, baseline.get_entity(e.id), walk)
 	return value
+
+
+## Out of the fight for now: knocked down or frozen.
+static func _disabled(e: SimEntity) -> bool:
+	return e.is_alive() and (e.knocked_down or e.is_frozen())
 
 
 ## Whether standing at c is asking to get burned: on fire, or on fuel with fire nearby.
@@ -183,6 +193,10 @@ static func candidates(state: SimState, e: SimEntity, walk: Dictionary = {}) -> 
 			SimAbilities.Ability.BLINK:
 				for c in _blink_spots(state, e, opponents):
 					result.append(CastCommand.new(e.id, ability, c))
+			SimAbilities.Ability.HELP_UP:
+				for a in allies:
+					if a.knocked_down and SimAbilities.is_adjacent(e.cell, a.cell):
+						result.append(CastCommand.new(e.id, ability, a.cell))
 	for c in _move_targets(state, e, opponents, walk):
 		result.append(MoveCommand.new(e.id, c))
 	return result
@@ -315,8 +329,8 @@ static func _fire_targets(state: SimState, e: SimEntity, opponents: Array[SimEnt
 static func _drop_spots(state: SimState, e: SimEntity, target: SimEntity) -> Array[Vector3i]:
 	var grid := state.grid
 	var result: Array[Vector3i] = []
-	var top := Vector3i(target.cell.x, grid.size.y - 1, target.cell.z)
-	if top.y - target.cell.y >= 2 and EntityOps.is_free(state, top):
+	var top := Vector3i(target.cell.x, target.cell.y + SimAbilities.TELEPORT_MAX_DROP, target.cell.z)
+	if grid.in_bounds(top) and EntityOps.is_free(state, top):
 		result.append(top)
 	var reach: int = SimAbilities.RANGE[SimAbilities.Ability.TELEPORT]
 	for i in grid.burning_cells():

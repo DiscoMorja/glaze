@@ -57,6 +57,10 @@ func route(state: SimState) -> Array[Vector3i]:
 	return _route.duplicate()
 
 
+func actor_id() -> int:
+	return entity_id
+
+
 func to_dict() -> Dictionary:
 	return {"type": TYPE, "entity_id": entity_id, "destination": destination}
 

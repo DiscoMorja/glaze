@@ -11,8 +11,8 @@ const IGNITE_FLOOD_LIMIT := 2000
 
 ## Sets a cell on fire at full intensity. Lighting fuel sets the whole
 ## connected puddle (across steps of one level) alight at once.
-static func ignite(state: SimState, c: Vector3i) -> void:
-	_light(state, c)
+static func ignite(state: SimState, c: Vector3i, burn_occupant: bool = true) -> void:
+	_light(state, c, burn_occupant)
 	var grid := state.grid
 	if not _has_fuel(grid, c):
 		return
@@ -33,14 +33,35 @@ static func ignite(state: SimState, c: Vector3i) -> void:
 				break
 
 
+## Fuel just poured onto `cells` (a splash, a spill) catches at once where it
+## touches fire, in the cell itself or a neighbour, and the fire runs through
+## the whole connected puddle, instead of waiting for the next tick.
+static func catch_from_fire(state: SimState, cells: Array[Vector3i]) -> void:
+	var grid := state.grid
+	for c in cells:
+		if grid.fire[grid.index(c)] == 0 and _has_fuel(grid, c) and _fire_next_to(grid, c):
+			ignite(state, c)
+
+
+static func _fire_next_to(grid: SimGrid, c: Vector3i) -> bool:
+	if grid.fire[grid.index(c)] > 0:
+		return true
+	for n: Vector3i in SimGrid.NEIGHBORS_4:
+		for dy: int in [0, 1, -1]:
+			var nc := c + n + Vector3i(0, dy, 0)
+			if grid.in_bounds(nc) and grid.fire[grid.index(nc)] > 0:
+				return true
+	return false
+
+
 ## Lights a cell; whoever stands there catches fire right away.
-static func _light(state: SimState, c: Vector3i) -> void:
+static func _light(state: SimState, c: Vector3i, burn_occupant: bool = true) -> void:
 	var i := state.grid.index(c)
 	var was_burning: bool = state.grid.fire[i] > 0
 	if not was_burning:
 		state.emit_event(SimEvent.Type.IGNITED, c)
 	state.grid.set_fire(i, SimMaterials.FIRE_MAX)
-	if not was_burning:
+	if not was_burning and burn_occupant:
 		_burn_occupant(state, c)
 
 

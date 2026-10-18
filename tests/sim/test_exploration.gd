@@ -42,7 +42,7 @@ func test_travel_goes_around_someone_in_the_way() -> void:
 	assert_eq(hero.cell, Vector3i(6, Y, 5))
 
 
-func test_slipping_on_ice_stops_the_walk() -> void:
+func test_ice_doesnt_stop_a_walk_outside_combat() -> void:
 	var state := _field(0)
 	var hero := Fixtures.hero(state)
 	# A strip of ice across the whole field, so the route has to cross it.
@@ -50,9 +50,8 @@ func test_slipping_on_ice_stops_the_walk() -> void:
 		state.grid.add_surface(Vector3i(3, Y, z), SimMaterials.Surface.ICE, 20)
 	state.grid.fill_temperature(SimMaterials.CHILL_TEMPERATURE)
 	state.apply_command(TravelCommand.new(1, Vector3i(6, Y, 5)))
-	state.step_ticks(2)
-	assert_eq(hero.cell, Vector3i(3, Y, 5))
-	assert_true(hero.travel.is_empty())
+	state.step_ticks(5)
+	assert_eq(hero.cell, Vector3i(6, Y, 5), "stagger only counts in a fight")
 
 
 func test_walking_into_sight_starts_combat() -> void:

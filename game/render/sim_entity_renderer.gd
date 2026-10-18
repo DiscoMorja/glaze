@@ -17,15 +17,30 @@ const RECENT_SECONDS := 3.0
 ## or a procedural VfxFactory emitter ("emitter"), at a height above the feet.
 ## Keep them outside the body (rings, above the head) so the capsule doesn't
 ## hide them.
+## "turns": show the turns left after the label.
 const STATUS_LOOKS := {
-	"burning": {"label": "Burning", "color": "ff8a2a", "effects": [
+	"burning": {"label": "Burning", "color": "ff8a2a", "turns": true, "effects": [
 		{"emitter": "burning_body", "scale": 1.0, "height": 0.75},
 		{"pack": "burning", "scale": 0.8, "height": 1.6},
 	]},
-	"slowed": {"label": "Slowed", "color": "c9a061", "effects": [
+	"hot": {"label": "Hot", "color": "ffb070", "effects": [
+		{"emitter": "heat", "scale": 1.0, "height": 0.75},
+	]},
+	"cold": {"label": "Cold", "color": "9fd4ff", "effects": [
+		{"emitter": "frost", "scale": 1.0, "height": 0.8},
+	]},
+	"frozen": {"label": "Frozen", "color": "6fc3ff", "turns": true, "effects": [
+		{"emitter": "frozen_shell", "scale": 1.0, "height": 0.75},
+	]},
+	"slowed": {"label": "Slowed", "color": "c9a061", "turns": true, "effects": [
 		{"emitter": "oil_drip", "scale": 1.0, "height": 0.8},
 	]},
+	"knocked": {"label": "Knocked down", "color": "e0e0e0", "effects": [
+		{"emitter": "dazed", "scale": 1.0, "height": 0.7},
+	]},
 }
+## Frozen characters take on an icy tint.
+const FROZEN_TINT := Color(0.7, 0.9, 1.0)
 
 ## When > 0 (real-time exploration), each move glides linearly over this many
 ## seconds, matching the sim tick, instead of playing a combat walk animation.
@@ -131,6 +146,10 @@ class _View:
 	var _tween: Tween
 	var _selected := false
 	var _targetable := false
+	var _down := false
+	var _frozen := false
+	## The body's height when standing.
+	var _rest_height := 0.0
 	var _hp := -1
 	var _max_hp := 1
 
@@ -157,6 +176,7 @@ class _View:
 			top = 1.15
 		_material.albedo_color = _base_color
 		_body.material_override = _material
+		_rest_height = _body.position.y
 		add_child(_body)
 
 		_bar = HealthBar.new(e.faction == SimEntity.Faction.PLAYERS)
@@ -180,14 +200,26 @@ class _View:
 	## Updates the label and bar. Returns true if HP changed since last time.
 	func set_stats(e: SimEntity) -> bool:
 		var text := "%s  AP %d" % [e.name, e.ap] if e.takes_turns() else e.name
-		var turns := {"burning": e.burning, "slowed": e.slowed}
+		# Status -> turns left (0 = not active; 1 for ones without a count).
+		var turns := {
+			"burning": e.temp_turns if e.is_burning() else 0,
+			"hot": 1 if e.temperature == 1 else 0,
+			"cold": 1 if e.temperature == -1 else 0,
+			"frozen": e.temp_turns if e.is_frozen() else 0,
+			"slowed": e.slowed,
+			"knocked": 1 if e.knocked_down else 0,
+		}
 		var tags: Array[String] = []
 		for status: String in STATUS_LOOKS:
 			var look: Dictionary = STATUS_LOOKS[status]
 			var active: bool = turns[status] > 0 and e.is_alive()
 			if active:
-				tags.append("[color=#%s]%s %d[/color]" % [look.color, look.label, turns[status]])
+				var label: String = look.label if not look.get("turns", false) else "%s %d" % [look.label, turns[status]]
+				tags.append("[color=#%s]%s[/color]" % [look.color, label])
 			_set_loop(status, active)
+		if e.stagger > 0 and e.is_alive():
+			tags.append("[color=#d8c8a0]Stagger %d/%d[/color]" % [e.stagger, e.stagger_max])
+		_set_pose(e.knocked_down and e.is_alive(), e.is_frozen() and e.is_alive())
 		if _status != null:
 			_status.text = "[center]%s[/center]" % "  ".join(tags) if not tags.is_empty() else ""
 		elif not tags.is_empty():
@@ -251,8 +283,21 @@ class _View:
 		_targetable = targetable
 		_update_look()
 
+	## Knocked down: the body tips over. Frozen: an icy tint.
+	func _set_pose(down: bool, frozen: bool) -> void:
+		if frozen != _frozen:
+			_frozen = frozen
+			_update_look()
+		if down == _down:
+			return
+		_down = down
+		var pose := create_tween().set_parallel(true)
+		pose.tween_property(_body, "rotation_degrees:x", 90.0 if down else 0.0, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		pose.tween_property(_body, "position:y", _rest_height * 0.4 if down else _rest_height, 0.25)
+
 	func _update_look() -> void:
-		_material.albedo_color = _base_color.lightened(0.45) if _selected else _base_color
+		var base := _base_color.lerp(FROZEN_TINT, 0.65) if _frozen else _base_color
+		_material.albedo_color = base.lightened(0.45) if _selected else base
 		_material.emission_enabled = _selected or _targetable
 		_material.emission = TARGETABLE_GLOW if _targetable else _base_color * 0.4
 

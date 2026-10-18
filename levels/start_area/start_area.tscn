@@ -127,6 +127,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.5, 1.5, 53.5)
 script = ExtResource("2_spawn")
 role = "trickster"
 entity_name = "Cel"
+player = 1
 team = 0
 inventory = Array[String](["Gold"])
 
@@ -135,6 +136,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.5, 1.5, 49.5)
 script = ExtResource("2_spawn")
 role = "tidecaller"
 entity_name = "Dov"
+player = 1
 team = 0
 inventory = Array[String](["Gold"])
 

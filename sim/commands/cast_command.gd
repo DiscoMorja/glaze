@@ -31,6 +31,10 @@ func execute(state: SimState) -> void:
 	SimAbilities.execute(state, state.get_entity(caster_id), ability, target, destination)
 
 
+func actor_id() -> int:
+	return caster_id
+
+
 func to_dict() -> Dictionary:
 	return {"type": TYPE, "caster_id": caster_id, "ability": ability, "target": target, "destination": destination}
 

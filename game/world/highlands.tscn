@@ -1,9 +1,9 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3 uid="uid://bratwy4fa5au3"]
 
-[ext_resource type="Script" path="res://game/combat/combat_arena.gd" id="1_controller"]
+[ext_resource type="Script" uid="uid://c4842t0yv01kh" path="res://game/combat/combat_arena.gd" id="1_controller"]
 [ext_resource type="PackedScene" path="res://levels/highlands/highlands.tscn" id="2_level"]
 
-[node name="Highlands" type="Node3D"]
+[node name="Highlands" type="Node3D" unique_id=1569006789]
 script = ExtResource("1_controller")
 level_scene = ExtResource("2_level")
 log_perf = true

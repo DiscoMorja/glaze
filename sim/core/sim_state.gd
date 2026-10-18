@@ -106,6 +106,35 @@ func duplicate_state() -> SimState:
 	return copy
 
 
+## The whole state as compressed bytes (a co-op guest joining, or catching up
+## after a desync). from_snapshot() rebuilds an identical state.
+func to_snapshot() -> PackedByteArray:
+	var entity_data: Array = []
+	for e in entities:
+		entity_data.append(e.to_dict())
+	var data := {
+		"grid": grid.to_dict(), "entities": entity_data, "combat": combat.to_dict(),
+		"rng": rng.state, "tick": tick, "provoked": provoked, "next_entity_id": _next_entity_id,
+	}
+	var raw := var_to_bytes(data)
+	return var_to_bytes([raw.size(), raw.compress(FileAccess.COMPRESSION_ZSTD)])
+
+
+static func from_snapshot(bytes: PackedByteArray) -> SimState:
+	var packed: Array = bytes_to_var(bytes)
+	var raw: PackedByteArray = (packed[1] as PackedByteArray).decompress(packed[0], FileAccess.COMPRESSION_ZSTD)
+	var data: Dictionary = bytes_to_var(raw)
+	var state := SimState.new(SimGrid.from_dict(data.grid))
+	for d: Dictionary in data.entities:
+		state.entities.append(SimEntity.from_dict(d))
+	state.combat = SimCombat.from_dict(data.combat)
+	state.rng.state = data.rng
+	state.tick = data.tick
+	state.provoked = data.provoked
+	state._next_entity_id = data.next_entity_id
+	return state
+
+
 ## SHA-256 over all authoritative state; equal checksums mean identical sims.
 func checksum() -> String:
 	var ctx := HashingContext.new()

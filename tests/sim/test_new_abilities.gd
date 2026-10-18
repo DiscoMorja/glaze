@@ -125,7 +125,7 @@ func test_archetypes_build_roles() -> void:
 	assert_false(ari.can_be_disarmed, "player characters keep their weapons")
 	var thug := SimArchetypes.make("thug", "Thug", Fixtures.ENEMIES, Vector3i(1, Y, 1))
 	assert_true(thug.can_be_disarmed)
-	assert_true(thug.abilities.is_empty())
+	assert_eq(thug.abilities, [A.HELP_UP] as Array[int], "everyone can help an ally up")
 
 
 func test_every_role_is_valid() -> void:
@@ -134,3 +134,48 @@ func test_every_role_is_valid() -> void:
 		assert_gt(e.max_hp, 0, role)
 		for ability in e.abilities:
 			assert_between(ability, 0, SimAbilities.NAMES.size() - 1, role)
+
+
+func test_rain_lays_its_whole_puddle_at_once() -> void:
+	var state := _near_duel()
+	var hero := Fixtures.hero(state)
+	hero.abilities.assign([A.RAIN])
+	assert_true(state.apply_command(CastCommand.new(1, A.RAIN, Vector3i(5, Y, 5))))
+	var splash := SimAbilities.splash_cells(state.grid, Vector3i(5, Y, 5), SimAbilities.RAIN_RADIUS).size()
+	var water := func() -> int: return state.grid.surface_type.count(SimMaterials.Surface.WATER)
+	assert_eq(water.call(), splash)
+	state.step_ticks(8)
+	assert_eq(water.call(), splash, "and it doesn't creep afterwards")
+
+
+func test_rain_puts_out_fire_at_once() -> void:
+	var state := _near_duel()
+	var hero := Fixtures.hero(state)
+	hero.abilities.assign([A.RAIN])
+	for c in SimAbilities.splash_cells(state.grid, Vector3i(5, Y, 5), 2):
+		state.grid.add_surface(c, SimMaterials.Surface.OIL, 24)
+	FireRules.ignite(state, Vector3i(5, Y, 5))
+	assert_gt(state.grid.fire_cells.size(), 0)
+	assert_true(state.apply_command(CastCommand.new(1, A.RAIN, Vector3i(5, Y, 5))))
+	assert_eq(state.grid.fire_cells.size(), 0, "no fire left the moment it lands")
+	assert_gt(state.grid.total_gas(SimMaterials.Gas.STEAM), 0, "it steams")
+	assert_eq(state.grid.surface_type[state.grid.index(Vector3i(5, Y, 5))], SimMaterials.Surface.WATER, "water where the burning oil was")
+
+
+func test_oil_thrown_next_to_fire_catches_at_once() -> void:
+	var state := _near_duel()
+	var hero := Fixtures.hero(state)
+	hero.abilities.assign([A.OIL_FLASK])
+	# A lone fire one cell beyond the splash's edge.
+	FireRules.ignite(state, Vector3i(5, Y, 8))
+	assert_true(state.apply_command(CastCommand.new(1, A.OIL_FLASK, Vector3i(5, Y, 5))))
+	var oil := state.grid.surface_type.count(SimMaterials.Surface.OIL)
+	assert_eq(state.grid.fire_cells.size(), oil + 1, "the whole new puddle burns right away")
+
+
+func test_oil_thrown_away_from_fire_stays_unlit() -> void:
+	var state := _near_duel()
+	Fixtures.hero(state).abilities.assign([A.OIL_FLASK])
+	FireRules.ignite(state, Vector3i(10, Y, 10))
+	assert_true(state.apply_command(CastCommand.new(1, A.OIL_FLASK, Vector3i(5, Y, 5))))
+	assert_eq(state.grid.fire_cells.size(), 1)

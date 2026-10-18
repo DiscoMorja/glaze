@@ -55,11 +55,18 @@ Don't run `--import` headless while the editor is open: it rewrites the class ca
 
 ## Scenes & levels
 
-- `res://game/world/world.tscn` (main scene): explore `levels/start_area` in real time; combat starts on sight or hostility. Same controller as the arena (`game/combat/combat_arena.gd`, controls in its header) with `level_scene` set. P cycles the retro looks — off, early 2000s, PSX (`game/render/retro/retro_look.gd`, tuned in its STYLES; `retro_style` exports the start style).
+- `res://game/menu/main_menu.tscn` (main scene): Solo / Host / Join. Command line (after `--`): `--solo`, `--host`, `--join=ADDRESS`, `--level=arena|start|highlands`, `--autoready`. To test co-op alone, start a host from a terminal with `--host --level=arena --autoready` and join from the editor run.
+- `res://game/world/world.tscn`: explore `levels/start_area` in real time; combat starts on sight or hostility. Same controller as the arena (`game/combat/combat_arena.gd`, controls in its header) with `level_scene` set. P cycles the retro looks — off, early 2000s, PSX (`game/render/retro/retro_look.gd`, tuned in its STYLES; `retro_style` exports the start style).
 - `res://game/world/highlands.tscn`: stress test — the same controller on `levels/highlands` (256 × 256 m, big height differences, 32 enemy packs), with `log_perf` printing the perf readout every 2 s.
 - `res://game/combat/combat_arena.tscn`: same controller on `levels/arena` (a level with `start_in_combat`), straight into a fight.
 - Levels (`levels/<name>/<name>.tscn`, root script `GameLevel`): Terrain3D ground (collision layer 2), structures with collision on layer 1, and `LevelSpawn` / `LevelBarrel` / `LevelSurface` markers. Group enemy markers under one node per pack (they fight together). `GameLevel.bake()` builds the sim grid at load; use `WorldSpace` (not raw `c.y`) to turn cells into world positions. Nothing about the world is built in code: terrain is sculpted/painted/foliage-scattered with Terrain3D's editor tools, and each level scene owns its WorldEnvironment and Sun. Don't add generator scripts for level content. Shared terrain textures live in `levels/shared/terrain/` (CC0, see its LICENSE.txt).
 - `res://game/debug/sim_debug.tscn`: material sim sandbox on `levels/arena` (real-time ticking, paint water/oil/fire/chill/steam; characters ignored).
+
+## Co-op (net/)
+
+- `NetSession` (autoload `Net`) is the only way game code changes the sim: `Net.submit(command)` for player actions, `Net.submit_ai()` for enemies (host), `Net.host_tick()` for real time (host), `Net.set_ready()` for End Turn. The controller plays `Net.op_received` in order; never call `state.apply_command()` from game code outside that playback.
+- Solo is a host without a guest, through the same path.
+- Ops carry checksums; keep the sim deterministic (rule 5) or guests will resync constantly.
 
 ## Third-party assets
 

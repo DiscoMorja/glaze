@@ -1,4 +1,4 @@
-[gd_resource type="Terrain3DAssets" format=3]
+[gd_resource type="Terrain3DAssets" format=3 uid="uid://dvw7r7sgk6ib0"]
 
 [ext_resource type="Texture2D" uid="uid://w1jgqvuqbc52" path="res://levels/shared/terrain/grass_blades.png" id="1_s5b1p"]
 [ext_resource type="Texture2D" uid="uid://cfofxscm67r6j" path="res://levels/shared/terrain/ground037_alb_ht.png" id="2_1rgrb"]

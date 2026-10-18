@@ -34,21 +34,26 @@ func test_fire_under_a_character_burns_at_once() -> void:
 	var hero := Fixtures.hero(state)
 	state.apply_command(IgniteCommand.new(hero.cell))
 	assert_eq(hero.hp, hero.max_hp - EntityOps.BURN_DAMAGE, "an instance of damage right away")
-	assert_eq(hero.burning, EntityOps.BURN_TURNS)
+	assert_true(hero.is_burning())
 	state.step_ticks(3)
 	assert_eq(hero.hp, hero.max_hp - EntityOps.BURN_DAMAGE, "standing in it keeps the burn going without extra hits")
-	assert_eq(hero.burning, EntityOps.BURN_TURNS)
+	assert_eq(hero.temp_turns, EntityOps.BURN_TURNS)
 
 
 func test_burning_hurts_at_each_turn_start_for_its_turns() -> void:
 	var state := Fixtures.duel_state()
 	var hero := Fixtures.hero(state)
-	hero.burning = EntityOps.BURN_TURNS
-	for _i in EntityOps.BURN_TURNS + 2:
+	hero.temperature = EntityOps.TEMP_MAX
+	hero.temp_turns = EntityOps.BURN_TURNS
+	for _i in EntityOps.BURN_TURNS:
 		state.apply_command(EndTurnCommand.new(SimEntity.Faction.PLAYERS))
 		state.apply_command(EndTurnCommand.new(SimEntity.Faction.ENEMIES))
 	assert_eq(hero.hp, hero.max_hp - EntityOps.BURN_TURNS * EntityOps.BURN_DAMAGE)
-	assert_eq(hero.burning, 0)
+	assert_eq(hero.temperature, 1, "then Hot")
+	state.apply_command(EndTurnCommand.new(SimEntity.Faction.PLAYERS))
+	state.apply_command(EndTurnCommand.new(SimEntity.Faction.ENEMIES))
+	assert_eq(hero.temperature, 0, "and Normal")
+	assert_eq(hero.hp, hero.max_hp - EntityOps.BURN_TURNS * EntityOps.BURN_DAMAGE)
 
 
 func test_each_burning_cell_walked_over_hurts() -> void:
@@ -59,7 +64,8 @@ func test_each_burning_cell_walked_over_hurts() -> void:
 		for x in [3, 4]:
 			state.grid.set_fire(state.grid.index(Vector3i(x, Y, z)), SimMaterials.FIRE_MAX)
 	assert_true(state.apply_command(MoveCommand.new(walker.id, Vector3i(6, Y, 1))))
-	assert_eq(walker.hp, 20 - 2 * EntityOps.BURN_DAMAGE, "two burning cells, two hits")
+	assert_eq(walker.hp, 20 - 3 * EntityOps.BURN_DAMAGE, "two burning cells, two hits, then catching fire")
+	assert_true(walker.is_burning(), "two cells: +2")
 
 
 func test_fire_spreading_under_someone_sets_them_alight() -> void:
@@ -69,17 +75,18 @@ func test_fire_spreading_under_someone_sets_them_alight() -> void:
 	state.grid.add_surface(hero.cell + Vector3i(1, 0, 0), OIL, 20)
 	state.grid.set_fire(state.grid.index(hero.cell + Vector3i(1, 0, 0)), SimMaterials.FIRE_MAX)
 	state.step()
-	assert_eq(hero.burning, EntityOps.BURN_TURNS)
+	assert_true(hero.is_burning())
 	assert_eq(hero.hp, hero.max_hp - EntityOps.BURN_DAMAGE)
 
 
-func test_water_puts_out_burning() -> void:
+func test_walking_into_water_cools_a_level() -> void:
 	var state := Fixtures.duel_state()
 	var hero := Fixtures.hero(state)
-	hero.burning = EntityOps.BURN_TURNS
+	hero.temperature = EntityOps.TEMP_MAX
+	hero.temp_turns = EntityOps.BURN_TURNS
 	state.grid.add_surface(hero.cell + Vector3i(0, 0, 1), SimMaterials.Surface.WATER, 20)
 	assert_true(state.apply_command(MoveCommand.new(hero.id, hero.cell + Vector3i(0, 0, 1))))
-	assert_eq(hero.burning, 0)
+	assert_eq(hero.temperature, 1, "Burning to Hot")
 
 
 func test_burning_oil_barrel_chain_reaction() -> void:
@@ -110,7 +117,8 @@ func test_entity_round_trips_through_dict() -> void:
 func test_burn_damage_is_fire_and_follows_turn_start() -> void:
 	var state := Fixtures.duel_state()
 	var hero := Fixtures.hero(state)
-	hero.burning = EntityOps.BURN_TURNS
+	hero.temperature = EntityOps.TEMP_MAX
+	hero.temp_turns = EntityOps.BURN_TURNS
 	state.apply_command(EndTurnCommand.new(SimEntity.Faction.PLAYERS))
 	state.drain_events()
 	state.apply_command(EndTurnCommand.new(SimEntity.Faction.ENEMIES))

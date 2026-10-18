@@ -9,9 +9,9 @@ const ATTACK := -1
 static func description(action: int) -> String:
 	match action:
 		ATTACK:
-			return "Hit an adjacent target with your weapon."
+			return "Hit an adjacent target with your weapon. Physical damage staggers; enough stagger in one round knocks them down."
 		SimAbilities.Ability.FIREBOLT:
-			return "Deals %d damage and sets the target cell on fire. Lights oil." % SimAbilities.FIREBOLT_DAMAGE
+			return "Deals %d damage, heats the target two levels (thaws Frozen, sets Burning) and sets the cell on fire. Lights oil." % SimAbilities.FIREBOLT_DAMAGE
 		SimAbilities.Ability.RAIN:
 			return "Soaks an area with water. Puts out fire (making steam); can be frozen into ice."
 		SimAbilities.Ability.TELEPORT:
@@ -21,7 +21,7 @@ static func description(action: int) -> String:
 		SimAbilities.Ability.STEAL:
 			return "Takes an enemy's weapon, or an item if it has none."
 		SimAbilities.Ability.FROST:
-			return "Chills an area: freezes water into slippery ice, puts out fire, %d damage." % SimAbilities.FROST_DAMAGE
+			return "Chills an area two levels (puts out Burning, freezes the Cold solid), freezes water into ice, puts out fire, %d damage." % SimAbilities.FROST_DAMAGE
 		SimAbilities.Ability.OIL_FLASK:
 			return "Splashes oil over an area. Burns well."
 		SimAbilities.Ability.MEND:
@@ -30,6 +30,8 @@ static func description(action: int) -> String:
 			return "Hits everything adjacent with your weapon, allies too."
 		SimAbilities.Ability.BLINK:
 			return "Jump to a free cell you can see."
+		SimAbilities.Ability.HELP_UP:
+			return "Help an adjacent knocked-down ally to their feet. On their turn, they can act right away."
 	return ""
 
 

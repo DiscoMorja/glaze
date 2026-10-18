@@ -10,11 +10,15 @@ extends RefCounted
 const A := SimAbilities.Ability
 ## Cells an enemy notices the party from, outside combat (roles can override).
 const ENEMY_SIGHT := 6
+## Stagger that knocks a role down (roles can override with "stagger"). Most
+## sources add 1, so it takes three hits in one round: two characters working
+## together, or one with help from the environment.
+const DEFAULT_STAGGER := 3
 
 const ROLES := {
 	# --- Party ---
 	"vanguard": {
-		"title": "Vanguard", "hp": 26, "weapon": "Greatsword", "damage": 5, "mass": 90,
+		"title": "Vanguard", "hp": 26, "weapon": "Greatsword", "damage": 5, "mass": 90, "stagger": 4,
 		"abilities": [A.SHOVE, A.CLEAVE],
 		"blurb": "Front line. Shoves enemies into hazards and off ledges; Cleave hits everything around it.",
 	},
@@ -35,7 +39,7 @@ const ROLES := {
 	},
 	# --- Enemies ---
 	"brute": {
-		"title": "Brute", "hp": 26, "weapon": "Greataxe", "damage": 6, "mass": 110,
+		"title": "Brute", "hp": 26, "weapon": "Greataxe", "damage": 6, "mass": 110, "stagger": 5,
 		"abilities": [A.SHOVE, A.CLEAVE],
 	},
 	"firecaller": {
@@ -51,7 +55,7 @@ const ROLES := {
 		"abilities": [A.MEND, A.RAIN, A.FROST],
 	},
 	"pikeman": {
-		"title": "Pikeman", "hp": 14, "weapon": "Spear", "damage": 4, "mass": 75,
+		"title": "Pikeman", "hp": 14, "weapon": "Spear", "damage": 4, "mass": 75, "stagger": 4,
 		"abilities": [A.SHOVE],
 	},
 	"thug": {
@@ -67,9 +71,11 @@ static func make(role: String, p_name: String, faction: SimEntity.Faction, cell:
 	var data: Dictionary = ROLES[role]
 	var abilities: Array[int] = []
 	abilities.assign(data.abilities)
+	abilities.append(A.HELP_UP)  # everyone can help a fallen ally up
 	var e := SimEntity.character(p_name, faction, cell, data.hp, data.weapon, data.damage, inventory, abilities)
 	e.archetype = role
 	e.mass = data.mass
+	e.stagger_max = data.get("stagger", DEFAULT_STAGGER)
 	e.can_be_disarmed = faction != SimEntity.Faction.PLAYERS
 	if faction == SimEntity.Faction.ENEMIES:
 		e.sight = data.get("sight", ENEMY_SIGHT)

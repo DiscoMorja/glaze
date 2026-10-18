@@ -103,7 +103,7 @@ Explore (real time) ──► interact with world, scheme, steal, set up ──�
 | A | B | Result |
 |---|---|---|
 | Fire | Oil | The whole connected puddle catches at once and burns for 3 rounds (a flask puddle; bare-ground fire lasts 1.5); spreads to oil that flows into it |
-| Fire | Unit | **Burning** for 3 turns: an instance of burn damage (2) the moment fire starts under them and for every burning cell they walk over, then burn damage at the start of each of their turns. Standing in fire keeps it going. Water (puddles, Rain) puts it out. Props in fire take damage every tick instead. |
+| Fire / cold | Unit | Changes the unit's **temperature** (see Crowd control) |
 | Unit | Oil | Slowed for 2 turns (this one and the next): moving costs double AP, walking takes twice as long |
 | Fire | Water | Steam cloud, fire out |
 | Cold | Water | Ice (slippery) |
@@ -126,12 +126,12 @@ Characters, barrels, chairs, doors, chests and potions share **one property mode
 | Verb | AP | Range | Notes |
 |---|---|---|---|
 | Firebolt | 2 | 7 | 4 damage and ignites the target cell |
-| Rain | 2 | 7 | Water in a radius; douses fire (makes steam) |
-| Teleport | 2 | 7 | Moves any entity under the mass limit to a free cell in sight; drop it from height or into fire |
+| Rain | 2 | 7 | Lays a radius-2 water puddle at once (shallow water stays put on flat ground); puts out fire in the splash at once (washing burning oil away, making steam) |
+| Teleport | 2 | 7 | Moves any entity under the mass limit to a free cell in sight; drop it from height or into fire (at most 3 cells above the ground, so a drop hurts but can't kill outright) |
 | Shove | 1 | adjacent | Pushes 2 cells; walls and bodies hurt, ledges drop |
 | Steal | 1 | adjacent | Takes an enemy's weapon, otherwise an item. Player characters can't be disarmed |
 | Frost | 2 | 6 | Chills a radius: freezes water to ice now, puts out fire, 2 damage |
-| Oil Flask | 1 | 6 | Splashes a radius-2 puddle at once, ready to be lit (thick oil stays put on flat ground) |
+| Oil Flask | 1 | 6 | Splashes a radius-2 puddle at once, ready to be lit (thick oil stays put on flat ground); thrown onto or next to fire, the whole puddle catches at once |
 | Mend | 2 | 5 | Heals 6 (self or others) |
 | Cleave | 2 | adjacent | Weapon hit on everything adjacent, allies included |
 | Blink | 1 | 4 | Caster jumps to a free cell in sight |
@@ -163,6 +163,15 @@ Needed for pickpocketing, crime and abusing systems:
 - **Crime:** witnessed events propagate through factions → hostility, guards, prices.
 - **Needs/states:** greed (grab dropped loot), fear (flee fire), loyalty. Schedules minimal.
 - Throw gold → scramble. Enemies use the same rules as players.
+
+### 5.4.1 Crowd control
+
+Two kinds, both built from the systems rather than a single "stun" button:
+
+- **Knocked down (stagger).** Most sources add 1 stagger: each physical hit by someone (attacks, Cleave, Shove), slamming into a wall or body or being shoved off a ledge (+1 on top of the shove), and every ice cell walked (in combat). Collision and fall damage alone don't. When stagger reaches the character's limit (per role: 3 by default, Vanguard and Pikeman 4, Brute 5) they are **knocked down**: their turn ends and they skip their next one, staying down through it (so an ally can still help them up, and then they act after all) and getting up when it ends. Stagger clears at the start of the target's own turn, so knocking someone down means landing hits together within one round — a co-op beat. **Help up** (every character, 1 AP, adjacent ally) gets a fallen ally back on their feet; on their own turn they can act right away.
+- **Temperature.** Every character has a level: −2 **Frozen** (can't act: the turn ends and the next is skipped; they stay frozen through the skipped turn, so an ally can still thaw them, and thaw to Cold when it ends), −1 **Cold** (slowed: moving costs double), 0 Normal, +1 **Hot** (a warning step), +2 **Burning** (fire damage at each turn start for 3 turns, then Hot). Hot and Cold fade at the next turn start. Firebolt or fire lit under someone: +2; each fire cell walked over, or each tick standing in fire: +1; Frost: −2; Rain: −2 and walking into water: −1, but water never cools below Cold (only Frost freezes). Opposites cancel: a frozen character hit by Firebolt is back to Normal (and, on their turn, can act again); a burning one hit by Frost likewise.
+- **Arriving in a cell** works the same however it happens — walking, shoved (every cell pushed through), teleported, blinked or falling: fire hurts and heats a level, water cools, oil slows, ice staggers (`EntityOps.enter_cell()`).
+- Feedback: tags above the name (with turns left, and Stagger x/y), a looping effect per state, a knocked-down character lies down, a frozen one turns icy.
 
 ### 5.5 Combat
 
@@ -259,10 +268,12 @@ The sim layer must be runnable headless and in isolation — this enables previe
 ### 8.5 Commands & Networking
 
 - **Every action is a command** (`MoveTo`, `CastSpell`, `Pickpocket`, `UseItem`…), in single-player too. Single-player = host with no clients.
-- **Host-authoritative** (listen server): clients send commands; host validates, runs the sim, broadcasts cell/unit deltas + an event stream (`Ignited`, `Teleported`, `Stolen`) that drives VFX and narration.
-- Clients keep a local replica for previews; never mutate authoritative state locally.
+- **Host-authoritative command stream** (listen server, `net/net_session.gd`, autoload `Net`). The sim is deterministic, so peers stay in sync by running the same commands in the same order rather than receiving state deltas: clients send commands; the host checks the sender controls the acting character and that the command is valid on its authoritative state, applies it, and broadcasts it as the next op of one numbered stream. Real-time ticks are ops too (only the host ticks); enemy AI runs on the host and goes through the same stream. Every peer, the host included, plays the stream in order on its own copy and animates it; events drive VFX and narration locally.
+- **Joining and drift:** a joining guest receives a compressed snapshot of the whole sim (`SimState.to_snapshot()`, a few KB for the arena). Every command op (and every 16th tick) carries a checksum; a guest whose copy disagrees asks for a fresh snapshot.
+- **Co-op turns:** the party's turn is shared — both players act at once with their own characters (`LevelSpawn.player`: host Ari + Bram, guest Cel + Dov; alone, the host plays all four) and the turn ends when both have pressed End Turn.
+- Clients keep a local replica (the stream copy) for previews; they never apply anything that didn't come from the host.
 - **Transport:** Godot high-level multiplayer (ENet). For dev/online play before Steam: direct IP over Tailscale/ZeroTier. Steam networking later.
-- **Co-op testing:** run multiple instances from the editor (Debug → Customize Run Instances).
+- **Co-op testing:** the main menu has Solo / Host / Join. From the command line (after `--`): `--solo`, `--host`, `--join=ADDRESS`, `--level=arena|start|highlands`, and `--autoready` (that player ends turns on their own, so one person can test with two instances).
 
 ### 8.5.1 Levels
 
@@ -328,10 +339,13 @@ Levels are built freely in Godot and baked into the sim (`GameLevel.bake()`, run
 | 2026-10-17 | Turn presentation: animated world advance, telegraphed enemy actions with camera follow and captions, AI on a worker thread. |
 | 2026-10-17 | Abilities have cooldowns (in turns, per user, combat only); fixes endless heal-vs-damage duels. |
 | 2026-10-17 | Exploration prototype before co-op: real-time walking on the sim grid (not navmesh) in both modes; combat starts on sight or hostility; levels are Terrain3D + collision structures + markers, baked to the sim grid at load. |
+| 2026-10-18 | Co-op sync is a host-authoritative **command stream** (deterministic replay, snapshot on join, checksums with resync) instead of state deltas. Shared party turn ends when both players are ready; fixed 2 + 2 character split. |
 | 2026-10-18 | Terrain steps above 0.7 m are cliffs; melee AI guards its casters (stays within 4 cells unless it can engage). |
 | 2026-10-18 | AI judges melee distance by walking routes, not straight lines. |
 | 2026-10-18 | Movement respects real terrain height: no walking up or down a rise of more than 1.1 m between neighbouring cells. |
 | 2026-10-18 | Ground surfaces render as smooth, ground-hugging puddles (mask + threshold shader) instead of per-cell boxes; the square grid doesn't show through. |
+| 2026-10-18 | Rain splashes its full puddle instantly, like the Oil Flask; shallow water no longer creeps on flat ground; water cools to Cold at most. |
+| 2026-10-18 | Crowd control: stagger → Knocked down (skip next turn; Help up); body temperature −2..+2 with Frozen/Cold/Hot/Burning replacing the separate Burning status; ice staggers instead of ending your turn. |
 | 2026-10-18 | Ground fire lasts longer: a lit flask puddle burns 3 rounds (was 1), bare-ground fire 1.5 (was 0.6). |
 | 2026-10-18 | Feedback rules: damage numbers coloured by element; every debuff gets a tag and a looping effect. |
 | 2026-10-18 | Burning status: fire under a character hits at once and burns for 3 turns (turn-start damage); each burning cell walked over hits again; water douses. |

@@ -33,6 +33,10 @@ func execute(state: SimState) -> void:
 	EntityOps.damage(state, target, attacker.attack_damage(), attacker.id)
 
 
+func actor_id() -> int:
+	return attacker_id
+
+
 func to_dict() -> Dictionary:
 	return {"type": TYPE, "attacker_id": attacker_id, "target_id": target_id}
 

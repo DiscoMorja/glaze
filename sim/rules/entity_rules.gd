@@ -15,12 +15,13 @@ static func step(state: SimState) -> void:
 				_walk(state, e)
 		if state.tick % CombatRules.REALTIME_TICKS_PER_TURN == CombatRules.REALTIME_TICKS_PER_TURN - 1:
 			for e in state.entities:
+				EntityOps.turn_end(state, e)
 				EntityOps.turn_start(state, e)
 	for e in state.entities:
 		if not e.is_alive() or grid.fire[grid.index(e.cell)] == 0:
 			continue
 		if e.takes_turns():
-			EntityOps.keep_burning(state, e)
+			EntityOps.stand_in_fire(state, e)
 		else:
 			EntityOps.damage(state, e, EntityOps.FIRE_DAMAGE_PER_TICK, -1, EntityOps.Element.FIRE)
 
@@ -40,9 +41,4 @@ static func _walk(state: SimState, e: SimEntity) -> void:
 	e.cell = next
 	var moved := state.emit_event(SimEvent.Type.MOVED, next, e.id)
 	moved.cells.assign([next])
-	if state.grid.fire[state.grid.index(next)] > 0:
-		EntityOps.burn(state, e)
-	EntityOps.on_ground(state, e)
-	if state.grid.surface_type[state.grid.index(next)] == SimMaterials.Surface.ICE:
-		e.travel.clear()
-		state.emit_event(SimEvent.Type.SLIPPED, next, e.id)
+	EntityOps.enter_cell(state, e)

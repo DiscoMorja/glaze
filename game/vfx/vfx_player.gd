@@ -94,6 +94,29 @@ func play(state: SimState, events: Array[SimEvent]) -> void:
 			SimEvent.Type.BURNING:
 				_later(delay, func() -> void:
 					VfxFactory.floating_text(self, _body(e.cell) + Vector3(0, 1.3, 0), "Burning", Color(1.0, 0.55, 0.15), 56))
+			SimEvent.Type.KNOCKED_DOWN:
+				_later(delay, func() -> void:
+					VfxFactory.burst(self, _feet(e.cell), "dust", 1.3)
+					VfxFactory.floating_text(self, _body(e.cell) + Vector3(0, 1.3, 0), "Knocked down!", Color(1.0, 0.95, 0.75), 60)
+					shake_requested.emit(0.2))
+			SimEvent.Type.STOOD_UP:
+				_later(delay, func() -> void:
+					VfxFactory.floating_text(self, _body(e.cell) + Vector3(0, 1.3, 0), "Back up", Color(0.8, 1.0, 0.8), 52))
+			SimEvent.Type.TURN_SKIPPED:
+				_later(delay, func() -> void:
+					VfxFactory.floating_text(self, _body(e.cell) + Vector3(0, 1.3, 0), "Skips turn", Color(0.85, 0.85, 0.85), 52))
+			SimEvent.Type.FROZEN:
+				_later(delay, func() -> void:
+					VfxFactory.burst(self, _body(e.cell), "ice", 1.2)
+					VfxFactory.floating_text(self, _body(e.cell) + Vector3(0, 1.3, 0), "Frozen!", Color(0.6, 0.85, 1.0), 60))
+			SimEvent.Type.THAWED:
+				_later(delay, func() -> void:
+					VfxFactory.burst(self, _body(e.cell), "steam", 0.8)
+					VfxFactory.floating_text(self, _body(e.cell) + Vector3(0, 1.3, 0), "Thawed", Color(0.75, 0.9, 1.0), 52))
+			SimEvent.Type.STAGGERED:
+				var amount := "+%d stagger" % e.amount
+				_later(delay, func() -> void:
+					VfxFactory.floating_text(self, _body(e.cell) + Vector3(0.4, 0.9, 0), amount, Color(0.85, 0.78, 0.6), 44))
 			SimEvent.Type.SLOWED:
 				_later(delay, func() -> void:
 					VfxFactory.floating_text(self, _body(e.cell) + Vector3(0, 1.0, 0), "Slowed", Color(0.85, 0.7, 0.4), 56))

@@ -16,7 +16,8 @@ func test_firebolt_damages_and_ignites() -> void:
 	var bandit := Fixtures.bandit(state)
 	assert_true(state.apply_command(CastCommand.new(1, A.FIREBOLT, bandit.cell)))
 	assert_eq(bandit.hp, 12 - SimAbilities.FIREBOLT_DAMAGE - EntityOps.BURN_DAMAGE, "the bolt, then catching fire")
-	assert_eq(bandit.burning, EntityOps.BURN_TURNS)
+	assert_true(bandit.is_burning(), "+2 temperature: Burning")
+	assert_eq(bandit.temp_turns, EntityOps.BURN_TURNS)
 	assert_gt(state.grid.fire[state.grid.index(bandit.cell)], 0)
 	assert_eq(Fixtures.hero(state).ap, 4 - 2)
 
@@ -43,6 +44,14 @@ func test_teleport_drops_target_from_height() -> void:
 	assert_true(state.apply_command(CastCommand.new(1, A.TELEPORT, bandit.cell, high)))
 	assert_eq(bandit.cell, Vector3i(5, Y, 5))
 	assert_eq(bandit.hp, 12 - 2 * EntityOps.FALL_DAMAGE_PER_LEVEL)
+
+
+func test_teleport_cant_drop_from_higher_than_three() -> void:
+	var state := _near_duel()
+	var bandit := Fixtures.bandit(state)
+	assert_false(state.apply_command(CastCommand.new(1, A.TELEPORT, bandit.cell, Vector3i(5, Y + 4, 5))), "too high")
+	assert_true(state.apply_command(CastCommand.new(1, A.TELEPORT, bandit.cell, Vector3i(5, Y + SimAbilities.TELEPORT_MAX_DROP, 5))))
+	assert_gt(bandit.hp, 0, "a drop hurts but doesn't kill")
 
 
 func test_teleport_rejects_heavy_or_blocked() -> void:

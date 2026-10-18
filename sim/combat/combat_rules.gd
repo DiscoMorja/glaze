@@ -59,6 +59,8 @@ static func _join_pack(state: SimState, e: SimEntity) -> void:
 
 
 static func end_side_turn(state: SimState) -> void:
+	for e in fighters(state, state.combat.side):
+		EntityOps.turn_end(state, e)
 	state.step_ticks(TICKS_PER_SIDE_TURN)
 	if check_end(state):
 		return
@@ -154,7 +156,7 @@ static func spend(state: SimState, e: SimEntity, ap_cost: int) -> void:
 @warning_ignore("integer_division")
 static func move_budget(e: SimEntity) -> int:
 	var budget := e.ap * MOVE_COST_PER_AP
-	return budget / 2 if e.slowed > 0 else budget
+	return budget / 2 if e.is_slowed() else budget
 
 
 @warning_ignore("integer_division")

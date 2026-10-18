@@ -11,13 +11,14 @@ config_version=5
 [application]
 
 config/name="glaze"
-run/main_scene="res://game/world/world.tscn"
+run/main_scene="res://game/menu/main_menu.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
 
 [autoload]
 
 _mcp_game_helper="*res://addons/godot_ai/runtime/game_helper.gd"
+Net="*res://net/net_session.gd"
 
 [display]
 

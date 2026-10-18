@@ -9,6 +9,8 @@ signal action_pressed(action: int)
 signal action_hovered(action: int)
 
 var _row: HBoxContainer
+## Why the actions can't be used (e.g. the partner's character), above them.
+var _note: Label
 var _tip_panel: PanelContainer
 var _tip: Label
 var _actions: Array[int] = []
@@ -31,9 +33,16 @@ func _ready() -> void:
 	style.set_corner_radius_all(4)
 	style.set_content_margin_all(4)
 	add_theme_stylebox_override("panel", style)
+	var column := VBoxContainer.new()
+	add_child(column)
+	_note = Label.new()
+	_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_note.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
+	_note.visible = false
+	column.add_child(_note)
 	_row = HBoxContainer.new()
 	_row.add_theme_constant_override("separation", 4)
-	add_child(_row)
+	column.add_child(_row)
 
 	# Floats above the bar; top_level keeps it out of the bar's layout.
 	_tip_panel = PanelContainer.new()
@@ -56,7 +65,10 @@ func _ready() -> void:
 
 
 ## needs_ap: in combat actions cost AP; outside combat they don't.
-func show_actions(actor: SimEntity, aimed: int, usable: bool, needs_ap: bool = true) -> void:
+## note: shown above the buttons when set (why they can't be used).
+func show_actions(actor: SimEntity, aimed: int, usable: bool, needs_ap: bool = true, note: String = "") -> void:
+	_note.text = note
+	_note.visible = note != ""
 	var actions: Array[int] = []
 	if actor != null:
 		actions = ActionInfo.actions_for(actor)

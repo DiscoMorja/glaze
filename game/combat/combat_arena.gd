@@ -53,6 +53,8 @@ const COLOR_FIRE := Color(1.0, 0.45, 0.05, 0.55)
 const COLOR_SURFACE := Color(0.6, 0.8, 1.0, 0.45)
 const COLOR_SELECTED := Color(0.3, 1.0, 0.4, 0.75)
 const COLOR_HAS_AP := Color(0.3, 1.0, 0.4, 0.3)
+## A selected character the partner controls (inspect only).
+const COLOR_PARTNER := Color(0.45, 0.7, 1.0, 0.6)
 const COLOR_TARGET := Color(1.0, 0.85, 0.2, 0.6)
 const COLOR_TARGETABLE := Color(1.0, 0.8, 0.15, 0.45)
 const COLOR_RANGE := Color(0.35, 0.6, 1.0, 0.16)
@@ -105,6 +107,15 @@ var _perf := {}
 var _danger_cache := {}
 ## When to refresh the hover preview while exploring (0 = nothing pending).
 var _preview_due_msec := 0
+## The co-op op stream (NetSession) still to play, in order, and whether it is
+## being played now (ops animate one after another).
+var _ops: Array[Dictionary] = []
+var _playing := false
+## Host: the enemy side is being run.
+var _enemy_turn_running := false
+## Dev/testing ("--autoready" on the command line): this player presses End
+## Turn on their own, so one person can test co-op with two instances.
+var _autoready := OS.get_cmdline_user_args().has("--autoready")
 
 var _grid_renderer: SimGridRenderer
 var _retro: RetroLook
@@ -123,13 +134,24 @@ var _dialog_label: Label
 var _banner: Label
 var _banner_tween: Tween
 var _caption: Label
+## The state a level bake produced (see _load_level()).
+var _baked: SimState
 
 
 func _ready() -> void:
 	PackVfx.preload_all()
 	_build_scene()
 	_fire_field.prewarm()
-	_restart()
+	Net.op_received.connect(_on_op)
+	Net.snapshot_received.connect(_on_snapshot)
+	Net.players_changed.connect(_refresh)
+	if Net.mode == NetSession.Mode.NONE:
+		Net.start_solo(level_scene.resource_path if level_scene != null else "")
+	if Net.mode == NetSession.Mode.GUEST:
+		_show_banner("Joining...")
+		Net.claim_backlog()
+	else:
+		_restart()
 
 
 func _process(delta: float) -> void:
@@ -139,12 +161,15 @@ func _process(delta: float) -> void:
 	if _preview_due_msec > 0 and Time.get_ticks_msec() >= _preview_due_msec:
 		_preview_due_msec = 0
 		_update_preview()
-	if _exploring() and not _busy:
+	if _autoready and _can_command() and _is_players_turn() and _ops.is_empty():
+		Net.set_ready(true)
+	# Only the host keeps the real-time clock; ticks reach everyone as ops.
+	if Net.is_host() and _exploring() and not _busy and not Net.authority.combat.active:
 		_tick_accumulator += delta
 		var tick_seconds := 1.0 / EXPLORE_TICKS_PER_SECOND
-		while _tick_accumulator >= tick_seconds and _exploring():
+		while _tick_accumulator >= tick_seconds and not Net.authority.combat.active:
 			_tick_accumulator -= tick_seconds
-			_explore_tick()
+			Net.host_tick()
 	# Hold Space to fast-forward the enemy turn and world animation.
 	Engine.time_scale = FAST_FORWARD if _busy and Input.is_key_pressed(KEY_SPACE) else 1.0
 	_entity_renderer.show_all_bars = Input.is_key_pressed(KEY_ALT)
@@ -201,7 +226,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_F3: _select_index(2)
 			KEY_F4: _select_index(3)
 			KEY_ENTER, KEY_KP_ENTER: _end_turn()
-			KEY_R: _restart()
+			KEY_R: _restart()  # host only
 			KEY_P:
 				_retro.cycle(_level)
 				_refresh()
@@ -221,23 +246,57 @@ func _unhandled_input(event: InputEvent) -> void:
 
 # --- Flow ----------------------------------------------------------------------
 
+## Host (or alone): loads and bakes the level and plays from it; a connected
+## guest is sent the new state. A guest waits for the host's snapshot instead.
 func _restart() -> void:
+	if not Net.is_host():
+		return
+	var session := await _load_level()
+	if session != _session:
+		return
+	var baked := _baked
+	_baked = null
+	Net.level_path = level_scene.resource_path
+	Net.set_authority(baked)
+	_start_from(baked)
+
+
+## Guest: the host's state (joining, catching up after a desync, or the host
+## restarted). Loads the host's level first if it is a different one.
+func _on_snapshot(snapshot: SimState, path: String) -> void:
+	if _level == null or path != level_scene.resource_path:
+		level_scene = load(path)
+		var session := await _load_level()
+		if session != _session:
+			return
+	_ops = _ops.filter(func(op: Dictionary) -> bool: return op.seq > Net.synced_seq())
+	_start_from(snapshot)
+
+
+## Instantiates and bakes level_scene (the bake also sets up WorldSpace for
+## drawing). The baked state is left in _baked. Returns the restart counter.
+func _load_level() -> int:
 	_session += 1
 	var session := _session
 	state = null
+	_ops.clear()
+	_playing = false
+	_enemy_turn_running = false
 	if level_scene == null:
 		push_error("No level_scene set on %s" % name)
-		return
+		return session
 	if _level != null:
 		_level.queue_free()
 	_level = level_scene.instantiate() as GameLevel
 	add_child(_level)
 	var bake_start := Time.get_ticks_usec()
-	var baked: SimState = await _level.bake()
+	_baked = await _level.bake()
 	_perf["bake"] = (Time.get_ticks_usec() - bake_start) / 1000.0
-	if session != _session:
-		return
-	state = baked
+	return session
+
+
+func _start_from(start: SimState) -> void:
+	state = start
 	_danger_cache.clear()
 	if _retro.style == RetroLook.Style.OFF and retro_style != RetroLook.Style.OFF:
 		_retro.set_style(retro_style, _level)
@@ -257,11 +316,42 @@ func _restart() -> void:
 	_capture_turn_start_ap()
 	_consume_events()
 	_select_next()
-	_show_banner("Round 1 — Your turn" if state.combat.active else "Explore")
+	if state.combat.active:
+		_show_banner("Round %d — %s" % [state.combat.round_number, "Your turn" if _is_players_turn() else "Enemy turn"])
+	else:
+		_show_banner("Explore")
+	_pump()
+	_after_ops_drained()
+
+
+## Whether this player controls the selected character (else it is only
+## being looked at: the partner's).
+func _selected_is_mine() -> bool:
+	var actor := state.get_entity(_selected_id) if state != null else null
+	return actor != null and Net.may_control(Net.local_slot, actor)
+
+
+## Whether the selected character can be given orders right now.
+func _can_order() -> bool:
+	return _can_command() and _selected_is_mine()
+
+
+## Whether one of this player's characters can still do anything this turn:
+## step somewhere, or use an action it can afford that isn't cooling down.
+func _has_moves(e: SimEntity) -> bool:
+	if not e.is_alive() or e.ap <= 0:
+		return false
+	if CombatRules.move_budget(e) >= SimPathfinder.COST_STRAIGHT and not SimPathfinder.neighbors(state, e.cell, e.id).is_empty():
+		return true
+	for action in ActionInfo.actions_for(e):
+		if e.ap >= ActionInfo.cost(action) and ActionInfo.remaining(action, e) == 0:
+			return true
+	return false
 
 
 func _can_command() -> bool:
-	return state != null and not _busy and (_is_players_turn() or _exploring())
+	return state != null and not _busy and not Net.ready_slots.has(Net.local_slot) \
+			and (_is_players_turn() or _exploring())
 
 
 ## Real time: no fight is on and the party is alive.
@@ -270,8 +360,9 @@ func _exploring() -> bool:
 			and not CombatRules.fighters(state, SimEntity.Faction.PLAYERS).is_empty()
 
 
-## One real-time tick. If it starts combat (someone was spotted), switch over.
-func _explore_tick() -> void:
+## One real-time tick from the op stream. If it starts combat (someone was
+## spotted), switch over.
+func _apply_tick() -> void:
 	var t0 := Time.get_ticks_usec()
 	state.step()
 	_perf["tick"] = (Time.get_ticks_usec() - t0) / 1000.0
@@ -284,23 +375,21 @@ func _explore_tick() -> void:
 		_update_preview()
 
 
-## Walks the selected character to `dest`; the rest of the party follows to
-## free cells around it, nearest first.
+## Walks the selected character to `dest`; the rest of this player's party
+## follows to free cells around it, nearest first.
 func _travel_party(dest: Vector3i) -> void:
 	var leader := state.get_entity(_selected_id)
 	if leader == null or not TravelCommand.new(leader.id, dest).validate(state):
 		return
-	state.apply_command(TravelCommand.new(leader.id, dest))
+	Net.submit(TravelCommand.new(leader.id, dest))
 	var taken := {dest: true}
-	for member in CombatRules.fighters(state, SimEntity.Faction.PLAYERS):
+	for member in _my_party():
 		if member.id == leader.id:
 			continue
 		var spot: Variant = _formation_cell(dest, taken, member.id)
 		if spot != null:
 			taken[spot] = true
-			state.apply_command(TravelCommand.new(member.id, spot))
-	_rig.follow(_entity_renderer.view_of(leader.id), leader.travel.size() / EXPLORE_TICKS_PER_SECOND + 0.5)
-	_after_action()
+			Net.submit(TravelCommand.new(member.id, spot))
 
 
 ## The nearest standable cell to `dest` (breadth-first over walkable steps)
@@ -321,13 +410,15 @@ func _formation_cell(dest: Vector3i, taken: Dictionary, mover_id: int) -> Varian
 
 
 func _left_click() -> void:
-	if not _can_command() or _hover == null:
+	if state == null or _hover == null:
 		return
 	var cell: Vector3i = _hover
 	var clicked := state.entity_at(cell)
-	var own_unit := clicked != null and clicked.faction == SimEntity.Faction.PLAYERS and clicked.takes_turns()
-	if own_unit and _action == ActionInfo.NONE:
-		_select(clicked.id, false)
+	var party_member := clicked != null and clicked.takes_turns() and clicked.faction == SimEntity.Faction.PLAYERS
+	if party_member and _action == ActionInfo.NONE and not _busy:
+		_select(clicked.id, false)  # the partner's too, to look at
+		return
+	if not _can_order():
 		return
 	if _action == SimAbilities.Ability.TELEPORT and _teleport_target == null:
 		if _can_teleport_target(clicked):
@@ -347,18 +438,23 @@ func _left_click() -> void:
 		return
 	_action = ActionInfo.NONE
 	_teleport_target = null
-	_perform(command)
+	_confirm_cell = null
+	Net.submit(command)
 
 
-## Applies a player command. Actions against a target first swing the camera
-## to frame caster and target, play out, then swing back to the caster.
-func _perform(command: SimCommand) -> void:
+## Plays a player command from the op stream. Actions against a target first
+## swing the camera to frame caster and target, play out, then swing back
+## (only for this player's own characters; the partner's camera is theirs).
+func _play_action(command: SimCommand) -> void:
 	var session := _session
 	var actor := _actor_of(command)
+	var own := actor != null and Net.may_control(Net.local_slot, actor)
 	var target: Variant = _target_point(command, actor)
-	if actor == null or target == null:
-		state.apply_command(command)
+	if not own or target == null:
+		_apply_or_resync(command)
 		_after_action()
+		if own and command is TravelCommand and actor.id == _selected_id:
+			_rig.follow(_entity_renderer.view_of(actor.id), actor.travel.size() / EXPLORE_TICKS_PER_SECOND + 0.5)
 		return
 	_busy = true
 	_update_range()
@@ -367,7 +463,7 @@ func _perform(command: SimCommand) -> void:
 	await get_tree().create_timer(CAMERA_FRAME_SECONDS).timeout
 	if session != _session:
 		return
-	state.apply_command(command)
+	_apply_or_resync(command)
 	var events := state.drain_events()
 	_present(state, events)
 	await get_tree().create_timer(_action_seconds(events)).timeout
@@ -379,6 +475,67 @@ func _perform(command: SimCommand) -> void:
 	_confirm_cell = null
 	_update_range()
 	_update_preview()
+
+
+## Applies a command from the host. The host already validated it, so failing
+## here means this copy has drifted: ask for a fresh snapshot.
+func _apply_or_resync(command: SimCommand) -> bool:
+	if state.apply_command(command):
+		return true
+	push_warning("A command from the host doesn't apply here; resyncing: %s" % command.to_dict())
+	Net.request_snapshot()
+	return false
+
+
+# --- The op stream ------------------------------------------------------------
+
+func _on_op(op: Dictionary) -> void:
+	_ops.append(op)
+	_pump()
+
+
+## Plays queued ops one after another (each may animate).
+func _pump() -> void:
+	if _playing or state == null:
+		return
+	_playing = true
+	var session := _session
+	while not _ops.is_empty():
+		var op: Dictionary = _ops.pop_front()
+		await _play_op(op)
+		if session != _session:
+			return
+		if state != null:
+			Net.verify(state, op)
+	_playing = false
+	_after_ops_drained()
+
+
+func _play_op(op: Dictionary) -> void:
+	match op.k:
+		"tick":
+			_apply_tick()
+		"cmd":
+			var command := SimCommandRegistry.from_dict(op.c)
+			if command is EndTurnCommand:
+				await _play_end_turn(command as EndTurnCommand)
+			elif op.slot == NetSession.AI_SLOT:
+				await _play_enemy_action(command)
+			else:
+				await _play_action(command)
+
+
+## Waits until every queued op has been played.
+func _ops_idle() -> void:
+	while _playing or not _ops.is_empty():
+		await get_tree().process_frame
+
+
+## Host: once the stream is played out, the enemies act if it is their side.
+func _after_ops_drained() -> void:
+	if Net.is_host() and state != null and state.combat.active \
+			and state.combat.side == SimEntity.Faction.ENEMIES and not _enemy_turn_running:
+		_run_enemy_turn()
 
 
 ## Where an action lands, if it is aimed at something other than the actor.
@@ -402,7 +559,7 @@ static func _body_point(c: Vector3i) -> Vector3:
 
 ## Right-click always moves the selected character (and drops any aim).
 func _right_click() -> void:
-	if not _can_command():
+	if not _can_order():
 		return
 	if _action != ActionInfo.NONE:
 		_aim(ActionInfo.NONE)
@@ -413,8 +570,7 @@ func _right_click() -> void:
 		return
 	var command := MoveCommand.new(_selected_id, _hover)
 	if command.validate(state):
-		state.apply_command(command)
-		_after_action()
+		Net.submit(command)
 
 
 ## Ends the players' turn. Asks first if anyone still has AP, unless confirmed.
@@ -431,20 +587,21 @@ func _end_turn(confirmed: bool = false) -> void:
 		_dialog.visible = true
 		return
 	_cancel_end_turn()
-	_play_round_rest()
+	Net.set_ready(true)
 
 
-## Players are done: animate the world, run the enemy side, hand back control.
-func _play_round_rest() -> void:
+## A side's turn ended (from the stream): animate the world, then hand over to
+## the next side.
+func _play_end_turn(command: EndTurnCommand) -> void:
 	var session := _session
-	await _finish_side(SimEntity.Faction.PLAYERS)
+	await _finish_side(command.faction)
 	if session != _session:
 		return
 	if state.combat.active and state.combat.side == SimEntity.Faction.ENEMIES:
-		await _run_enemy_turn()
-		if session != _session:
-			return
-	_begin_player_turn()
+		_busy = true
+		_show_banner("Enemy turn")
+	else:
+		_begin_player_turn()
 
 
 func _cancel_end_turn() -> void:
@@ -502,44 +659,56 @@ static func _looks_same(a: SimGrid, b: SimGrid) -> bool:
 	return a.surface_type == b.surface_type and a.surface_amount == b.surface_amount 			and a.gas_type == b.gas_type and a.fire == b.fire
 
 
-## Enemy side: each action is thought out off the main thread, telegraphed
-## (camera, markers, caption), applied, and given time to play out.
+## Host: the enemy side. Each action is thought out off the main thread on the
+## authoritative state and sent through the stream like a player's; the host
+## waits for each to play out (here and, roughly, on the guest) before the next.
 func _run_enemy_turn() -> void:
+	_enemy_turn_running = true
 	var session := _session
-	_busy = true
-	_show_banner("Enemy turn")
 	await get_tree().create_timer(0.5).timeout
-	while session == _session and state.combat.active and state.combat.side == SimEntity.Faction.ENEMIES:
+	while session == _session and Net.authority.combat.active and Net.authority.combat.side == SimEntity.Faction.ENEMIES:
+		await _ops_idle()
+		if session != _session:
+			return
 		var command: SimCommand = await _think()
 		if session != _session:
 			return
-		if command is EndTurnCommand:
-			_caption.text = ""
-			await _finish_side(SimEntity.Faction.ENEMIES)
-			return
-		var actor := _actor_of(command)
-		var target: Variant = _target_point(command, actor)
-		if actor != null:
-			if target != null:
-				_rig.frame_pair(_body_point(actor.cell), target, CAMERA_FRAME_SECONDS)
-			else:
-				_rig.restore(SimEntityRenderer.cell_position(actor.cell))
-			_telegraph(command, actor)
-			await get_tree().create_timer(ENEMY_AIM_SECONDS).timeout
-			if session != _session:
-				return
-		if not state.apply_command(command):
+		var applied_before := Net.op_count()
+		Net.submit_ai(command)
+		if Net.op_count() == applied_before:
 			push_error("AI produced an invalid command: %s" % command.to_dict())
+			Net.submit_ai(EndTurnCommand.new(SimEntity.Faction.ENEMIES))
+		await _ops_idle()
+	_enemy_turn_running = false
+
+
+## An enemy action from the stream: telegraphed (camera, markers, caption),
+## applied, and given time to play out.
+func _play_enemy_action(command: SimCommand) -> void:
+	var session := _session
+	_busy = true
+	var actor := _actor_of(command)
+	var target: Variant = _target_point(command, actor)
+	if actor != null:
+		if target != null:
+			_rig.frame_pair(_body_point(actor.cell), target, CAMERA_FRAME_SECONDS)
+		else:
+			_rig.restore(SimEntityRenderer.cell_position(actor.cell))
+		_telegraph(command, actor)
+		await get_tree().create_timer(ENEMY_AIM_SECONDS).timeout
+		if session != _session:
 			return
-		var events := state.drain_events()
-		_present(state, events)
-		_markers.clear()
-		var seconds := _action_seconds(events)
-		if command is MoveCommand and actor != null:
-			_rig.follow(_entity_renderer.view_of(actor.id), seconds)
-		await get_tree().create_timer(seconds).timeout
-		if target != null and actor != null and session == _session:
-			_rig.restore(SimEntityRenderer.cell_position(state.get_entity(actor.id).cell))
+	if not _apply_or_resync(command):
+		return
+	var events := state.drain_events()
+	_present(state, events)
+	_markers.clear()
+	var seconds := _action_seconds(events)
+	if command is MoveCommand and actor != null:
+		_rig.follow(_entity_renderer.view_of(actor.id), seconds)
+	await get_tree().create_timer(seconds).timeout
+	if target != null and actor != null and session == _session:
+		_rig.restore(SimEntityRenderer.cell_position(state.get_entity(actor.id).cell))
 	_caption.text = ""
 
 
@@ -567,7 +736,7 @@ func _think() -> SimCommand:
 
 
 func _think_on_worker() -> SimCommand:
-	var snapshot := state.duplicate_state()
+	var snapshot := Net.authority.duplicate_state()
 	var result: Array = [null]
 	var task := WorkerThreadPool.add_task(func() -> void: result[0] = UtilityAi.next_command(snapshot))
 	while not WorkerThreadPool.is_task_completed(task):
@@ -686,7 +855,7 @@ func _aim(action: int) -> void:
 ## Aims the action in action-bar slot `slot` (0-based) for the selected character.
 func _aim_slot(slot: int) -> void:
 	var actor := state.get_entity(_selected_id)
-	if actor == null:
+	if actor == null or not _selected_is_mine():
 		return
 	var actions := ActionInfo.actions_for(actor)
 	if slot < actions.size():
@@ -717,6 +886,15 @@ func _select(id: int, focus_camera: bool = true) -> void:
 	_aim(ActionInfo.NONE)
 
 
+## The party members this player controls.
+func _my_party() -> Array[SimEntity]:
+	var mine: Array[SimEntity] = []
+	for e in CombatRules.fighters(state, SimEntity.Faction.PLAYERS):
+		if Net.may_control(Net.local_slot, e):
+			mine.append(e)
+	return mine
+
+
 func _select_index(index: int) -> void:
 	var party := CombatRules.fighters(state, SimEntity.Faction.PLAYERS)
 	if index < party.size():
@@ -726,7 +904,7 @@ func _select_index(index: int) -> void:
 ## Selects the next party member, preferring ones with AP left. With
 ## keep_current, the current selection stays if it can still act.
 func _select_next(keep_current: bool = false) -> void:
-	var party := CombatRules.fighters(state, SimEntity.Faction.PLAYERS)
+	var party := _my_party()
 	if party.is_empty():
 		_select(-1)
 		return
@@ -856,7 +1034,7 @@ func _update_range_now() -> void:
 	var targetable := {}
 	var actor := state.get_entity(_selected_id)
 	var action := _hovered_action if _hovered_action != ActionInfo.NONE else _action
-	if _can_command() and actor != null and actor.is_alive():
+	if _can_order() and actor != null and actor.is_alive():
 		if action == ActionInfo.NONE and _exploring():
 			for c in _danger_cells():
 				cells.append(c)
@@ -976,17 +1154,18 @@ func _update_preview_now() -> void:
 	var actor := state.get_entity(_selected_id)
 	if _is_players_turn():
 		for e in CombatRules.fighters(state, SimEntity.Faction.PLAYERS):
+			var mine := Net.may_control(Net.local_slot, e)
 			if e.id == _selected_id:
 				cells.append(e.cell)
-				colors.append(COLOR_SELECTED)
-			elif e.ap > 0:
+				colors.append(COLOR_SELECTED if mine else COLOR_PARTNER)
+			elif e.ap > 0 and mine:
 				cells.append(e.cell)
 				colors.append(COLOR_HAS_AP)
 	if _teleport_target != null:
 		cells.append(_teleport_target)
 		colors.append(COLOR_TARGET)
 
-	if _can_command() and _hover != null and actor != null:
+	if _can_order() and _hover != null and actor != null:
 		var cell: Vector3i = _hover
 		var command := _build_command(cell)
 		if command == null:
@@ -1213,19 +1392,42 @@ func _refresh() -> void:
 		return
 	_entity_renderer.set_selected(_selected_id)
 	var shown := _view if _view != null else state
-	_party_bar.update_party(CombatRules.fighters(shown, SimEntity.Faction.PLAYERS), _selected_id, _turn_start_ap, _preview_cost, _can_command() and _is_players_turn())
+	var party := CombatRules.fighters(shown, SimEntity.Faction.PLAYERS)
+	var partner_ids := {}
+	var out_of_moves := _is_players_turn()
+	for e in party:
+		if not Net.may_control(Net.local_slot, e):
+			partner_ids[e.id] = true
+		elif _has_moves(e):
+			out_of_moves = false
+	var end_turn := PartyBar.EndTurn.NORMAL
+	if _is_players_turn() and Net.ready_slots.has(Net.local_slot):
+		end_turn = PartyBar.EndTurn.WAITING
+	elif _can_command() and out_of_moves:
+		end_turn = PartyBar.EndTurn.SUGGESTED
+	_party_bar.update_party(party, _selected_id, _turn_start_ap, _preview_cost, _can_command() and _is_players_turn(), partner_ids, end_turn)
 	var actor := state.get_entity(_selected_id)
-	_action_bar.show_actions(actor if actor != null and actor.is_alive() else null, _action, _can_command(), state.combat.active)
+	var note := "" if actor == null or _selected_is_mine() else "%s is controlled by your partner" % actor.name
+	_action_bar.show_actions(actor if actor != null and actor.is_alive() else null, _action, _can_order(), state.combat.active, note)
 	var lines: Array[String] = []
 	if state.combat.active:
-		lines.append("Round %d — %s" % [state.combat.round_number, "Your turn" if _is_players_turn() else "Enemy turn..."])
+		var turn := "Your turn" if _is_players_turn() else "Enemy turn..."
+		if _is_players_turn() and Net.ready_slots.has(Net.local_slot):
+			turn = "Waiting for your partner to end the turn..."
+		elif _is_players_turn() and not Net.ready_slots.is_empty():
+			turn = "Your turn — your partner is ready"
+		lines.append("Round %d — %s" % [state.combat.round_number, turn])
 	elif _exploring():
 		lines.append("Exploring — red ground is in an enemy's sight")
 	else:
 		lines.append("Combat over — press R to restart")
+	if Net.is_online():
+		var partner := "partner connected" if Net.connected_slots.size() > 1 else "waiting for a partner to join"
+		lines.append("Co-op: %s (%s)" % ["hosting" if Net.is_host() else "joined", partner])
 	if actor != null:
 		var items := ", ".join(actor.inventory) if not actor.inventory.is_empty() else "nothing"
-		lines.append("%s the %s   weapon: %s   carrying: %s" % [actor.name, SimArchetypes.title(actor.archetype), actor.weapon if actor.weapon != "" else "none", items])
+		var whose := "" if _selected_is_mine() else "   (your partner's — you can't control them)"
+		lines.append("%s the %s   weapon: %s   carrying: %s%s" % [actor.name, SimArchetypes.title(actor.archetype), actor.weapon if actor.weapon != "" else "none", items, whose])
 	lines.append("%s   %s" % [_mode_name(), _preview_text])
 	lines.append("RMB move   LMB use / select   1-9 actions   Esc cancel   F1-F4 / Tab select   Enter end turn   Space (hold) fast-forward   R restart")
 	lines.append("WASD pan   Q/E rotate   wheel zoom   P look: %s" % _retro.style_name())

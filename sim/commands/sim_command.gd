@@ -17,6 +17,11 @@ func execute(_state: SimState) -> void:
 	pass
 
 
+## The entity acting (whose player must own it), or -1 for world commands.
+func actor_id() -> int:
+	return -1
+
+
 func to_dict() -> Dictionary:
 	return {"type": get_type()}
 

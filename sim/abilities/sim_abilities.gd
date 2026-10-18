@@ -4,21 +4,26 @@ extends RefCounted
 ## with materials and each other (GDD §5.3). Which character knows which verbs
 ## comes from SimArchetypes.
 
-enum Ability { FIREBOLT, RAIN, TELEPORT, SHOVE, STEAL, FROST, OIL_FLASK, MEND, CLEAVE, BLINK }
+enum Ability { FIREBOLT, RAIN, TELEPORT, SHOVE, STEAL, FROST, OIL_FLASK, MEND, CLEAVE, BLINK, HELP_UP }
 
-const NAMES := ["Firebolt", "Rain", "Teleport", "Shove", "Steal", "Frost", "Oil Flask", "Mend", "Cleave", "Blink"]
-const AP_COST := [2, 2, 2, 1, 1, 2, 1, 2, 2, 1]
+const NAMES := ["Firebolt", "Rain", "Teleport", "Shove", "Steal", "Frost", "Oil Flask", "Mend", "Cleave", "Blink", "Help up"]
+const AP_COST := [2, 2, 2, 1, 1, 2, 1, 2, 2, 1, 1]
 ## Reach in cells. 1 means adjacent only (diagonals count).
-const RANGE := [7, 7, 7, 1, 1, 6, 6, 5, 1, 4]
+const RANGE := [7, 7, 7, 1, 1, 6, 6, 5, 1, 4, 1]
 ## Turns until an ability can be used again by its user: 1 = once per turn,
 ## 3 = every third turn. In combat they count down at the start of the user's
 ## turn; outside combat every CombatRules.REALTIME_TICKS_PER_TURN ticks.
-const COOLDOWN := [1, 2, 3, 1, 2, 2, 2, 3, 2, 2]
+const COOLDOWN := [1, 2, 3, 1, 2, 2, 2, 3, 2, 2, 0]
 
 const FIREBOLT_DAMAGE := 4
-const RAIN_AMOUNT := 40
-const RAIN_RADIUS := 1
+## Rain lays its whole puddle at once, like the Oil Flask: puddle-deep water
+## on every cell of the disc, so it doesn't creep afterwards.
+const RAIN_AMOUNT := 20
+const RAIN_RADIUS := 2
 const TELEPORT_MAX_MASS := 150
+## Highest a Teleport can put its target above the ground below (cells): a
+## drop from there hurts (up to 8 damage) but can't kill outright.
+const TELEPORT_MAX_DROP := 3
 const SHOVE_MAX_MASS := 120
 const SHOVE_DISTANCE := 2
 const FROST_DAMAGE := 2
@@ -28,6 +33,14 @@ const FROST_RADIUS := 1
 const OIL_FLASK_AMOUNT := 24
 const OIL_FLASK_RADIUS := 2
 const MEND_HEAL := 6
+## Temperature levels the elements move a target by.
+const FIREBOLT_HEAT := 2
+const FROST_CHILL := 2
+const RAIN_CHILL := 2
+## Stagger from being shoved, and extra for slamming into something or being
+## shoved off a ledge.
+const SHOVE_STAGGER := 1
+const IMPACT_STAGGER := 1
 
 
 static func all() -> Array[int]:
@@ -72,6 +85,16 @@ static func needs_line_of_sight(ability: int) -> bool:
 	return RANGE[ability] > 1
 
 
+## How far something put at `c` would fall before landing (cells).
+static func drop_height(state: SimState, c: Vector3i) -> int:
+	var levels := 0
+	var below := c + Vector3i.DOWN
+	while not state.grid.is_solid(below) and state.entity_at(below) == null:
+		levels += 1
+		below += Vector3i.DOWN
+	return levels
+
+
 ## Whether the victim's weapon can be stolen; otherwise Steal takes an item.
 static func can_take_weapon(victim: SimEntity) -> bool:
 	return victim.weapon != "" and victim.can_be_disarmed
@@ -101,6 +124,7 @@ static func validate(state: SimState, caster: SimEntity, ability: int, target: V
 					and victim.mass <= TELEPORT_MAX_MASS
 					and in_range(caster.cell, destination, RANGE[Ability.TELEPORT])
 					and EntityOps.is_free(state, destination)
+					and drop_height(state, destination) <= TELEPORT_MAX_DROP
 					and SimLos.has_line_of_sight(state.grid, caster.cell, destination))
 		Ability.SHOVE:
 			return other_victim and victim.mass <= SHOVE_MAX_MASS
@@ -112,6 +136,8 @@ static func validate(state: SimState, caster: SimEntity, ability: int, target: V
 			return other_victim
 		Ability.BLINK:
 			return SimPathfinder.is_standable(state, target, caster.id) and victim == null
+		Ability.HELP_UP:
+			return other_victim and victim.knocked_down and victim.faction == caster.faction
 	return false
 
 
@@ -124,17 +150,25 @@ static func execute(state: SimState, caster: SimEntity, ability: int, target: Ve
 		Ability.FIREBOLT:
 			if victim != null:
 				EntityOps.damage(state, victim, FIREBOLT_DAMAGE, caster.id, EntityOps.Element.FIRE)
-			FireRules.ignite(state, target)
+				EntityOps.change_temperature(state, victim, FIREBOLT_HEAT, caster.id)
+			FireRules.ignite(state, target, false)  # the bolt already heated the victim
 		Ability.RAIN:
-			for c in state.grid.disc_cells(target, RAIN_RADIUS):
+			for c in splash_cells(state.grid, target, RAIN_RADIUS):
+				var i := state.grid.index(c)
+				if state.grid.fire[i] > 0:
+					# Put out at once: the burning surface is washed away and steams.
+					state.grid.set_fire(i, 0)
+					state.grid.clear_surface(i)
+					state.grid.add_gas_at(i, SimMaterials.Gas.STEAM, SimMaterials.STEAM_PER_EXTINGUISH)
+					state.emit_event(SimEvent.Type.EXTINGUISHED, c)
 				state.grid.add_surface(c, SimMaterials.Surface.WATER, RAIN_AMOUNT)
 				var soaked := state.entity_at(c)
 				if soaked != null:
-					EntityOps.douse(state, soaked)
+					EntityOps.cool_with_water(state, soaked, RAIN_CHILL, caster.id)
 		Ability.TELEPORT:
 			var event := state.emit_event(SimEvent.Type.TELEPORTED, destination, victim.id, caster.id)
 			event.cells.assign([victim.cell, destination])
-			EntityOps.place(state, victim, destination)
+			EntityOps.relocate(state, victim, destination)
 		Ability.SHOVE:
 			_shove(state, caster, victim)
 		Ability.STEAL:
@@ -142,8 +176,10 @@ static func execute(state: SimState, caster: SimEntity, ability: int, target: Ve
 		Ability.FROST:
 			_frost(state, caster, target)
 		Ability.OIL_FLASK:
-			for c in splash_cells(state.grid, target, OIL_FLASK_RADIUS):
+			var splash := splash_cells(state.grid, target, OIL_FLASK_RADIUS)
+			for c in splash:
 				state.grid.add_surface(c, SimMaterials.Surface.OIL, OIL_FLASK_AMOUNT)
+			FireRules.catch_from_fire(state, splash)
 		Ability.MEND:
 			EntityOps.heal(state, victim, MEND_HEAL, caster.id)
 		Ability.CLEAVE:
@@ -151,7 +187,9 @@ static func execute(state: SimState, caster: SimEntity, ability: int, target: Ve
 		Ability.BLINK:
 			var event := state.emit_event(SimEvent.Type.TELEPORTED, target, caster.id, caster.id)
 			event.cells.assign([caster.cell, target])
-			EntityOps.place(state, caster, target)
+			EntityOps.relocate(state, caster, target)
+		Ability.HELP_UP:
+			EntityOps.help_up(state, victim, caster.id)
 
 
 ## Pushes the victim up to SHOVE_DISTANCE cells away from the caster. Walls and
@@ -178,14 +216,29 @@ static func _shove(state: SimState, caster: SimEntity, victim: SimEntity) -> voi
 
 	var shoved := state.emit_event(SimEvent.Type.SHOVED, victim.cell, victim.id, caster.id)
 	shoved.cells = path
+	# Every cell it's pushed through acts on it, like walking would.
+	var landed := victim.cell
+	for c in path:
+		victim.cell = c
+		EntityOps.enter_cell(state, victim)
+		if not victim.is_alive():
+			return
+	victim.cell = landed
+	EntityOps.add_stagger(state, victim, SHOVE_STAGGER, caster.id)
 	if hit_wall:
 		state.emit_event(SimEvent.Type.COLLIDED, victim.cell, victim.id)
 		EntityOps.damage(state, victim, EntityOps.COLLISION_DAMAGE)
+		EntityOps.add_stagger(state, victim, IMPACT_STAGGER, caster.id)
 	elif hit != null:
 		state.emit_event(SimEvent.Type.COLLIDED, victim.cell, victim.id, hit.id)
 		EntityOps.damage(state, victim, EntityOps.COLLISION_DAMAGE)
 		EntityOps.damage(state, hit, EntityOps.COLLISION_DAMAGE)
+		EntityOps.add_stagger(state, victim, IMPACT_STAGGER, caster.id)
+	var height := victim.cell.y
 	EntityOps.settle(state, victim)
+	if victim.cell.y < height:
+		EntityOps.add_stagger(state, victim, IMPACT_STAGGER, caster.id)  # shoved off a ledge
+		EntityOps.enter_cell(state, victim)  # and lands in whatever is down there
 
 
 ## Takes the victim's weapon if it can be disarmed, otherwise its first item.
@@ -219,6 +272,7 @@ static func _frost(state: SimState, caster: SimEntity, target: Vector3i) -> void
 		var occupant := state.entity_at(c)
 		if occupant != null:
 			EntityOps.damage(state, occupant, FROST_DAMAGE, caster.id, EntityOps.Element.FROST)
+			EntityOps.change_temperature(state, occupant, -FROST_CHILL, caster.id)
 
 
 ## Hits every entity adjacent to the caster, friend or foe.

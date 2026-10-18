@@ -1,9 +1,9 @@
 class_name MoveCommand
 extends SimCommand
 ## Walks an entity to a destination along SimPathfinder's path. Every burning
-## cell walked over burns (an instance of damage and burning); stepping onto
-## ice makes you slip, ending your movement and turn; stepping into oil slows
-## you (moves cost double AP); water puts you out.
+## cell walked over hurts and heats you a level; every ice cell staggers you
+## (enough of it knocks you down, ending the walk); oil slows you (moves cost
+## double AP); water cools you a level.
 
 const TYPE := "move"
 
@@ -39,15 +39,8 @@ func execute(state: SimState) -> void:
 	for c in path:
 		e.cell = c
 		walked.append(c)
-		var i := state.grid.index(c)
-		if state.grid.fire[i] > 0:
-			EntityOps.burn(state, e)
-			if not e.is_alive():
-				break
-		EntityOps.on_ground(state, e)
-		if state.grid.surface_type[i] == SimMaterials.Surface.ICE:
-			e.ap = 0
-			state.emit_event(SimEvent.Type.SLIPPED, c, e.id)
+		EntityOps.enter_cell(state, e)
+		if not e.is_alive() or e.knocked_down or e.is_frozen():
 			break
 	var moved := state.emit_event(SimEvent.Type.MOVED, e.cell, e.id)
 	moved.cells = walked
@@ -67,7 +60,11 @@ static func path_for(state: SimState, e: SimEntity, to: Vector3i) -> Array[Vecto
 ## AP for walking path; double while slowed.
 static func ap_cost(e: SimEntity, from: Vector3i, path: Array[Vector3i]) -> int:
 	var cost := SimPathfinder.movement_cost(from, path)
-	return CombatRules.move_ap_cost(cost * 2 if e.slowed > 0 else cost)
+	return CombatRules.move_ap_cost(cost * 2 if e.is_slowed() else cost)
+
+
+func actor_id() -> int:
+	return entity_id
 
 
 func to_dict() -> Dictionary:

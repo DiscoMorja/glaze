@@ -9,10 +9,20 @@ signal end_turn_pressed
 const COLOR_SELECTED := Color(0.3, 1.0, 0.4)
 const COLOR_IDLE := Color(0.25, 0.27, 0.3)
 const COLOR_DONE := Color(0.5, 0.5, 0.5)
+## The partner's characters: blue border when selected (inspect only), and a
+## "partner" tag; their cards are dimmed.
+const COLOR_PARTNER_SELECTED := Color(0.45, 0.7, 1.0)
+const PARTNER_DIM := Color(0.75, 0.82, 1.0, 0.7)
+
+## How the End turn button looks: normal, lit up (nothing left to do), or
+## waiting for the partner after pressing it.
+enum EndTurn { NORMAL, SUGGESTED, WAITING }
 
 var _row: HBoxContainer
 var _cards := {}  # entity id -> _Card
 var _end_turn: Button
+var _end_turn_lit: StyleBoxFlat
+var _pulse: Tween
 
 
 func _ready() -> void:
@@ -36,10 +46,16 @@ func _ready() -> void:
 	_end_turn.focus_mode = Control.FOCUS_NONE
 	_end_turn.pressed.connect(func() -> void: end_turn_pressed.emit())
 	_row.add_child(_end_turn)
+	_end_turn_lit = StyleBoxFlat.new()
+	_end_turn_lit.bg_color = Color(0.16, 0.45, 0.2)
+	_end_turn_lit.border_color = Color(0.4, 1.0, 0.5)
+	_end_turn_lit.set_border_width_all(2)
+	_end_turn_lit.set_corner_radius_all(4)
 
 
 ## turn_start_ap: entity id -> AP at the start of this turn (sets pip count).
-func update_party(party: Array[SimEntity], selected_id: int, turn_start_ap: Dictionary, pending_ap: int, players_turn: bool) -> void:
+## partner_ids: entity id -> true for characters the partner controls.
+func update_party(party: Array[SimEntity], selected_id: int, turn_start_ap: Dictionary, pending_ap: int, players_turn: bool, partner_ids: Dictionary = {}, end_turn: EndTurn = EndTurn.NORMAL) -> void:
 	var seen := {}
 	for e in party:
 		seen[e.id] = true
@@ -51,13 +67,35 @@ func update_party(party: Array[SimEntity], selected_id: int, turn_start_ap: Dict
 			_row.move_child(card, _row.get_child_count() - 2)
 			_cards[e.id] = card
 		var selected := e.id == selected_id
+		var partner := partner_ids.has(e.id)
 		var border := COLOR_SELECTED if selected else (COLOR_IDLE if e.ap > 0 else COLOR_DONE)
-		card.show_member(e, turn_start_ap.get(e.id, e.ap), pending_ap if selected else 0, border)
+		if partner and selected:
+			border = COLOR_PARTNER_SELECTED
+		card.show_member(e, turn_start_ap.get(e.id, e.ap), pending_ap if selected and not partner else 0, border, partner)
 	for id: int in _cards.keys():
 		if not seen.has(id):
 			_cards[id].queue_free()
 			_cards.erase(id)
 	_end_turn.disabled = not players_turn
+	_show_end_turn(end_turn)
+
+
+func _show_end_turn(look: EndTurn) -> void:
+	_end_turn.text = "Waiting for partner..." if look == EndTurn.WAITING else "End turn"
+	var lit := look == EndTurn.SUGGESTED
+	for state_name in ["normal", "hover", "pressed"]:
+		if lit:
+			_end_turn.add_theme_stylebox_override(state_name, _end_turn_lit)
+		else:
+			_end_turn.remove_theme_stylebox_override(state_name)
+	if lit and _pulse == null:
+		_pulse = create_tween().set_loops()
+		_pulse.tween_property(_end_turn, "modulate", Color(1.25, 1.25, 1.25), 0.6)
+		_pulse.tween_property(_end_turn, "modulate", Color.WHITE, 0.6)
+	elif not lit and _pulse != null:
+		_pulse.kill()
+		_pulse = null
+		_end_turn.modulate = Color.WHITE
 
 
 class _Card:
@@ -97,9 +135,12 @@ class _Card:
 		_pips = ApPips.new()
 		box.add_child(_pips)
 
-	func show_member(e: SimEntity, turn_start_ap: int, pending: int, border: Color) -> void:
+	func show_member(e: SimEntity, turn_start_ap: int, pending: int, border: Color, partner: bool = false) -> void:
 		var role := SimArchetypes.title(e.archetype)
 		_name.text = "%s  %d/%d" % [e.name, e.hp, e.max_hp] if role == "" else "%s · %s  %d/%d" % [e.name, role, e.hp, e.max_hp]
+		if partner:
+			_name.text += "  (partner)"
+		modulate = PARTNER_DIM if partner else Color.WHITE
 		_hp.max_value = e.max_hp
 		_hp.value = e.hp
 		_pips.set_points(e.ap, turn_start_ap, pending)

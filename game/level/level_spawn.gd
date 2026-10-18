@@ -16,6 +16,9 @@ enum Team { PLAYERS, ENEMIES }
 		_update_label()
 @export var team: Team = Team.ENEMIES
 @export var inventory: Array[String] = []
+## Party members: the co-op player who controls this character (0 = host,
+## 1 = guest). Playing alone, the host controls everyone.
+@export_range(0, 1) var player := 0
 ## Characters with the same pack join fights together. Empty: their parent
 ## node (group a pack under one node), or no pack if the parent is the
 ## level itself.
