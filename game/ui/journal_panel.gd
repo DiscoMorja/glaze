@@ -15,13 +15,7 @@ func _ready() -> void:
 	offset_left = 12
 	offset_top = 180
 	custom_minimum_size = Vector2(380, 0)
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.08, 0.09, 0.11, 0.94)
-	style.border_color = Color(0.45, 0.42, 0.32)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(4)
-	style.set_content_margin_all(12)
-	add_theme_stylebox_override("panel", style)
+	add_theme_stylebox_override("panel", UiStyle.window_style(true))
 	_text = RichTextLabel.new()
 	_text.bbcode_enabled = true
 	_text.fit_content = true
@@ -39,7 +33,7 @@ func show_journal(state: SimState) -> void:
 	if not visible or state.quests == _shown:
 		return
 	_shown = state.quests.duplicate(true)
-	var text := "[b]Journal[/b]   [color=#888888](J to close)[/color]\n\n"
+	var text := "[font_size=%d]Journal[/font_size]   [color=#%s](J to close)[/color]\n\n" % [UiStyle.TITLE, UiStyle.TEXT_DIM.to_html(false)]
 	var any := false
 	for id in QuestRules.order:
 		if not state.quests.get(id, {}).get("known", false):

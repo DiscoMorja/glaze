@@ -28,21 +28,23 @@ func before_each() -> void:
 	_panel.show_trade(_state)
 
 
-func _buttons(column: VBoxContainer) -> Array[Button]:
-	var result: Array[Button] = []
-	for child in column.get_children():
-		if child is Button and not child.is_queued_for_deletion():
+func _slots(grid: GridContainer) -> Array[ItemSlot]:
+	var result: Array[ItemSlot] = []
+	for child in grid.get_children():
+		if child is ItemSlot and not child.is_queued_for_deletion():
 			result.append(child)
 	return result
 
 
 func test_picking_items_builds_the_deal() -> void:
 	assert_true(_panel._accept.disabled, "nothing on the table")
-	_buttons(_panel._theirs)[0].pressed.emit()  # potion, 20
+	assert_eq(_slots(_panel._theirs)[0].corner, "20", "the price in the corner")
+	_slots(_panel._theirs)[0].on_click.call(false)  # potion, 20
 	_panel.show_trade(_state)
+	assert_true(_slots(_panel._theirs)[0].selected, "on the table")
 	assert_true(_panel._accept.disabled, "5 gold isn't enough")
 	assert_string_contains(_panel._total.text, "Not enough gold")
-	_buttons(_panel._mine)[0].pressed.emit()  # ring, sells for 20
+	_slots(_panel._mine)[0].on_click.call(false)  # ring, sells for 20
 	_panel.show_trade(_state)
 	assert_false(_panel._accept.disabled)
 	assert_eq(_panel._total.text, "An even swap.")
@@ -54,7 +56,8 @@ func test_their_own_stolen_goods_cant_be_offered() -> void:
 	CrimeRules.mark_stolen(_state.get_entity(1), "Map", 3)
 	_panel._shown_key = []
 	_panel.show_trade(_state)
-	assert_true(_buttons(_panel._mine)[1].disabled)
+	assert_true(_slots(_panel._mine)[1].dimmed)
+	assert_false(_slots(_panel._mine)[1].on_click.is_valid())
 
 
 func test_closes_when_trading_stops_being_possible() -> void:

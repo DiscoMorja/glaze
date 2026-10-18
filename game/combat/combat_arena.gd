@@ -169,6 +169,7 @@ var _baked: SimState
 
 
 func _ready() -> void:
+	UiStyle.apply(get_tree())
 	Content.load_all()
 	PackVfx.preload_all()
 	_build_scene()
@@ -1705,11 +1706,9 @@ func _build_scene() -> void:
 	_dialog.set_anchors_preset(Control.PRESET_CENTER)
 	_dialog.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_dialog.grow_vertical = Control.GROW_DIRECTION_BOTH
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.1, 0.11, 0.13, 0.95)
-	style.border_color = Color(1.0, 0.6, 0.15)
+	var style := UiStyle.window_style(true)
+	style.border_color = UiStyle.WARNING
 	style.set_border_width_all(2)
-	style.set_corner_radius_all(6)
 	style.set_content_margin_all(18)
 	_dialog.add_theme_stylebox_override("panel", style)
 	_dialog_label = Label.new()

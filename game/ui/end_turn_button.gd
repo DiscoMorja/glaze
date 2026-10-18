@@ -12,6 +12,7 @@ var _pulse: Tween
 
 
 func _ready() -> void:
+	visible = false  # until there is a fight
 	text = "End turn"
 	focus_mode = Control.FOCUS_NONE
 	custom_minimum_size = Vector2(150, 58)

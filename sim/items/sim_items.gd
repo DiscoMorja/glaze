@@ -26,10 +26,10 @@ const ITEMS := {
 	"Key": {"value": 2, "weight": 30, "kind": "key", "blurb": "A guard's key. To what?"},
 	"Camp key": {"value": 5, "weight": 40, "kind": "key", "blurb": "Opens the bandit chief's chest."},
 	# Consumables
-	"Bread": {"value": 1, "weight": 400, "kind": "food", "heal": 3, "blurb": "Yesterday's loaf. Heals 3."},
-	"Healing potion": {"value": 20, "weight": 300, "kind": "potion", "heal": 10, "blurb": "Heals 10."},
+	"Bread": {"value": 1, "weight": 400, "kind": "food", "heal": 3, "blurb": "Yesterday's loaf."},
+	"Healing potion": {"value": 20, "weight": 300, "kind": "potion", "heal": 10, "blurb": "Red and bitter."},
 	"Cooling salve": {"value": 12, "weight": 150, "kind": "potion", "temperature": -1, "heal": 2,
-			"blurb": "Puts out burning (or warms nothing). Heals 2."},
+			"blurb": "Cools the skin; puts out burning."},
 	"Warming draught": {"value": 12, "weight": 250, "kind": "potion", "temperature": 1,
 			"blurb": "Thaws the frozen and the cold."},
 	"Bedroll": {"value": 10, "weight": 2000, "kind": "misc", "rest": true,

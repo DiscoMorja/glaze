@@ -18,20 +18,11 @@ var _can_save_reason := ""
 func _ready() -> void:
 	visible = false
 	custom_minimum_size = Vector2(560, 0)
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.07, 0.08, 0.1, 0.97)
-	style.border_color = Color(0.5, 0.45, 0.3)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(4)
-	style.set_content_margin_all(14)
-	add_theme_stylebox_override("panel", style)
+	add_theme_stylebox_override("panel", UiStyle.window_style(true))
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 8)
 	add_child(box)
-	var title := Label.new()
-	title.text = "Menu   (Esc to close)"
-	title.add_theme_font_size_override("font_size", 16)
-	box.add_child(title)
+	box.add_child(UiStyle.title("Menu   (Esc to close)"))
 	var row := HBoxContainer.new()
 	box.add_child(row)
 	_name = LineEdit.new()
@@ -44,7 +35,7 @@ func _ready() -> void:
 	_save_button.pressed.connect(_save)
 	row.add_child(_save_button)
 	_note = Label.new()
-	_note.add_theme_color_override("font_color", Color(0.75, 0.75, 0.8))
+	_note.add_theme_color_override("font_color", UiStyle.TEXT_DIM)
 	_note.add_theme_font_size_override("font_size", 13)
 	_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	box.add_child(_note)

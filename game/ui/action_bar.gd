@@ -33,6 +33,7 @@ var _tip_index := -1
 
 
 func _ready() -> void:
+	visible = false  # until a character is selected
 	anchor_left = 0.5
 	anchor_right = 0.5
 	anchor_top = 1.0
@@ -41,13 +42,7 @@ func _ready() -> void:
 	offset_bottom = -24
 	grow_horizontal = Control.GROW_DIRECTION_BOTH
 	grow_vertical = Control.GROW_DIRECTION_BEGIN
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.07, 0.08, 0.1, 0.88)
-	style.border_color = Color(0.3, 0.32, 0.36)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(6)
-	style.set_content_margin_all(6)
-	add_theme_stylebox_override("panel", style)
+	add_theme_stylebox_override("panel", UiStyle.window_style())
 	var column := VBoxContainer.new()
 	add_child(column)
 	_note = Label.new()
@@ -77,17 +72,14 @@ func _ready() -> void:
 	_tip_panel.top_level = true
 	_tip_panel.visible = false
 	_tip_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var tip_style := StyleBoxFlat.new()
-	tip_style.bg_color = Color(0.06, 0.06, 0.08, 0.96)
-	tip_style.border_color = Color(1.0, 0.8, 0.15, 0.8)
-	tip_style.set_border_width_all(1)
-	tip_style.set_corner_radius_all(4)
+	var tip_style := UiStyle.window_style(true)
+	tip_style.border_color = Color(UiStyle.ACCENT, 0.8)
 	tip_style.set_content_margin_all(10)
 	_tip_panel.add_theme_stylebox_override("panel", tip_style)
 	_tip = Label.new()
 	_tip.custom_minimum_size = Vector2(340, 0)
 	_tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_tip.add_theme_color_override("font_color", Color(1.0, 0.92, 0.7))
+	_tip.add_theme_color_override("font_color", UiStyle.TEXT_WARM)
 	_tip_panel.add_child(_tip)
 	add_child(_tip_panel)
 
@@ -290,7 +282,7 @@ class _Slot:
 		var rect := Rect2(Vector2.ZERO, size)
 		var font := ThemeDB.fallback_font
 		var box := StyleBoxFlat.new()
-		box.bg_color = Color(0.12, 0.13, 0.15)
+		box.bg_color = UiStyle.SLOT_BG
 		box.set_corner_radius_all(6)
 		draw_style_box(box, rect)
 		var actor := _bar._actor
@@ -317,11 +309,11 @@ class _Slot:
 		elif HotbarLayout.is_item(entry) and actor != null:
 			_text("%d" % actor.inventory.count(HotbarLayout.item_of(entry)), Vector2(0, size.y - 4), 13, Color.WHITE, HORIZONTAL_ALIGNMENT_RIGHT, size.x - 4)
 		# Border: gold when aimed, light when hovered.
-		var border := Color(0.28, 0.3, 0.34)
+		var border := ItemSlot.IDLE_BORDER
 		if HotbarLayout.is_action(entry) and HotbarLayout.action_of(entry) == _bar._aimed:
-			border = Color(1.0, 0.82, 0.25)
+			border = ItemSlot.SELECTED_BORDER
 		elif _hovered:
-			border = Color(0.75, 0.78, 0.84)
+			border = ItemSlot.HOVER_BORDER
 		var outline := StyleBoxFlat.new()
 		outline.draw_center = false
 		outline.border_color = border

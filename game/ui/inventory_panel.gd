@@ -25,25 +25,10 @@ const DRAG_KIND := "glaze_item"
 const WORN_KIND := "glaze_worn"
 
 const COLUMNS := 6
-const SLOT_SIZE := 52.0
+const SLOT_SIZE := ItemSlot.SIZE
 const GAP := 6.0
 ## Bag rows shown before it scrolls.
 const VISIBLE_ROWS := 6
-const KIND_COLORS := {
-	"valuable": Color(0.4, 0.33, 0.12),
-	"food": Color(0.32, 0.22, 0.13),
-	"key": Color(0.25, 0.28, 0.34),
-	"document": Color(0.34, 0.32, 0.24),
-	"misc": Color(0.22, 0.22, 0.25),
-	"potion": Color(0.34, 0.15, 0.22),
-	"weapon": Color(0.27, 0.29, 0.33),
-	"armor": Color(0.22, 0.28, 0.23),
-	"trinket": Color(0.3, 0.22, 0.36),
-}
-const STOLEN_BORDER := Color(1.0, 0.35, 0.3)
-const SELECTED_BORDER := Color(1.0, 0.85, 0.3)
-const HOVER_BORDER := Color(0.8, 0.82, 0.88)
-const IDLE_BORDER := Color(0.3, 0.32, 0.36)
 ## Paperdoll slot -> position in slot units (columns: 0 left, 1-2 figure, 3 right).
 const DOLL := {
 	"head": Vector2(0, 0), "neck": Vector2(0, 1), "body": Vector2(0, 2),
@@ -56,7 +41,7 @@ var _title: Label
 var _sheet: Label
 var _points_row: HBoxContainer
 var _doll: Control
-var _doll_slots := {}  # slot name -> _ItemSlot
+var _doll_slots := {}  # slot name -> ItemSlot
 var _grid: GridContainer
 var _details: Label
 var _give_row: HBoxContainer
@@ -84,28 +69,21 @@ func _ready() -> void:
 	offset_right = -16
 	grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	grow_vertical = Control.GROW_DIRECTION_END
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.07, 0.08, 0.1, 0.95)
-	style.border_color = Color(0.35, 0.38, 0.42)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(6)
-	style.set_content_margin_all(12)
-	add_theme_stylebox_override("panel", style)
+	add_theme_stylebox_override("panel", UiStyle.window_style())
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 8)
 	add_child(box)
 
 	var top := HBoxContainer.new()
 	box.add_child(top)
-	_title = Label.new()
-	_title.add_theme_font_size_override("font_size", 18)
+	_title = UiStyle.title("")
 	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(_title)
-	_rest = _button("Rest", func() -> void: rest_requested.emit(_owner.id), "Heal the party with a bedroll (no enemies near)")
+	_rest = UiStyle.button("Rest", func() -> void: rest_requested.emit(_owner.id), "Heal the party with a bedroll (no enemies near)")
 	top.add_child(_rest)
 	_sheet = Label.new()
 	_sheet.add_theme_font_size_override("font_size", 13)
-	_sheet.add_theme_color_override("font_color", Color(0.8, 0.82, 0.86))
+	_sheet.add_theme_color_override("font_color", UiStyle.TEXT_DIM)
 	box.add_child(_sheet)
 	_points_row = HBoxContainer.new()
 	box.add_child(_points_row)
@@ -118,7 +96,7 @@ func _ready() -> void:
 	columns.add_child(_doll)
 	var figure_back := Panel.new()
 	var figure_style := StyleBoxFlat.new()
-	figure_style.bg_color = Color(0.11, 0.12, 0.14)
+	figure_style.bg_color = UiStyle.SLOT_BG.darkened(0.1)
 	figure_style.set_corner_radius_all(6)
 	figure_back.add_theme_stylebox_override("panel", figure_style)
 	figure_back.position = Vector2(SLOT_SIZE + GAP, 0)
@@ -135,7 +113,8 @@ func _ready() -> void:
 	figure_back.add_child(figure)
 	for slot: String in DOLL:
 		var cell: Vector2 = DOLL[slot]
-		var item_slot := _ItemSlot.new(self, "worn", slot)
+		var item_slot := _make_slot("worn", slot)
+		item_slot.empty_label = EquipRules.SLOT_NAMES[slot]
 		item_slot.position = cell * (SLOT_SIZE + GAP)
 		_doll.add_child(item_slot)
 		_doll_slots[slot] = item_slot
@@ -153,7 +132,7 @@ func _ready() -> void:
 	scroll.add_child(_grid)
 	_footer = Label.new()
 	_footer.add_theme_font_size_override("font_size", 12)
-	_footer.add_theme_color_override("font_color", Color(0.6, 0.63, 0.68))
+	_footer.add_theme_color_override("font_color", UiStyle.TEXT_DIM)
 	bag.add_child(_footer)
 
 	_details = Label.new()
@@ -206,8 +185,11 @@ func _rebuild() -> void:
 	# Always a free row, and the visible rows filled.
 	var count := maxi(ceili(items.size() / float(COLUMNS)) + 1, VISIBLE_ROWS) * COLUMNS
 	for i in count:
-		var item_slot := _ItemSlot.new(self, "bag", i)
-		item_slot.show_item(items[i] if i < items.size() else "")
+		var item_slot := _make_slot("bag", i)
+		var item := items[i] if i < items.size() else ""
+		item_slot.stolen = item != "" and CrimeRules.is_stolen(_owner, item)
+		item_slot.selected = i == _selected
+		item_slot.show_item(item)
 		_grid.add_child(item_slot)
 	_footer.text = "%d items   ·   %d gold worth   ·   %s" % [
 		items.size(), SimItems.total_value(items), SimItems.weight_text(SimItems.total_weight(items))]
@@ -227,41 +209,25 @@ func _show_sheet() -> void:
 	if e.points > 0 and _can_sort:
 		var label := Label.new()
 		label.text = "%d point%s to spend:" % [e.points, "s" if e.points > 1 else ""]
-		label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+		label.add_theme_color_override("font_color", UiStyle.ACCENT)
 		_points_row.add_child(label)
 		for stat: String in ProgressionRules.STATS:
-			_points_row.add_child(_button(stat.capitalize(), func() -> void: spend_requested.emit(e.id, stat), ProgressionRules.STATS[stat]))
+			_points_row.add_child(UiStyle.button(stat.capitalize(), func() -> void: spend_requested.emit(e.id, stat), ProgressionRules.STATS[stat]))
 
 
-func _button(text: String, on_press: Callable, tooltip: String = "") -> Button:
-	var button := Button.new()
-	button.text = text
-	button.tooltip_text = tooltip
-	button.focus_mode = Control.FOCUS_NONE
-	button.pressed.connect(on_press)
-	return button
-
-
-## "Main hand · 5 damage · two-handed", "Head · armour 1 · +2 max HP"...
-static func stats_text(item: String) -> String:
-	var parts: Array[String] = []
-	var slot := SimItems.slot_of(item)
-	if slot != "":
-		parts.append("Ring" if slot == "ring" else EquipRules.SLOT_NAMES.get(slot, slot))
-	var damage := SimItems.amount(item, "damage")
-	if damage > 0:
-		parts.append(("%d damage" if slot == EquipRules.MAIN else "+%d damage") % damage)
-	if SimItems.has_property(item, "two_handed"):
-		parts.append("two-handed")
-	if SimItems.amount(item, "armor") > 0:
-		parts.append("armour %d" % SimItems.amount(item, "armor"))
-	if SimItems.amount(item, "power") > 0:
-		parts.append("+%d power" % SimItems.amount(item, "power"))
-	if SimItems.amount(item, "max_hp") > 0:
-		parts.append("+%d max HP" % SimItems.amount(item, "max_hp"))
-	if SimItems.amount(item, "heal") > 0:
-		parts.append("heals %d" % SimItems.amount(item, "heal"))
-	return "   ·   ".join(parts)
+## A bag ("bag", index) or paperdoll ("worn", slot) slot wired to this panel.
+func _make_slot(where: String, key: Variant) -> ItemSlot:
+	var slot := ItemSlot.new()
+	slot.on_click = func(right: bool) -> void: _clicked(where, key, right)
+	slot.on_hover = func(inside: bool) -> void: _hover(where, key, inside)
+	slot.drag_data = func() -> Variant: return _drag_from(where, key)
+	if where == "worn":
+		slot.can_drop = func(data: Variant) -> bool: return _accepts_worn(key, data)
+		slot.drop = func(data: Variant) -> void: _drop_on_worn(key, data)
+	else:
+		slot.can_drop = func(data: Variant) -> bool: return _accepts(data)
+		slot.drop = func(data: Variant) -> void: _drop_on(key, data)
+	return slot
 
 
 ## Details of the hovered item (else the selected one). Hovering only changes
@@ -282,13 +248,7 @@ func _show_details() -> void:
 		else:
 			_details.text = "Hover an item for details. Right-click to wear or use it; drag it to move, wear, give or put on the action bar."
 		return
-	var info := SimItems.info(item)
-	var lines: Array[String] = ["%s   ·   %d gold   ·   %s" % [item, info.value, SimItems.weight_text(info.weight)]]
-	var stats := stats_text(item)
-	if stats != "":
-		lines.append(stats)
-	if info.blurb != "":
-		lines.append(info.blurb)
+	var lines: Array[String] = [ItemSlot.details(item)]
 	if CrimeRules.is_stolen(_owner, item):
 		lines.append("Stolen — its owners will recognize it.")
 	_details.text = "\n".join(lines)
@@ -306,11 +266,11 @@ func _show_give_buttons() -> void:
 	var index := _selected
 	var owner_id := _owner.id
 	if _can_sort and SimItems.is_usable(item):
-		_give_row.add_child(_button("Use", func() -> void:
+		_give_row.add_child(UiStyle.button("Use", func() -> void:
 			_selected = -1
 			use_requested.emit(owner_id, index)))
 	if _can_give and SimItems.slot_of(item) != "":
-		_give_row.add_child(_button("Wear", func() -> void:
+		_give_row.add_child(UiStyle.button("Wear", func() -> void:
 			_selected = -1
 			equip_requested.emit(owner_id, index, "")))
 	if not _can_give:
@@ -326,29 +286,17 @@ func _show_give_buttons() -> void:
 		if p.id == owner_id:
 			continue
 		var to_id := p.id
-		_give_row.add_child(_button(p.name, func() -> void:
+		_give_row.add_child(UiStyle.button(p.name, func() -> void:
 			_selected = -1
 			give_requested.emit(owner_id, to_id, index)))
 
 
 # --- Slots: dragging, dropping, clicking -----------------------------------------
 
-func _drag_from(where: String, key: Variant, source: Control) -> Variant:
+func _drag_from(where: String, key: Variant) -> Variant:
 	var item := _item_at(where, key)
 	if item == "" or not (_can_sort or _can_give):
 		return null
-	var icon := GameIcons.for_item(item)
-	if icon != null:
-		var preview := TextureRect.new()
-		preview.texture = icon
-		preview.size = Vector2(SLOT_SIZE, SLOT_SIZE)
-		preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		preview.modulate.a = 0.85
-		source.set_drag_preview(preview)
-	else:
-		var label := Label.new()
-		label.text = item
-		source.set_drag_preview(label)
 	if where == "worn":
 		return {"kind": WORN_KIND, "from_id": _owner.id, "slot": key, "item": item}
 	return {"kind": DRAG_KIND, "from_id": _owner.id, "index": key, "item": item}
@@ -421,99 +369,3 @@ func _hover(where: String, key: Variant, inside: bool) -> void:
 	elif _hovered == [where, key]:
 		_hovered = []
 	_show_details()
-
-
-func _is_selected(where: String, key: Variant) -> bool:
-	return where == "bag" and key == _selected
-
-
-class _ItemSlot:
-	extends Control
-	## One slot, in the bag ("bag", index) or on the paperdoll ("worn", slot).
-
-	var _panel: InventoryPanel
-	var _where: String
-	var _key: Variant
-	var _item := ""
-	var _icon: Texture2D
-	var _hovered := false
-	## Select (or act) on release: a press may be the start of a drag.
-	var _pressing := false
-
-	func _init(panel: InventoryPanel, where: String, key: Variant) -> void:
-		_panel = panel
-		_where = where
-		_key = key
-		custom_minimum_size = Vector2(InventoryPanel.SLOT_SIZE, InventoryPanel.SLOT_SIZE)
-		size = custom_minimum_size
-		mouse_filter = Control.MOUSE_FILTER_STOP
-		mouse_entered.connect(func() -> void:
-			_hovered = true
-			queue_redraw()
-			_panel._hover(_where, _key, true))
-		mouse_exited.connect(func() -> void:
-			_hovered = false
-			queue_redraw()
-			_panel._hover(_where, _key, false))
-
-	func show_item(item: String) -> void:
-		_item = item
-		_icon = GameIcons.for_item(item) if item != "" else null
-		queue_redraw()
-
-	func _draw() -> void:
-		var rect := Rect2(Vector2.ZERO, size)
-		var back := StyleBoxFlat.new()
-		back.set_corner_radius_all(5)
-		back.bg_color = InventoryPanel.KIND_COLORS.get(SimItems.kind_of(_item), InventoryPanel.KIND_COLORS.misc) if _item != "" else Color(0.12, 0.13, 0.15)
-		draw_style_box(back, rect)
-		var font := ThemeDB.fallback_font
-		if _icon != null:
-			draw_texture_rect(_icon, rect.grow(-3), false)
-		elif _item != "":
-			draw_multiline_string(font, Vector2(3, 16), _item, HORIZONTAL_ALIGNMENT_CENTER, size.x - 6, 11, 3, Color.WHITE)
-		elif _where == "worn":
-			draw_string(font, Vector2(0, size.y / 2 + 4), EquipRules.SLOT_NAMES[_key], HORIZONTAL_ALIGNMENT_CENTER, size.x, 10, Color(0.45, 0.47, 0.52))
-		var border := InventoryPanel.IDLE_BORDER
-		if _item != "" and _where == "bag" and CrimeRules.is_stolen(_panel._owner, _item):
-			border = InventoryPanel.STOLEN_BORDER
-		if _panel._is_selected(_where, _key) and _item != "":
-			border = InventoryPanel.SELECTED_BORDER
-		elif _hovered:
-			border = InventoryPanel.HOVER_BORDER
-		var outline := StyleBoxFlat.new()
-		outline.draw_center = false
-		outline.border_color = border
-		outline.set_border_width_all(2)
-		outline.set_corner_radius_all(5)
-		draw_style_box(outline, rect)
-
-	func _gui_input(event: InputEvent) -> void:
-		if not event is InputEventMouseButton:
-			return
-		if event.button_index == MOUSE_BUTTON_LEFT:
-			if event.pressed:
-				_pressing = true
-			elif _pressing:
-				_pressing = false
-				_panel._clicked(_where, _key, false)
-			accept_event()
-		elif event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
-			_panel._clicked(_where, _key, true)
-			accept_event()
-
-	func _notification(what: int) -> void:
-		if what == NOTIFICATION_DRAG_BEGIN:
-			_pressing = false
-
-	func _get_drag_data(_at: Vector2) -> Variant:
-		return _panel._drag_from(_where, _key, self)
-
-	func _can_drop_data(_at: Vector2, data: Variant) -> bool:
-		return _panel._accepts_worn(_key, data) if _where == "worn" else _panel._accepts(data)
-
-	func _drop_data(_at: Vector2, data: Variant) -> void:
-		if _where == "worn":
-			_panel._drop_on_worn(_key, data)
-		else:
-			_panel._drop_on(_key, data)

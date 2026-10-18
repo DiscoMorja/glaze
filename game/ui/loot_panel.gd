@@ -1,18 +1,24 @@
 class_name LootPanel
 extends PanelContainer
-## What's inside a chest or on a body the selected character opened: click an
-## item to take it, or take everything (Space). Esc closes it. Warns when the
+## What's inside a chest or on a body the selected character opened, in the
+## same item slots as the inventory: click an item to take it, or take
+## everything (Space). Hover for details. Esc closes it. Warns when the
 ## things belong to townsfolk (taking them is theft).
 
 signal take_requested(index: int)
 signal closed
 
+const COLUMNS := 5
+const ROWS := 2
+
 var container_id := -1
 var _title: Label
 var _warning: Label
-var _items: VBoxContainer
+var _items: GridContainer
+var _details: Label
 var _shown: Array[String] = []
 var _shown_warning := false
+var _contents: Array[String] = []
 
 
 func _ready() -> void:
@@ -21,44 +27,36 @@ func _ready() -> void:
 	anchor_right = 1.0
 	anchor_top = 0.5
 	anchor_bottom = 0.5
-	offset_left = -300
+	offset_top = -140
 	offset_right = -24
-	offset_top = -120
 	grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	custom_minimum_size = Vector2(276, 0)
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.07, 0.08, 0.1, 0.95)
-	style.border_color = Color(0.5, 0.45, 0.3)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(4)
-	style.set_content_margin_all(10)
-	add_theme_stylebox_override("panel", style)
+	add_theme_stylebox_override("panel", UiStyle.window_style(true))
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 6)
+	box.add_theme_constant_override("separation", 8)
 	add_child(box)
-	_title = Label.new()
-	_title.add_theme_font_size_override("font_size", 15)
+	_title = UiStyle.title("")
 	box.add_child(_title)
 	_warning = Label.new()
 	_warning.text = "Not yours: taking is theft if seen."
-	_warning.add_theme_color_override("font_color", Color(1.0, 0.65, 0.3))
-	_warning.add_theme_font_size_override("font_size", 12)
+	_warning.add_theme_color_override("font_color", UiStyle.WARNING)
+	_warning.add_theme_font_size_override("font_size", UiStyle.SMALL)
 	box.add_child(_warning)
-	_items = VBoxContainer.new()
+	_items = GridContainer.new()
+	_items.columns = COLUMNS
+	_items.add_theme_constant_override("h_separation", 4)
+	_items.add_theme_constant_override("v_separation", 4)
 	box.add_child(_items)
+	_details = Label.new()
+	_details.custom_minimum_size = Vector2(COLUMNS * (ItemSlot.SIZE + 4), 58)
+	_details.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_details.add_theme_font_size_override("font_size", 13)
+	box.add_child(_details)
 	var row := HBoxContainer.new()
 	box.add_child(row)
-	var take_all := Button.new()
-	take_all.text = "Take all  (Space)"
-	take_all.focus_mode = Control.FOCUS_NONE
+	var take_all := UiStyle.button("Take all  (Space)", func() -> void: take_requested.emit(LootCommand.ALL))
 	take_all.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	take_all.pressed.connect(func() -> void: take_requested.emit(LootCommand.ALL))
 	row.add_child(take_all)
-	var close_button := Button.new()
-	close_button.text = "Close  (Esc)"
-	close_button.focus_mode = Control.FOCUS_NONE
-	close_button.pressed.connect(close)
-	row.add_child(close_button)
+	row.add_child(UiStyle.button("Close  (Esc)", close))
 
 
 func open(id: int) -> void:
@@ -87,24 +85,32 @@ func show_contents(state: SimState) -> void:
 	if container.inventory == _shown and theft == _shown_warning:
 		return
 	_shown = container.inventory.duplicate()
+	_contents = _shown
 	_shown_warning = theft
 	_title.text = container.name if container.takes_turns() or container.is_alive() else "%s (broken)" % container.name
 	_warning.visible = theft
 	for child in _items.get_children():
 		child.queue_free()
-	if container.inventory.is_empty():
-		var empty := Label.new()
-		empty.text = "Empty."
-		_items.add_child(empty)
-	for i in container.inventory.size():
-		var item := container.inventory[i]
-		var button := Button.new()
-		button.text = "%s   (%d gold, %s)" % [item, SimItems.value_of(item), SimItems.weight_text(SimItems.weight_of(item))]
-		button.tooltip_text = SimItems.info(item).blurb
-		button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		button.focus_mode = Control.FOCUS_NONE
-		button.pressed.connect(func() -> void: take_requested.emit(i))
-		_items.add_child(button)
+	var count := maxi(ceili(_contents.size() / float(COLUMNS)), ROWS) * COLUMNS
+	for i in count:
+		var slot := ItemSlot.new()
+		var item := _contents[i] if i < _contents.size() else ""
+		slot.show_item(item)
+		var index := i
+		slot.on_hover = func(inside: bool) -> void: _show_details(index if inside else -1)
+		if item != "":
+			slot.on_click = func(_right: bool) -> void: take_requested.emit(index)
+		_items.add_child(slot)
+	_show_details(-1)
+
+
+func _show_details(index: int) -> void:
+	if index >= 0 and index < _contents.size():
+		_details.text = ItemSlot.details(_contents[index]) + "\nClick to take it."
+	elif _contents.is_empty():
+		_details.text = "Empty."
+	else:
+		_details.text = "Click an item to take it, or take everything."
 
 
 ## Space takes all, Esc closes. Returns true if the key was used.

@@ -11,7 +11,7 @@ signal item_dropped(to_id: int, from_id: int, index: int)
 const FRAME_SIZE := Vector2(250, 78)
 const PORTRAIT_SIZE := 62.0
 const COLOR_SELECTED := Color(0.3, 1.0, 0.4)
-const COLOR_IDLE := Color(0.25, 0.27, 0.3)
+const COLOR_IDLE := UiStyle.BORDER
 const COLOR_DONE := Color(0.18, 0.19, 0.21)
 ## The partner's characters: blue border when selected (inspect only), and a
 ## "partner" tag; their frames are dimmed.
@@ -85,7 +85,7 @@ class _Card:
 		mouse_filter = Control.MOUSE_FILTER_STOP
 		custom_minimum_size = PartyBar.FRAME_SIZE
 		_style = StyleBoxFlat.new()
-		_style.bg_color = Color(0.08, 0.09, 0.11, 0.9)
+		_style.bg_color = UiStyle.BG
 		_style.set_border_width_all(2)
 		_style.set_corner_radius_all(5)
 		_style.set_content_margin_all(6)
@@ -157,7 +157,7 @@ class _Card:
 		var role := SimArchetypes.title(e.archetype)
 		_role.text = ("%s · level %d" % [role, e.level] if role != "" else "level %d" % e.level) \
 				+ ("   +%d point%s" % [e.points, "s" if e.points > 1 else ""] if e.points > 0 else "")
-		_role.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3) if e.points > 0 else Color(0.65, 0.68, 0.74))
+		_role.add_theme_color_override("font_color", UiStyle.ACCENT if e.points > 0 else UiStyle.TEXT_DIM)
 		_portrait_style.bg_color = GameIcons.role_color(e.archetype)
 		_hp.max_value = e.max_hp
 		_hp.value = e.hp

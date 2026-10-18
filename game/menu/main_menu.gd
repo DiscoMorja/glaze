@@ -39,6 +39,7 @@ func _ready() -> void:
 	%HostInfo.text = "Hosting: your partner joins with %s (port %d, UDP)." % [
 		" or ".join(addresses) if not addresses.is_empty() else "your IP address", NetSession.DEFAULT_PORT]
 	DisplayServer.window_set_title("glaze")
+	UiStyle.apply(get_tree())
 	_fit_window()
 	_run_command_line.call_deferred()  # changing scene inside _ready isn't allowed
 

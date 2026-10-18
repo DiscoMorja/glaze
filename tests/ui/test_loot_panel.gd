@@ -22,20 +22,22 @@ func before_each() -> void:
 	_panel.show_contents(_state)
 
 
-func _item_buttons() -> Array[Button]:
-	var result: Array[Button] = []
+func _slots() -> Array[ItemSlot]:
+	var result: Array[ItemSlot] = []
 	for child in _panel._items.get_children():
-		if child is Button and not child.is_queued_for_deletion():
+		if child is ItemSlot and not child.is_queued_for_deletion():
 			result.append(child)
 	return result
 
 
-func test_lists_items_and_takes_the_clicked_one() -> void:
-	var buttons := _item_buttons()
-	assert_eq(buttons.size(), 2)
-	assert_string_starts_with(buttons[1].text, "Map")
-	buttons[1].pressed.emit()
+func test_lists_items_as_slots_and_takes_the_clicked_one() -> void:
+	var slots := _slots()
+	assert_eq(slots[0].item, "Gold")
+	assert_eq(slots[1].item, "Map")
+	assert_eq(slots[2].item, "", "a free slot after the items")
+	slots[1].on_click.call(false)
 	assert_eq(_taken, [1])
+	assert_false(slots[2].on_click.is_valid(), "empty slots do nothing")
 
 
 func test_space_takes_all_and_esc_closes() -> void:
