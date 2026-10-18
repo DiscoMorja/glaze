@@ -68,6 +68,10 @@ Don't run `--import` headless while the editor is open: it rewrites the class ca
 - Solo is a host without a guest, through the same path.
 - Ops carry checksums; keep the sim deterministic (rule 5) or guests will resync constantly.
 
+## Builds
+
+`bash tools/export_windows.sh` exports `build/windows/glaze.exe` and `build/glaze-windows.zip` (git-ignored). Needs the Godot 4.7.2 export templates (Editor → Manage Export Templates). `docs/PLAYTEST.md` ships in the zip as the players' connection guide.
+
 ## Third-party assets
 
 `assetlibs/` holds licensed asset packs and is git-ignored, so it only exists on machines it was copied to. Code must keep working without it.

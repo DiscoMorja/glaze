@@ -273,6 +273,8 @@ The sim layer must be runnable headless and in isolation — this enables previe
 - **Co-op turns:** the party's turn is shared — both players act at once with their own characters (`LevelSpawn.player`: host Ari + Bram, guest Cel + Dov; alone, the host plays all four) and the turn ends when both have pressed End Turn.
 - Clients keep a local replica (the stream copy) for previews; they never apply anything that didn't come from the host.
 - **Transport:** Godot high-level multiplayer (ENet). For dev/online play before Steam: direct IP over Tailscale/ZeroTier. Steam networking later.
+- **Sessions:** the host's addresses (Tailscale first, then LAN) show on the menu and in game; F10 leaves; a guest who leaves or drops can rejoin mid-fight (the host plays their characters meanwhile); a dead connection is noticed within ~6 s; a join that gets no answer gives up after 10 s with a hint. Ping shows in the HUD.
+- **Builds:** `bash tools/export_windows.sh` makes `build/glaze-windows.zip` (exe + `docs/PLAYTEST.md` as HOW_TO_PLAY_TOGETHER). Needs Godot 4.7.2 export templates.
 - **Co-op testing:** the main menu has Solo / Host / Join. From the command line (after `--`): `--solo`, `--host`, `--join=ADDRESS`, `--level=arena|start|highlands`, and `--autoready` (that player ends turns on their own, so one person can test with two instances).
 
 ### 8.5.1 Levels
@@ -345,6 +347,7 @@ Levels are built freely in Godot and baked into the sim (`GameLevel.bake()`, run
 | 2026-10-18 | Movement respects real terrain height: no walking up or down a rise of more than 1.1 m between neighbouring cells. |
 | 2026-10-18 | Ground surfaces render as smooth, ground-hugging puddles (mask + threshold shader) instead of per-cell boxes; the square grid doesn't show through. |
 | 2026-10-18 | Rain splashes its full puddle instantly, like the Oil Flask; shallow water no longer creeps on flat ground; water cools to Cold at most. |
+| 2026-10-18 | M2 two-PC essentials: Windows export, connection help (Tailscale/LAN/port 24560 UDP), leave/rejoin, fast disconnect detection, ping. Next: the real playtest together. |
 | 2026-10-18 | Crowd control: stagger → Knocked down (skip next turn; Help up); body temperature −2..+2 with Frozen/Cold/Hot/Burning replacing the separate Burning status; ice staggers instead of ending your turn. |
 | 2026-10-18 | Ground fire lasts longer: a lit flask puddle burns 3 rounds (was 1), bare-ground fire 1.5 (was 0.6). |
 | 2026-10-18 | Feedback rules: damage numbers coloured by element; every debuff gets a tag and a looping effect. |

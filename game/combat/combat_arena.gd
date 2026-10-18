@@ -40,6 +40,9 @@ const CAMERA_FRAME_SECONDS := 0.42
 const LOG_LINES := 10
 ## Real-time sim rate outside combat (one cell of walking per tick).
 const EXPLORE_TICKS_PER_SECOND := 4.0
+const MENU_SCENE := "res://game/menu/main_menu.tscn"
+## A guest gives up joining after this long without the host's state.
+const JOIN_TIMEOUT_SECONDS := 10.0
 const COLOR_DANGER := Color(1.0, 0.2, 0.15, 0.13)
 ## Only enemies this close (cells, per axis) to the party show their sight.
 const DANGER_SHOW_RADIUS := 40
@@ -145,10 +148,16 @@ func _ready() -> void:
 	Net.op_received.connect(_on_op)
 	Net.snapshot_received.connect(_on_snapshot)
 	Net.players_changed.connect(_refresh)
+	Net.session_ended.connect(_on_session_ended)
+	Net.partner_changed.connect(_on_partner_changed)
+	DisplayServer.window_set_title("glaze — %s" % ["hosting" if Net.mode == NetSession.Mode.HOST else ("joined" if Net.mode == NetSession.Mode.GUEST else "solo")])
 	if Net.mode == NetSession.Mode.NONE:
 		Net.start_solo(level_scene.resource_path if level_scene != null else "")
 	if Net.mode == NetSession.Mode.GUEST:
-		_show_banner("Joining...")
+		_caption.text = "Connecting to the host..."
+		get_tree().create_timer(JOIN_TIMEOUT_SECONDS).timeout.connect(func() -> void:
+			if state == null and Net.mode == NetSession.Mode.GUEST:
+				Net.leave("Couldn't reach the host. Check the address, and that they are hosting (see HOW_TO_PLAY_TOGETHER)."))
 		Net.claim_backlog()
 	else:
 		_restart()
@@ -227,6 +236,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_F4: _select_index(3)
 			KEY_ENTER, KEY_KP_ENTER: _end_turn()
 			KEY_R: _restart()  # host only
+			KEY_F10: Net.leave()
 			KEY_P:
 				_retro.cycle(_level)
 				_refresh()
@@ -488,6 +498,25 @@ func _apply_or_resync(command: SimCommand) -> bool:
 
 
 # --- The op stream ------------------------------------------------------------
+
+## The session ended (couldn't connect, the host left, or we left): back to
+## the menu, which shows why.
+func _on_session_ended(reason: String) -> void:
+	_session += 1  # stops anything still animating
+	if reason != "":
+		_show_banner(reason)
+	await get_tree().create_timer(2.0 if reason != "" else 0.1).timeout
+	get_tree().change_scene_to_file(MENU_SCENE)
+
+
+func _on_partner_changed(joined: bool) -> void:
+	if joined:
+		_show_banner("Your partner joined")
+	else:
+		_show_banner("Your partner left — you control their characters")
+	_select_next(true)
+	_refresh()
+
 
 func _on_op(op: Dictionary) -> void:
 	_ops.append(op)
@@ -1423,7 +1452,13 @@ func _refresh() -> void:
 		lines.append("Combat over — press R to restart")
 	if Net.is_online():
 		var partner := "partner connected" if Net.connected_slots.size() > 1 else "waiting for a partner to join"
-		lines.append("Co-op: %s (%s)" % ["hosting" if Net.is_host() else "joined", partner])
+		var ping := Net.ping_ms()
+		var line := "Co-op: %s (%s)" % ["hosting" if Net.is_host() else "joined", partner]
+		if ping >= 0:
+			line += "   ping %d ms" % ping
+		if Net.is_host() and Net.connected_slots.size() == 1:
+			line += "   join at: %s" % ", ".join(NetSession.host_addresses())
+		lines.append(line + "   F10: leave")
 	if actor != null:
 		var items := ", ".join(actor.inventory) if not actor.inventory.is_empty() else "nothing"
 		var whose := "" if _selected_is_mine() else "   (your partner's — you can't control them)"

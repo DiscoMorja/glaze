@@ -10,3 +10,9 @@ assetlibs/
 
 # Terrain3D demo (shipped with the addon, not used)
 /demo/
+
+# Exported builds (tools/export_windows.sh)
+/build/
+
+# Copies Godot makes of a GDExtension DLL the editor has open
+addons/terrain_3d/bin/~*

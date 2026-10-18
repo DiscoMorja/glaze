@@ -20,6 +20,11 @@ signal op_received(op: Dictionary)
 signal snapshot_received(state: SimState, level_path: String)
 ## Players joined or left, or someone pressed End Turn.
 signal players_changed
+## The session is over for this machine (couldn't connect, the host left, or
+## this player left); `reason` says why, for the menu.
+signal session_ended(reason: String)
+## Host: the guest joined or left (true when joined).
+signal partner_changed(joined: bool)
 
 enum Mode { NONE, SOLO, HOST, GUEST }
 
@@ -29,6 +34,9 @@ const GUEST_SLOT := 1
 ## Slots for commands the host issues itself: enemy AI, and the turn ending.
 const AI_SLOT := -2
 const SYSTEM_SLOT := -3
+## A peer that stops answering for this long (ms) counts as gone, so a
+## crashed partner is noticed in seconds rather than ENet's default ~30 s.
+const PEER_TIMEOUT_MS := 6000
 ## Ticks between checksums in real time (combat commands always carry one).
 const CHECKSUM_EVERY_TICKS := 16
 
@@ -93,7 +101,11 @@ func host(p_level_path: String, port: int = DEFAULT_PORT) -> Error:
 	return OK
 
 
+## Joins a host. `address` may include a port ("100.64.1.2:24560").
 func join(address: String, port: int = DEFAULT_PORT) -> Error:
+	if address.count(":") == 1:
+		port = int(address.get_slice(":", 1))
+		address = address.get_slice(":", 0)
 	var peer := ENetMultiplayerPeer.new()
 	var error := peer.create_client(address, port)
 	if error != OK:
@@ -104,7 +116,56 @@ func join(address: String, port: int = DEFAULT_PORT) -> Error:
 	multiplayer.multiplayer_peer = peer
 	if not multiplayer.server_disconnected.is_connected(_on_server_disconnected):
 		multiplayer.server_disconnected.connect(_on_server_disconnected)
+		multiplayer.connection_failed.connect(_on_connection_failed)
+		multiplayer.connected_to_server.connect(func() -> void: _short_timeout(1))
 	return OK
+
+
+func _short_timeout(peer_id: int) -> void:
+	var peer := multiplayer.multiplayer_peer as ENetMultiplayerPeer
+	var packet_peer := peer.get_peer(peer_id) if peer != null else null
+	if packet_peer != null:
+		packet_peer.set_timeout(0, PEER_TIMEOUT_MS / 2, PEER_TIMEOUT_MS)
+
+
+## Leaves the session (either side) and goes back to no session.
+func leave(reason: String = "") -> void:
+	if multiplayer.multiplayer_peer != null and is_online():
+		multiplayer.multiplayer_peer.close()
+	multiplayer.multiplayer_peer = null
+	_reset(Mode.NONE, "")
+	last_error = reason
+	session_ended.emit(reason)
+
+
+## Host: the addresses a partner can join with, best first: Tailscale
+## (100.64.0.0/10), then the local network. Port is DEFAULT_PORT.
+static func host_addresses() -> Array[String]:
+	var tailscale: Array[String] = []
+	var lan: Array[String] = []
+	for address in IP.get_local_addresses():
+		if address.contains(":") or address.begins_with("127.") or address.begins_with("169.254."):
+			continue
+		var octets := address.split(".")
+		if octets.size() == 4 and octets[0] == "100" and int(octets[1]) >= 64 and int(octets[1]) <= 127:
+			tailscale.append(address)
+		else:
+			lan.append(address)
+	return tailscale + lan
+
+
+## Round trip to the other player in ms, or -1 when not connected.
+func ping_ms() -> int:
+	var peer := multiplayer.multiplayer_peer as ENetMultiplayerPeer
+	if peer == null or not is_online():
+		return -1
+	var other := 1 if mode == Mode.GUEST else _guest_peer
+	if other == -1:
+		return -1
+	var packet_peer := peer.get_peer(other)
+	if packet_peer == null:
+		return -1
+	return int(packet_peer.get_statistic(ENetPacketPeer.PEER_ROUND_TRIP_TIME))
 
 
 func _reset(p_mode: Mode, p_level_path: String) -> void:
@@ -170,8 +231,10 @@ func _on_peer_connected(id: int) -> void:
 		return
 	_guest_peer = id
 	connected_slots = [HOST_SLOT, GUEST_SLOT]
+	_short_timeout(id)
 	_send_snapshot(id)
 	_broadcast_players()
+	partner_changed.emit(true)
 
 
 func _on_peer_disconnected(id: int) -> void:
@@ -181,14 +244,16 @@ func _on_peer_disconnected(id: int) -> void:
 	connected_slots = [HOST_SLOT]
 	ready_slots.erase(GUEST_SLOT)
 	_broadcast_players()
+	partner_changed.emit(false)
 	_try_end_players_turn()
 
 
 func _on_server_disconnected() -> void:
-	last_error = "The host left"
-	mode = Mode.NONE
-	multiplayer.multiplayer_peer = null
-	players_changed.emit()
+	leave("The host left the session.")
+
+
+func _on_connection_failed() -> void:
+	leave("Couldn't reach the host. Check the address, and that they are hosting (see HOW_TO_PLAY_TOGETHER).")
 
 
 func _broadcast_players() -> void:
