@@ -220,6 +220,7 @@ func _process(delta: float) -> void:
 	# Hold Space to fast-forward the enemy turn and world animation.
 	Engine.time_scale = FAST_FORWARD if _busy and Input.is_key_pressed(KEY_SPACE) else 1.0
 	_entity_renderer.show_all_bars = Input.is_key_pressed(KEY_ALT)
+	_entity_renderer.outlines = state.combat.active
 	_frame_worst = maxf(_frame_worst, delta)
 	_frame_window += delta
 	if _frame_window >= 2.0:
@@ -1363,13 +1364,15 @@ func _update_range_now() -> void:
 
 ## Vision cones on the ground near the party: where enemies would spot you
 ## (red: a fight starts) and townsfolk would witness you (yellow, orange when
-## suspicious). Drawn for the selected character's sneaking state. Each
-## watcher's cells are cached until it moves or turns. Returns
-## [cells, colors].
+## suspicious). Only shown while the selected character (this player's) is
+## sneaking. Each watcher's cells are cached until it moves or turns.
+## Returns [cells, colors].
 func _watched_cells() -> Array:
 	var party := CombatRules.fighters(state, SimEntity.Faction.PLAYERS)
 	var selected := state.get_entity(_selected_id)
-	var sneaking := selected != null and selected.sneaking
+	var sneaking := selected != null and selected.sneaking and _selected_is_mine()
+	if not sneaking:
+		return [[] as Array[Vector3i], [] as Array[Color]]
 	var occupied := SimPathfinder.occupancy(state)
 	var cells: Array[Vector3i] = []
 	var colors: Array[Color] = []
@@ -1798,6 +1801,8 @@ func _refresh() -> void:
 	_inventory.show_for(actor, party, _selected_is_mine() and not state.combat.active, _selected_is_mine())
 	var note := "" if actor == null or _selected_is_mine() else "%s is controlled by your partner" % actor.name
 	_action_bar.show_actions(actor if actor != null and actor.is_alive() else null, _action, _can_order(), state.combat.active, note)
+	if actor != null:
+		_action_bar.show_ap(state.combat.active and actor.takes_turns(), actor.ap, _preview_cost if _selected_is_mine() else 0, actor.max_ap)
 	var lines: Array[String] = []
 	if state.combat.active:
 		var turn := "Your turn" if _is_players_turn() else "Enemy turn..."
@@ -1827,7 +1832,7 @@ func _refresh() -> void:
 			var items := ", ".join(actor.inventory) if not actor.inventory.is_empty() else "nothing"
 			var whose := "" if _selected_is_mine() else "   (your partner's — you can't control them)"
 			lines.append("%s the %s   weapon: %s   carrying: %s%s" % [actor.name, SimArchetypes.title(actor.archetype), actor.weapon if actor.weapon != "" else "none", items, whose])
-		lines.append("Ground tint — red: enemies see you there, yellow: townsfolk watch")
+		lines.append("Sneaking (C) shows vision cones — red: enemies see you there, yellow: townsfolk watch")
 		lines.append("RMB move   LMB use / select   1-0 action bar ([ ] switch bars)   Esc cancel / menu   F1-F4 / Tab select   Enter end turn   Space (hold) fast-forward")
 		lines.append("C sneak   I inventory   J journal   Alt (hold) names + health   F5 / F9 quicksave / load   R restart")
 		lines.append("WASD pan   Q/E or middle-drag rotate   wheel zoom   P look: %s   ` perf   H hide" % _retro.style_name())

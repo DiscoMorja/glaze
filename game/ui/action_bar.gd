@@ -20,6 +20,11 @@ const KEY_NAMES := ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
 
 var page := 0
 var _row: HBoxContainer
+## The selected character's AP above the slots (combat): every point it can
+## hold, filled ones available, orange ones the aimed action would spend.
+var _ap_row: HBoxContainer
+var _ap: ApPips
+var _ap_label: Label
 var _page_label: Label
 var _note: Label
 var _tip_panel: PanelContainer
@@ -50,6 +55,17 @@ func _ready() -> void:
 	_note.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
 	_note.visible = false
 	column.add_child(_note)
+	_ap_row = HBoxContainer.new()
+	_ap_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_ap_row.add_theme_constant_override("separation", 8)
+	column.add_child(_ap_row)
+	_ap = ApPips.new()
+	_ap.radius = 9.0
+	_ap.spacing = 24.0
+	_ap_row.add_child(_ap)
+	_ap_label = UiStyle.dim("", 13)
+	_ap_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_ap_row.add_child(_ap_label)
 	_row = HBoxContainer.new()
 	_row.add_theme_constant_override("separation", SLOT_GAP)
 	column.add_child(_row)
@@ -129,6 +145,18 @@ func _redraw() -> void:
 		_slots[i].show_entry(entries[i])
 	if _tip_panel.visible and _tip_index >= 0:
 		_tip.text = tooltip_for(_slots[_tip_index].entry)
+
+
+## Action points above the slots: available of the CombatRules.AP_CAP it can
+## hold, `pending` of them about to be spent. Hidden outside combat.
+func show_ap(shown: bool, available: int, pending: int, per_turn: int) -> void:
+	_ap_row.visible = shown
+	if not shown:
+		return
+	_ap.set_points(available, CombatRules.AP_CAP, pending)
+	# Points not spent carry over (up to the cap): saving them is a choice.
+	var gain := mini(per_turn, CombatRules.AP_CAP - available)
+	_ap_label.text = "%d / %d AP   ·   +%d next turn" % [available, CombatRules.AP_CAP, gain]
 
 
 ## Presses the slot (keys 1-0).
@@ -305,7 +333,9 @@ class _Slot:
 		# Corner numbers: key, AP cost (in combat), count of items left.
 		_text(ActionBar.KEY_NAMES[_index], Vector2(4, 14), 12, Color(0.9, 0.9, 0.9))
 		if HotbarLayout.is_action(entry) and _bar._needs_ap:
-			_text("%d" % ActionInfo.cost(HotbarLayout.action_of(entry)), Vector2(0, size.y - 4), 12, Color(0.55, 1.0, 0.6), HORIZONTAL_ALIGNMENT_RIGHT, size.x - 4)
+			_cost_dots(ActionInfo.cost(HotbarLayout.action_of(entry)))
+		elif HotbarLayout.is_item(entry) and _bar._needs_ap and SimItems.is_usable(HotbarLayout.item_of(entry)):
+			_cost_dots(UseItemCommand.AP_COST, 16.0)
 		elif HotbarLayout.is_item(entry) and actor != null:
 			_text("%d" % actor.inventory.count(HotbarLayout.item_of(entry)), Vector2(0, size.y - 4), 13, Color.WHITE, HORIZONTAL_ALIGNMENT_RIGHT, size.x - 4)
 		# Border: gold when aimed, light when hovered.
@@ -320,6 +350,15 @@ class _Slot:
 		outline.set_border_width_all(2)
 		outline.set_corner_radius_all(6)
 		draw_style_box(outline, rect)
+
+	## The AP cost as little circles along the bottom edge (right-aligned,
+	## leaving `right_gap` for an item count).
+	func _cost_dots(cost: int, right_gap: float = 0.0) -> void:
+		var r := 3.6
+		for i in cost:
+			var c := Vector2(size.x - 7.0 - right_gap - i * (r * 2.0 + 2.0), size.y - 7.0)
+			draw_circle(c, r + 1.0, Color(0, 0, 0, 0.85))
+			draw_circle(c, r, ApPips.COLOR_AVAILABLE)
 
 	func _text(text: String, at: Vector2, font_size: int, color: Color, align := HORIZONTAL_ALIGNMENT_LEFT, width := -1.0) -> void:
 		var font := ThemeDB.fallback_font

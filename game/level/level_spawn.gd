@@ -29,6 +29,9 @@ enum Team { PLAYERS, ENEMIES, NEUTRAL }
 ## Dialogue knot (game/data/dialogue/*.dlg) talking to this character starts
 ## at; empty = nothing to say.
 @export var dialogue := ""
+## Model to show (a CharacterLooks.LOOKS key, e.g. "villager_f2"); empty:
+## picked by side and role. Presentation only.
+@export var look := ""
 ## Items worn from the start (each in its own slot, see EquipRules). A
 ## weapon here replaces the role's.
 @export var equipment: Array[String] = []

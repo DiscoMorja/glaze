@@ -1,6 +1,7 @@
 class_name SimEntityRenderer
 extends Node3D
-## Greybox views for entities: capsules for characters, cylinders for props,
+## Views for entities: animated character models (CharacterModel, from the
+## placeholder packs; capsules without them), boxes and cylinders for props,
 ## with status icons, a name label and a health bar. To keep the view readable
 ## the name shows only on the hovered or selected entity (or all, holding Alt),
 ## and statuses are icons with their turns left; hovering spells them out.
@@ -64,6 +65,14 @@ var walk_seconds := 0.0
 
 ## Alt held: every bar and name shows.
 var show_all_bars := false
+## Side outlines (green allies, red enemies) are drawn only in combat.
+var outlines := false:
+	set(value):
+		if value == outlines:
+			return
+		outlines = value
+		for view: _View in _views.values():
+			view.set_outlined(value)
 var _selected_id := -1
 ## Lends pooled pack flames to burning characters (optional).
 var fire_field: FireField
@@ -85,10 +94,11 @@ func _ready() -> void:
 				get_tree().create_timer(1.0).timeout.connect(warm.queue_free)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	var now := Time.get_ticks_msec() / 1000.0
 	for view_id: int in _views:
 		var view: _View = _views[view_id]
+		view.animate(delta)
 		var predicted: Array = _preview.get(view_id, [])
 		view.show_bar(show_all_bars or view_id == _hovered_id or not predicted.is_empty() or now < view.recent_until, predicted)
 		var hovered := show_all_bars or view_id == _hovered_id
@@ -107,6 +117,7 @@ func render(state: SimState, events: Array[SimEvent] = []) -> void:
 			view = _View.new(e)
 			view.fire_field = fire_field
 			add_child(view)
+			view.set_outlined(outlines)
 			_views[e.id] = view
 			view.position = cell_position(e.cell)
 		# Characters stay as corpses (they can be revived), broken containers
@@ -119,6 +130,29 @@ func render(state: SimState, events: Array[SimEvent] = []) -> void:
 		# Slowed characters take twice as long per cell.
 		var pace := 2.0 if e.slowed > 0 else 1.0
 		view.move_to(cell_position(e.cell), paths.get(e.id, []), walk_seconds * pace, pace)
+	_animate_events(events)
+
+
+## Attacks, spells, hits and potions play on the models (presentation only).
+func _animate_events(events: Array[SimEvent]) -> void:
+	for e in events:
+		match e.type:
+			SimEvent.Type.ATTACKED:
+				var attacker: _View = _views.get(e.other_id)
+				if attacker != null:
+					attacker.act("attack", cell_position(e.cell))
+			SimEvent.Type.CAST:
+				var caster: _View = _views.get(e.entity_id)
+				if caster != null:
+					caster.act("cast", cell_position(e.cell))
+			SimEvent.Type.DAMAGED:
+				var victim: _View = _views.get(e.entity_id)
+				if victim != null:
+					victim.act("hit", Vector3.INF)
+			SimEvent.Type.ITEM_USED:
+				var user: _View = _views.get(e.other_id)
+				if user != null:
+					user.act("drink", Vector3.INF)
 
 
 ## The view node for an entity (e.g. for the camera to follow), or null.
@@ -158,6 +192,19 @@ class _View:
 	var recent_until := 0.0
 
 	var _body: MeshInstance3D
+	## The animated model (characters, when the packs are there), else null.
+	var _model: CharacterModel
+	## What poses tip over: the model or the capsule.
+	var _figure: Node3D
+	## Every material to tint and outline, with its own base colour.
+	var _materials: Array[BaseMaterial3D] = []
+	var _material_bases: Array[Color] = []
+	## Facing (SimPerception.FACINGS index) and a point to turn to after an
+	## action (Vector3.INF = none).
+	var _facing := 4
+	var _look_at := Vector3.INF
+	var _in_combat := false
+	var _last_position := Vector3.ZERO
 	## The name: a ScreenLabels label when the scene has one, else a Label3D.
 	var _label: Node
 	## Status icons (always), and their names spelled out above the name while
@@ -180,6 +227,7 @@ class _View:
 	var _frozen := false
 	var _dead := false
 	var _outline := Color.TRANSPARENT
+	var _outlined := false
 	var _side := -1
 	var _sneaking := false
 	## The body's height when standing.
@@ -193,6 +241,13 @@ class _View:
 		_body = MeshInstance3D.new()
 		var top: float
 		if e.takes_turns():
+			_model = CharacterModel.create(e.model if CharacterLooks.LOOKS.has(e.model) else CharacterLooks.default_for(e))
+		if _model != null:
+			add_child(_model)
+			_figure = _model
+			_base_color = Color.WHITE
+			top = _model.height + 0.15
+		elif e.takes_turns():
 			var capsule := CapsuleMesh.new()
 			capsule.radius = 0.3
 			capsule.height = 1.5
@@ -217,15 +272,23 @@ class _View:
 			_base_color = PROP_COLOR
 			top = 1.15
 		_material.albedo_color = _base_color
+		if _model != null:
+			_materials = _model.materials()
+		else:
+			_materials = [_material]
+			_body.material_override = _material
+			_rest_height = _body.position.y
+			_figure = _body
+			add_child(_body)
+		for material in _materials:
+			_material_bases.append(material.albedo_color if _model != null else _base_color)
 		if e.takes_turns() and e.faction != SimEntity.Faction.NONE:
 			_outline = OUTLINE_ALLY if e.faction == SimEntity.Faction.PLAYERS else OUTLINE_ENEMY
-			_material.stencil_mode = BaseMaterial3D.STENCIL_MODE_OUTLINE
-			_material.stencil_color = _outline
-			_material.stencil_outline_thickness = OUTLINE_THICKNESS
-			_material.stencil_reference = CellMarkers.CHARACTER_STENCIL
-		_body.material_override = _material
-		_rest_height = _body.position.y
-		add_child(_body)
+			for material in _materials:
+				material.stencil_mode = BaseMaterial3D.STENCIL_MODE_OUTLINE
+				material.stencil_color = Color.TRANSPARENT  # shown in combat (set_outlined)
+				material.stencil_outline_thickness = OUTLINE_THICKNESS
+				material.stencil_reference = CellMarkers.CHARACTER_STENCIL
 
 		_bar = HealthBar.new(e.faction == SimEntity.Faction.PLAYERS)
 		_bar.position.y = top
@@ -279,6 +342,10 @@ class _View:
 			_sneaking = e.sneaking
 			_update_look()
 		_set_pose(e.knocked_down and e.is_alive(), e.is_frozen() and e.is_alive())
+		_facing = e.facing
+		_in_combat = e.in_combat
+		if _model != null:
+			_model.hold(e.weapon, e.worn.get("off_hand", ""))
 		if _icons != null:
 			if icons != _icons.icons:
 				_icons.icons = icons
@@ -375,9 +442,22 @@ class _View:
 			SimEntity.Faction.NEUTRAL:
 				_base_color = NEUTRAL_COLOR
 				_outline = OUTLINE_NEUTRAL
-		if not _dead:
-			_material.stencil_color = _outline
+		_apply_outline()
+		if _model == null:
+			_material_bases.assign([_base_color])
 		_update_look()
+
+	## Shows or hides the side outline (it keeps writing the stencil, so
+	## ground markers still don't draw over the character).
+	func set_outlined(shown: bool) -> void:
+		_outlined = shown
+		_apply_outline()
+
+	func _apply_outline() -> void:
+		var color := _outline if _outlined and not _dead else Color.TRANSPARENT
+		if _outline.a > 0.0:
+			for material in _materials:
+				material.stencil_color = color
 
 	## Dead: lies down, greyed out, no outline, label or bar.
 	func set_dead(dead: bool) -> void:
@@ -395,9 +475,10 @@ class _View:
 				_name_shown = false
 				_words_shown = false
 		_bar.visible = false
-		if _outline.a > 0.0:
-			_material.stencil_color = Color.TRANSPARENT if dead else _outline
+		_apply_outline()
 		_update_look()
+		if _model != null and not dead:
+			_model.revive()
 		_set_pose(false, false)
 
 	## Knocked down (or dead): the body tips over. Frozen: an icy tint.
@@ -409,19 +490,69 @@ class _View:
 		if down == _down:
 			return
 		_down = down
+		# Models with a death animation fall with it; others tip over.
+		if _model != null:
+			if down and _model.die():
+				return
+			if not down:
+				_model.revive()
 		var pose := create_tween().set_parallel(true)
-		pose.tween_property(_body, "rotation_degrees:x", 90.0 if down else 0.0, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-		pose.tween_property(_body, "position:y", _rest_height * 0.4 if down else _rest_height, 0.25)
+		pose.tween_property(_figure, "rotation_degrees:x", 90.0 if down else 0.0, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		pose.tween_property(_figure, "position:y", _rest_height * 0.4 if down else _rest_height, 0.25)
 
 	func _update_look() -> void:
-		var base := _base_color.lerp(FROZEN_TINT, 0.65) if _frozen else _base_color
-		if _sneaking:
-			base = base.darkened(0.45)
+		for i in _materials.size():
+			var own := _material_bases[i]
+			var base := own.lerp(FROZEN_TINT, 0.65) if _frozen else own
+			if _sneaking:
+				base = base.darkened(0.45)
+			if _dead:
+				base = own * CORPSE_TINT if _model != null else CORPSE_TINT
+			var material := _materials[i]
+			material.albedo_color = base.lightened(0.3 if _model != null else 0.45) if _selected else base
+			material.emission_enabled = _selected or _targetable
+			material.emission = TARGETABLE_GLOW if _targetable else (Color(0.25, 0.25, 0.25) if _model != null else _base_color * 0.4)
+			if _model != null and material.emission_enabled:
+				material.emission_energy_multiplier = 0.35 if _targetable else 0.2
+
+	## A one-shot on the model (attack, cast, hit, drink), turning toward
+	## `toward` first (Vector3.INF: stay facing as it is). Without a model, or
+	## an animation for it, a hit makes the body flinch.
+	func act(state: String, toward: Vector3) -> void:
 		if _dead:
-			base = CORPSE_TINT
-		_material.albedo_color = base.lightened(0.45) if _selected else base
-		_material.emission_enabled = _selected or _targetable
-		_material.emission = TARGETABLE_GLOW if _targetable else _base_color * 0.4
+			return
+		if toward != Vector3.INF:
+			_look_at = toward
+		var played := _model != null and _model.play_once(state)
+		if not played and state == "hit" and _figure != null:
+			var flinch := create_tween()
+			flinch.tween_property(_figure, "scale", Vector3(1.05, 0.92, 1.05), 0.06)
+			flinch.tween_property(_figure, "scale", Vector3.ONE, 0.12)
+
+	## Every frame: run while moving, idle (or ready for a fight) when not;
+	## turn toward the way it walks, the target of its last action, or its
+	## facing.
+	func animate(delta: float) -> void:
+		if _model == null:
+			return
+		var step := position - _last_position
+		_last_position = position
+		var moving := step.length() > 0.0005 and not _dead
+		if not _down:
+			_model.set_looping("run" if moving else ("combat_idle" if _in_combat else "idle"))
+		var dir := Vector3.ZERO
+		if moving and Vector2(step.x, step.z).length() > 0.0005:
+			dir = Vector3(step.x, 0, step.z)
+			_look_at = Vector3.INF
+		elif _look_at != Vector3.INF:
+			dir = Vector3(_look_at.x - position.x, 0, _look_at.z - position.z)
+		else:
+			var f: Vector3i = SimPerception.FACINGS[_facing]
+			dir = Vector3(f.x, 0, f.z)
+		if dir.length() < 0.01 or _down:
+			return
+		var yaw := atan2(dir.x, dir.z)
+		_model.rotation.y = lerp_angle(_model.rotation.y, yaw, minf(1.0, delta * 12.0))
 
 	func move_to(target: Vector3, path: Array, glide_seconds: float = 0.0, pace: float = 1.0) -> void:
 		if position.is_equal_approx(target):

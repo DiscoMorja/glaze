@@ -183,6 +183,7 @@ func _place_markers(state: SimState) -> void:
 		e.group = spawn.group_name()
 		e.dialogue = spawn.dialogue
 		e.gold = spawn.gold
+		e.model = spawn.look
 		for item in spawn.equipment:
 			var slot := EquipRules.default_slot(e, item)
 			if slot == "":

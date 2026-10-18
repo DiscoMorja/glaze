@@ -86,6 +86,8 @@ Saves are `SimState.to_snapshot()` plus a header (`game/save/save_store.gd`, GDD
 
 - **BinbunVFX_Vol2** (`assetlibs/BinbunVFX_Vol2/`): effects used through `game/vfx/pack_vfx.gd`, which falls back to the procedural `VfxFactory` effects when the pack is missing. After copying a fresh pack in, run `bash tools/fix_binbun_vfx.sh` (it rewrites the pack's `res://assets/...` paths and drops stale UID hints), then rescan in the editor. Keep a single copy of the pack.
 
+- **Characters and Weapons** (`assetlibs/Characters/`, `assetlibs/Weapons/`): placeholder models for party, enemies and townsfolk, and weapon models held in hand. `game/render/character_looks.gd` maps looks (`LevelSpawn.look`, or picked by side/role) to rigs, meshes and animations, and weapon items to models; `CharacterModel` builds and animates them; capsules are the fallback. The modular characters need `human_*_rigged.glb`, made with `tools/rig_modular_characters.py` in Blender (the pack's armour/heads/hair aren't bound to the armature). `game/debug/look_viewer.tscn` shows every look and animation (X cycles the hand axis for tuning).
+
 ## Tools
 
 - The godot-ai MCP addon is installed — use it to inspect scenes, run the game and read logs.
