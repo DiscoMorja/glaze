@@ -1,7 +1,10 @@
 class_name SimEntityRenderer
 extends Node3D
 ## Greybox views for entities: capsules for characters, cylinders for props,
-## with a name label and a health bar. The bar shows when the entity was just
+## with status icons, a name label and a health bar. To keep the view readable
+## the name shows only on the hovered or selected entity (or all, holding Alt),
+## and statuses are icons with their turns left; hovering spells them out.
+## The health bar The bar shows when the entity was just
 ## hurt or healed, when it is hovered, when a previewed action would change its
 ## HP (with the predicted loss marked), or while show_all_bars is on.
 
@@ -19,7 +22,7 @@ const RECENT_SECONDS := 3.0
 ## or a procedural VfxFactory emitter ("emitter"), at a height above the feet.
 ## Keep them outside the body (rings, above the head) so the capsule doesn't
 ## hide them.
-## "turns": show the turns left after the label.
+## "turns": show the turns left on the icon.
 const STATUS_LOOKS := {
 	"burning": {"label": "Burning", "color": "ff8a2a", "turns": true, "effects": [
 		{"emitter": "burning_body", "scale": 1.0, "height": 0.75},
@@ -43,6 +46,7 @@ const STATUS_LOOKS := {
 		{"emitter": "dazed", "scale": 1.0, "height": 0.7},
 	]},
 }
+const STAGGER_COLOR := "d8c8a0"
 ## Frozen characters take on an icy tint.
 const FROZEN_TINT := Color(0.7, 0.9, 1.0)
 ## Characters are outlined by side. The stencil value they write also keeps
@@ -57,7 +61,9 @@ const CORPSE_TINT := Color(0.32, 0.32, 0.34)
 ## seconds, matching the sim tick, instead of playing a combat walk animation.
 var walk_seconds := 0.0
 
+## Alt held: every bar and name shows.
 var show_all_bars := false
+var _selected_id := -1
 ## Lends pooled pack flames to burning characters (optional).
 var fire_field: FireField
 
@@ -84,6 +90,8 @@ func _process(_delta: float) -> void:
 		var view: _View = _views[view_id]
 		var predicted: Array = _preview.get(view_id, [])
 		view.show_bar(show_all_bars or view_id == _hovered_id or not predicted.is_empty() or now < view.recent_until, predicted)
+		var hovered := show_all_bars or view_id == _hovered_id
+		view.show_detail(hovered or view_id == _selected_id, hovered)
 
 
 func render(state: SimState, events: Array[SimEvent] = []) -> void:
@@ -117,6 +125,7 @@ func view_of(id: int) -> Node3D:
 
 
 func set_selected(id: int) -> void:
+	_selected_id = id
 	for view_id: int in _views:
 		_views[view_id].set_selected(view_id == id)
 
@@ -147,10 +156,15 @@ class _View:
 	var recent_until := 0.0
 
 	var _body: MeshInstance3D
-	## Name and AP: a ScreenLabels label when the scene has one, else a Label3D.
+	## The name: a ScreenLabels label when the scene has one, else a Label3D.
 	var _label: Node
-	## Debuff tags, coloured, above the name (ScreenLabels only).
+	## Status icons (always), and their names spelled out above the name while
+	## hovered (ScreenLabels only).
+	var _icons: StatusIcons
 	var _status: RichTextLabel
+	var _name_shown := false
+	var _words_shown := false
+	var _words := ""
 	## Status name -> its looping effect nodes.
 	var _loops := {}
 	var fire_field: FireField
@@ -170,6 +184,7 @@ class _View:
 	var _rest_height := 0.0
 	var _hp := -1
 	var _max_hp := 1
+	var _name := ""
 
 	func _init(e: SimEntity) -> void:
 		_material = StandardMaterial3D.new()
@@ -209,8 +224,10 @@ class _View:
 		add_child(_bar)
 
 		if ScreenLabels.instance != null:
-			_label = ScreenLabels.instance.follow(self, Vector3(0, top + 0.34, 0))
-			_status = ScreenLabels.instance.follow_rich(self, Vector3(0, top + 0.34, 0), Vector2(0, -20))
+			var at := Vector3(0, top + 0.3, 0)
+			_icons = ScreenLabels.instance.follow_control(StatusIcons.new(), self, at) as StatusIcons
+			_label = ScreenLabels.instance.follow(self, at, 15)
+			_status = ScreenLabels.instance.follow_rich(self, at, Vector2(0, -42))
 		else:
 			var label := Label3D.new()
 			label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -221,9 +238,9 @@ class _View:
 			add_child(label)
 			_label = label
 
-	## Updates the label and bar. Returns true if HP changed since last time.
+	## Updates the labels, icons and bar. Returns true if HP changed since last time.
 	func set_stats(e: SimEntity) -> bool:
-		var text := "%s  AP %d" % [e.name, e.ap] if e.takes_turns() else e.name
+		var text := e.name
 		# Status -> turns left (0 = not active; 1 for ones without a count).
 		var turns := {
 			"burning": e.temp_turns if e.is_burning() else 0,
@@ -236,28 +253,49 @@ class _View:
 			"sneaking": 1 if e.sneaking else 0,
 		}
 		var tags: Array[String] = []
+		var icons: Array[Dictionary] = []
 		for status: String in STATUS_LOOKS:
 			var look: Dictionary = STATUS_LOOKS[status]
 			var active: bool = turns[status] > 0 and e.is_alive()
 			if active:
-				var label: String = look.label if not look.get("turns", false) else "%s %d" % [look.label, turns[status]]
+				var counted: bool = look.get("turns", false)
+				var label: String = "%s (%d)" % [look.label, turns[status]] if counted else look.label
 				tags.append("[color=#%s]%s[/color]" % [look.color, label])
+				icons.append({"id": status, "color": Color(look.color), "count": turns[status] if counted else 0})
 			_set_loop(status, active)
 		if e.stagger > 0 and e.is_alive():
-			tags.append("[color=#d8c8a0]Stagger %d/%d[/color]" % [e.stagger, e.stagger_max])
+			tags.append("[color=#%s]Stagger %d/%d[/color]" % [STAGGER_COLOR, e.stagger, e.stagger_max])
+			icons.append({"id": "stagger", "color": Color(STAGGER_COLOR), "count": e.stagger})
 		if e.sneaking != _sneaking:
 			_sneaking = e.sneaking
 			_update_look()
 		_set_pose(e.knocked_down and e.is_alive(), e.is_frozen() and e.is_alive())
-		if _status != null:
-			_status.text = "[center]%s[/center]" % "  ".join(tags) if not tags.is_empty() else ""
-		elif not tags.is_empty():
-			text += "  " + " ".join(tags)
-		_label.set("text", text)
+		if _icons != null:
+			if icons != _icons.icons:
+				_icons.icons = icons
+			_words = "[center]%s[/center]" % "  ".join(tags) if not tags.is_empty() else ""
+			_status.text = _words if _words_shown else ""
+			_label.set("text", text if _name_shown else "")
+		else:
+			if not tags.is_empty():
+				text += "  " + " ".join(tags)
+			_label.set("text", text)
+		_name = text
 		var changed := _hp >= 0 and e.hp != _hp
 		_hp = e.hp
 		_max_hp = e.max_hp
 		return changed
+
+	## name: show the name (hovered, selected, Alt). words: also spell out the
+	## statuses (hovered, Alt). The icons sit higher while the name shows.
+	func show_detail(name_shown: bool, words: bool) -> void:
+		if _icons == null or _dead or (name_shown == _name_shown and words == _words_shown):
+			return
+		_name_shown = name_shown
+		_words_shown = words
+		_label.set("text", _name if name_shown else "")
+		_status.text = _words if words else ""
+		ScreenLabels.instance.set_screen_offset(_icons, Vector2(0, -20) if name_shown else Vector2.ZERO)
 
 	## Starts or stops a debuff's looping effect.
 	func _set_loop(status: String, active: bool) -> void:
@@ -340,6 +378,13 @@ class _View:
 		_label.set("visible", not dead)
 		if _status != null:
 			_status.visible = not dead
+			_icons.visible = not dead
+			if dead:
+				_icons.icons = []
+				_label.set("text", "")
+				_status.text = ""
+				_name_shown = false
+				_words_shown = false
 		_bar.visible = false
 		if _outline.a > 0.0:
 			_material.stencil_color = Color.TRANSPARENT if dead else _outline

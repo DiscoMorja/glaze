@@ -22,6 +22,7 @@ extends Node3D
 ## use. Actions that would hurt your own party need a second click to confirm.
 ## Teleport takes two clicks: the target, then where to put it.
 ## Enter: end turn (asks first if anyone has AP left)   Esc: cancel   R: restart
+## H: show the controls   `: show the perf readout
 ## Esc with nothing aimed: menu (save, load, quit). F5 quicksave, F9 quickload
 ## (host only); the host also autosaves (see _autosave_due()).
 ## Enemy turns are paced so you can follow them; hold Space to fast-forward.
@@ -143,6 +144,9 @@ var _inventory: InventoryPanel
 var _dialogue: DialoguePanel
 var _journal: JournalPanel
 var _save_menu: SaveMenu
+## The HUD's controls help (H) and perf readout (`), off by default.
+var _show_help := false
+var _show_perf := false
 ## Seconds played in this campaign (saved with it), the playtime at the last
 ## save, and why an autosave is due ("" = none, besides the timer).
 var _playtime := 0.0
@@ -267,6 +271,12 @@ func _unhandled_input(event: InputEvent) -> void:
 					_save_menu.open(Net.is_host(), _save_blocker())
 				else:
 					_aim(ActionInfo.NONE)
+			KEY_H:
+				_show_help = not _show_help
+				_refresh()
+			KEY_QUOTELEFT:
+				_show_perf = not _show_perf
+				_refresh()
 			KEY_F5: _quicksave()
 			KEY_F9: _quickload()
 			KEY_TAB: _select_next()
@@ -1679,8 +1689,8 @@ func _refresh() -> void:
 			turn = "Your turn — your partner is ready"
 		lines.append("Round %d — %s" % [state.combat.round_number, turn])
 	elif _exploring():
-		var sneak_hint := "C: sneak" if state.get_entity(_selected_id) == null or not state.get_entity(_selected_id).sneaking else "Sneaking (C to stop) — harder to see, half speed"
-		lines.append("Exploring — red: enemies see you there, yellow: townsfolk watch   %s   I: inventory   J: journal" % sneak_hint)
+		var sneaking := actor != null and actor.sneaking
+		lines.append("Exploring — sneaking (C to stop)" if sneaking else "Exploring")
 	else:
 		lines.append("Combat over — press R to restart")
 	if Net.is_online():
@@ -1692,13 +1702,20 @@ func _refresh() -> void:
 		if Net.is_host() and Net.connected_slots.size() == 1:
 			line += "   join at: %s" % ", ".join(NetSession.host_addresses())
 		lines.append(line + "   F10: leave")
-	if actor != null:
-		var items := ", ".join(actor.inventory) if not actor.inventory.is_empty() else "nothing"
-		var whose := "" if _selected_is_mine() else "   (your partner's — you can't control them)"
-		lines.append("%s the %s   weapon: %s   carrying: %s%s" % [actor.name, SimArchetypes.title(actor.archetype), actor.weapon if actor.weapon != "" else "none", items, whose])
-	lines.append("%s   %s" % [_mode_name(), _preview_text])
-	lines.append("RMB move   LMB use / select   1-9 actions   Esc cancel   F1-F4 / Tab select   Enter end turn   Space (hold) fast-forward   R restart   F5/F9 quicksave/load   Esc menu")
-	lines.append("WASD pan   Q/E or middle-drag rotate   wheel zoom   P look: %s" % _retro.style_name())
-	lines.append(_perf_text())
+	if _preview_text != "" and _preview_text != "Walk":  # plain walking needs no caption
+		lines.append(_preview_text)
+	if _show_help:
+		if actor != null:
+			var items := ", ".join(actor.inventory) if not actor.inventory.is_empty() else "nothing"
+			var whose := "" if _selected_is_mine() else "   (your partner's — you can't control them)"
+			lines.append("%s the %s   weapon: %s   carrying: %s%s" % [actor.name, SimArchetypes.title(actor.archetype), actor.weapon if actor.weapon != "" else "none", items, whose])
+		lines.append("Ground tint — red: enemies see you there, yellow: townsfolk watch")
+		lines.append("RMB move   LMB use / select   1-9 actions   Esc cancel / menu   F1-F4 / Tab select   Enter end turn   Space (hold) fast-forward")
+		lines.append("C sneak   I inventory   J journal   Alt (hold) names + health   F5 / F9 quicksave / load   R restart")
+		lines.append("WASD pan   Q/E or middle-drag rotate   wheel zoom   P look: %s   ` perf   H hide" % _retro.style_name())
+	else:
+		lines.append("H: controls")
+	if _show_perf or log_perf:
+		lines.append(_perf_text())
 	_hud.text = "\n".join(lines)
 	_log_label.text = "\n".join(_log)

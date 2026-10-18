@@ -56,6 +56,22 @@ func follow_rich(anchor: Node3D, offset: Vector3, screen_offset: Vector2 = Vecto
 	return label
 
 
+## Any control (e.g. StatusIcons) following `anchor`, placed like the labels.
+## Controls with an is_empty() method are hidden while it returns true.
+func follow_control(control: Control, anchor: Node3D, offset: Vector3, screen_offset: Vector2 = Vector2.ZERO) -> Control:
+	control.visible = false
+	add_child(control)
+	_followers.append([control, anchor, offset, screen_offset])
+	return control
+
+
+## Moves a follower's screen offset (e.g. icons stacking above a name).
+func set_screen_offset(control: Control, screen_offset: Vector2) -> void:
+	for entry: Array in _followers:
+		if entry[0] == control:
+			entry[3] = screen_offset
+
+
 ## Text that rises and fades at a world point, e.g. damage numbers.
 func float_text(at: Vector3, text: String, color: Color, font_size: int = 22) -> void:
 	var label := _make(font_size)
@@ -109,7 +125,7 @@ func _process(_delta: float) -> void:
 
 
 func _place(label: Control, at: Vector3, camera: Camera3D, screen_offset: Vector2 = Vector2.ZERO) -> void:
-	var empty: bool = label.get("text") == ""
+	var empty: bool = label.call("is_empty") if label.has_method("is_empty") else label.get("text") == ""
 	if camera == null or empty or camera.is_position_behind(at):
 		label.visible = false
 		return
