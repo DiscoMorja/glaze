@@ -39,6 +39,14 @@ theme_override_font_sizes/font_size = 48
 text = "glaze"
 horizontal_alignment = 1
 
+[node name="SaveLabel" type="Label" parent="Center/Box"]
+layout_mode = 2
+text = "Game"
+
+[node name="Save" type="OptionButton" parent="Center/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+
 [node name="LevelLabel" type="Label" parent="Center/Box"]
 layout_mode = 2
 text = "Level (solo or hosting)"

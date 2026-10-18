@@ -159,44 +159,44 @@ func to_dict() -> Dictionary:
 
 static func from_dict(data: Dictionary) -> SimEntity:
 	var e := SimEntity.new()
-	e.id = data.id
-	e.name = data.name
-	e.archetype = data.archetype
-	e.cell = data.cell
-	e.faction = data.faction
-	e.hp = data.hp
-	e.max_hp = data.max_hp
-	e.ap = data.ap
-	e.max_ap = data.max_ap
-	e.mass = data.mass
-	e.contents_surface = data.contents_surface
-	e.contents_amount = data.contents_amount
-	e.weapon = data.weapon
-	e.can_be_disarmed = data.can_be_disarmed
-	e.weapon_damage = data.weapon_damage
-	e.unarmed_damage = data.unarmed_damage
-	e.inventory.assign(data.inventory)
-	e.abilities.assign(data.abilities)
-	e.cooldowns = PackedInt32Array(data.cooldowns)
-	e.travel.assign(data.travel)
-	e.sight = data.sight
-	e.facing = data.facing
-	e.home_facing = data.home_facing
-	e.sneaking = data.sneaking
-	e.suspicious = data.suspicious
-	e.stolen.assign(data.stolen)
-	e.group = data.group
-	e.dialogue = data.dialogue
-	e.slowed = data.slowed
-	e.temperature = data.temperature
-	e.temp_turns = data.temp_turns
-	e.stagger = data.stagger
-	e.stagger_max = data.stagger_max
-	e.knocked_down = data.knocked_down
-	e.knocked_skipping = data.knocked_skipping
-	e.pack = data.pack
-	e.owner = data.owner
-	e.in_combat = data.in_combat
+	e.id = data.get("id", e.id)
+	e.name = data.get("name", e.name)
+	e.archetype = data.get("archetype", e.archetype)
+	e.cell = data.get("cell", e.cell)
+	e.faction = data.get("faction", e.faction)
+	e.hp = data.get("hp", e.hp)
+	e.max_hp = data.get("max_hp", e.max_hp)
+	e.ap = data.get("ap", e.ap)
+	e.max_ap = data.get("max_ap", e.max_ap)
+	e.mass = data.get("mass", e.mass)
+	e.contents_surface = data.get("contents_surface", e.contents_surface)
+	e.contents_amount = data.get("contents_amount", e.contents_amount)
+	e.weapon = data.get("weapon", e.weapon)
+	e.can_be_disarmed = data.get("can_be_disarmed", e.can_be_disarmed)
+	e.weapon_damage = data.get("weapon_damage", e.weapon_damage)
+	e.unarmed_damage = data.get("unarmed_damage", e.unarmed_damage)
+	e.inventory.assign(data.get("inventory", []))
+	e.abilities.assign(data.get("abilities", []))
+	e.cooldowns = PackedInt32Array(data.get("cooldowns", e.cooldowns))
+	e.travel.assign(data.get("travel", []))
+	e.sight = data.get("sight", e.sight)
+	e.facing = data.get("facing", e.facing)
+	e.home_facing = data.get("home_facing", e.home_facing)
+	e.sneaking = data.get("sneaking", e.sneaking)
+	e.suspicious = data.get("suspicious", e.suspicious)
+	e.stolen.assign(data.get("stolen", []))
+	e.group = data.get("group", e.group)
+	e.dialogue = data.get("dialogue", e.dialogue)
+	e.slowed = data.get("slowed", e.slowed)
+	e.temperature = data.get("temperature", e.temperature)
+	e.temp_turns = data.get("temp_turns", e.temp_turns)
+	e.stagger = data.get("stagger", e.stagger)
+	e.stagger_max = data.get("stagger_max", e.stagger_max)
+	e.knocked_down = data.get("knocked_down", e.knocked_down)
+	e.knocked_skipping = data.get("knocked_skipping", e.knocked_skipping)
+	e.pack = data.get("pack", e.pack)
+	e.owner = data.get("owner", e.owner)
+	e.in_combat = data.get("in_combat", e.in_combat)
 	return e
 
 

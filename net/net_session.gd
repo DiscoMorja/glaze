@@ -406,12 +406,15 @@ func _send_snapshot(peer: int) -> void:
 
 @rpc("authority", "reliable")
 func _snapshot(bytes: PackedByteArray, p_level_path: String, seq: int, slot: int, slots: Array, ready: Dictionary) -> void:
+	var snapshot := SimState.from_snapshot(bytes)
+	if snapshot == null:
+		leave("The host runs a newer version of glaze. Update to play together.")
+		return
 	_synced_seq = seq
 	local_slot = slot
 	level_path = p_level_path
 	connected_slots.assign(slots)
 	ready_slots = ready
-	var snapshot := SimState.from_snapshot(bytes)
 	if snapshot_received.get_connections().is_empty():
 		_pending_snapshot = snapshot
 		_pending_level = p_level_path

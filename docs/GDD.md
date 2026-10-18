@@ -307,6 +307,14 @@ Levels are built freely in Godot and baked into the sim (`GameLevel.bake()`, run
 - **Look (start area):** CC0 ambientCG grass ground, rock on slopes via Terrain3D's auto-shader, ~10k grass cards on flat, dry ground. Grass is visual only for now; ground markers draw on top of it. Burnable grass is a natural next step for the sim.
 - **Arena** (`levels/arena`): a CSG greybox level with `start_in_combat` set; it is both the M1 combat arena and the sim debug sandbox's level.
 
+### 8.5.2 Saving
+
+- **Save anywhere**, in combat too (on the party's turn, between actions). A save is the host's whole `SimState` snapshot (the same one co-op joins use) plus a header: title, level, time, playtime, party. Loading re-instantiates the level for its scenery and plays from the saved state instead of the bake, so level scenes must not hold game state.
+- **Co-op: the host owns the save.** Only the host saves and loads (files in `user://saves/` on the host's PC); loading sends the guest the world like a join.
+- **Slots:** F5 quicksave / F9 quickload; autosaves rotate through 3 slots (on a new quest, quest end, fight start, and every 5 minutes played); named saves from the Esc menu; the main menu continues any save, solo or hosted.
+- **Compatibility:** the snapshot carries `SimState.SNAPSHOT_VERSION`. Missing entity/combat/state fields load with their defaults, so adding a field needs nothing; renaming or reinterpreting one, or a new grid array, bumps the version with a migration step. `tests/fixtures/snapshot_v<N>.bin` keeps a save from every version, and a test loads them all. Saves from a newer version are refused, not crashed on.
+- Known limit: a save holds the baked grid, so editing a level's layout doesn't reach existing saves of it.
+
 ### 8.6 Data Layout (performance in GDScript)
 
 - Structure-of-arrays: one `PackedInt32Array` (or `PackedByteArray`) per cell field, flat index `x + z*w + y*w*d`, y up — see `SimGrid.index()`.
@@ -336,7 +344,6 @@ Levels are built freely in Godot and baked into the sim (`GameLevel.bake()`, run
 
 - Split combat (one player in combat, the other exploring) — post-Prologue?
 - Setting, tone and the four player characters.
-- Save system scope (anywhere vs checkpoints) in co-op.
 
 ---
 
@@ -376,4 +383,5 @@ Levels are built freely in Godot and baked into the sim (`GameLevel.bake()`, run
 | 2026-10-18 | Art direction: low-poly, PSX-inspired look (not high fidelity), fitting a solo content pipeline. Engine stays Godot; a GDExtension port of `sim/` is the escape hatch if sim speed becomes the limit. |
 | 2026-10-18 | Fights are local: the party plus spotting/provoked enemies and their packs; other packs sit out. Sim grid copies are copy-on-write; fire and heat keep sparse cell sets. Stress level `levels/highlands` (256 m, 32 packs). |
 | 2026-10-18 | M4 dialogue & quests: own ink-like text format run inside the sim (talk/choose are commands), facts as integers (stored + derived from the world), quests as outcome predicates with journal text; first quest "The bandit problem". Co-op: one talks, both see. Dialogue tool question closed (no addon). |
+| 2026-10-18 | Save system: save anywhere (combat too), host owns co-op saves, quick + rotating auto + named slots; saves are versioned sim snapshots with default-tolerant loading, migrations and per-version fixtures. |
 | 2026-10-17 | Scope: Prologue (1 hub + 1 zone, 2–3 h co-op) targeted at 12–18 months, 6–8 h/week, Claude Code writes the code. |

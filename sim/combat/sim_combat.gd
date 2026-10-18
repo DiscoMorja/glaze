@@ -14,9 +14,9 @@ func to_dict() -> Dictionary:
 
 static func from_dict(data: Dictionary) -> SimCombat:
 	var combat := SimCombat.new()
-	combat.active = data.active
-	combat.side = data.side
-	combat.round_number = data.round_number
+	combat.active = data.get("active", combat.active)
+	combat.side = data.get("side", combat.side)
+	combat.round_number = data.get("round_number", combat.round_number)
 	return combat
 
 

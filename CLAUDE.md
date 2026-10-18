@@ -72,6 +72,10 @@ Dialogue (`game/data/dialogue/*.dlg`) and quests (`game/data/quests/*.quest`) ar
 - Solo is a host without a guest, through the same path.
 - Ops carry checksums; keep the sim deterministic (rule 5) or guests will resync constantly.
 
+## Saves
+
+Saves are `SimState.to_snapshot()` plus a header (`game/save/save_store.gd`, GDD §8.5.2). Anything the sim must remember belongs in `SimState` and its snapshot, nowhere else. New entity/combat/state fields: read them with `data.get(key, default)` in `from_dict`/`from_snapshot` and old saves keep loading. A rename, a changed meaning or a new grid array: bump `SimState.SNAPSHOT_VERSION`, add the step to `SimState._migrate()`, and write the new fixture with `tools/make_snapshot_fixture.gd` (never overwrite an old one; `tests/sim/test_save_format.gd` loads them all).
+
 ## Builds
 
 `bash tools/export_windows.sh` exports `build/windows/glaze.exe` and `build/glaze-windows.zip` (git-ignored). Needs the Godot 4.7.2 export templates (Editor → Manage Export Templates). `docs/PLAYTEST.md` ships in the zip as the players' connection guide.

@@ -1,8 +1,10 @@
 extends Control
-## Start screen: play alone, host a co-op session, or join one by address.
+## Start screen: play alone, host a co-op session, or join one by address;
+## a new game on a level, or a saved game (solo or hosted).
 ## The same choices work from the command line (after "--"), for testing two
 ## instances on one machine:
 ##   --solo | --host | --join=ADDRESS   [--level=arena|start|highlands]
+##   [--load=SLOT | --load=latest]
 
 const LEVELS := {
 	"start": {"label": "Start area", "scene": "res://game/world/world.tscn"},
@@ -12,6 +14,7 @@ const LEVELS := {
 ## A guest's scene: the host's level is loaded into it once the snapshot arrives.
 const GUEST_SCENE := "res://game/world/world.tscn"
 
+@onready var _save: OptionButton = %Save
 @onready var _level: OptionButton = %Level
 @onready var _address: LineEdit = %Address
 @onready var _status: Label = %Status
@@ -21,6 +24,12 @@ func _ready() -> void:
 	for key: String in LEVELS:
 		_level.add_item(LEVELS[key].label)
 		_level.set_item_metadata(_level.item_count - 1, key)
+	_save.add_item("New game")
+	_save.set_item_metadata(0, "")
+	for header in SaveStore.list():
+		_save.add_item("Continue: " + SaveStore.describe(header))
+		_save.set_item_metadata(_save.item_count - 1, header.slot)
+	_save.item_selected.connect(func(_index: int) -> void: _level.disabled = _save_slot() != "")
 	%Solo.pressed.connect(_solo)
 	%Host.pressed.connect(_host)
 	%Join.pressed.connect(_join)
@@ -42,6 +51,13 @@ func _run_command_line() -> void:
 				if _level.get_item_metadata(i) == key:
 					_level.select(i)
 	for arg in args:
+		if arg.begins_with("--load="):
+			var slot := arg.trim_prefix("--load=")
+			for i in _save.item_count:
+				if _save.get_item_metadata(i) == slot or (slot == "latest" and i == 1):
+					_save.select(i)
+					_level.disabled = true
+	for arg in args:
 		if arg == "--solo":
 			_solo()
 		elif arg == "--host":
@@ -52,16 +68,40 @@ func _run_command_line() -> void:
 
 
 func _scene() -> String:
+	if _save_slot() != "":
+		return GUEST_SCENE  # any game scene: the save says which level to load
 	return LEVELS[_level.get_item_metadata(_level.selected)].scene
 
 
+func _save_slot() -> String:
+	return _save.get_item_metadata(_save.selected)
+
+
+## Reads the picked save for the game scene to start from. False (with the
+## reason shown) if it can't be read.
+func _pick_save() -> bool:
+	SaveStore.pending = {}
+	if _save_slot() == "":
+		return true
+	SaveStore.pending = SaveStore.read(_save_slot())
+	if SaveStore.pending.is_empty():
+		_status.text = "That save can't be loaded (damaged, or from a newer version)."
+		return false
+	return true
+
+
 func _solo() -> void:
+	if not _pick_save():
+		return
 	Net.start_solo("")
 	get_tree().change_scene_to_file(_scene())
 
 
 func _host() -> void:
+	if not _pick_save():
+		return
 	if Net.host("") != OK:
+		SaveStore.pending = {}
 		_status.text = Net.last_error
 		return
 	get_tree().change_scene_to_file(_scene())

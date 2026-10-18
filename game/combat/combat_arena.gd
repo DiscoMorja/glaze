@@ -22,6 +22,8 @@ extends Node3D
 ## use. Actions that would hurt your own party need a second click to confirm.
 ## Teleport takes two clicks: the target, then where to put it.
 ## Enter: end turn (asks first if anyone has AP left)   Esc: cancel   R: restart
+## Esc with nothing aimed: menu (save, load, quit). F5 quicksave, F9 quickload
+## (host only); the host also autosaves (see _autosave_due()).
 ## Enemy turns are paced so you can follow them; hold Space to fast-forward.
 ## Hold Alt to show every health bar. Actions against a target swing the camera
 ## to frame both sides, then back to the caster.
@@ -51,6 +53,8 @@ const COLOR_SUSPICIOUS := Color(1.0, 0.55, 0.1, 0.18)
 const DANGER_SHOW_RADIUS := 40
 ## Exploring: the walk preview waits this long after the hovered cell changes.
 const EXPLORE_PREVIEW_DELAY_MSEC := 60
+## Autosave at least this often (seconds played), besides quest and combat starts.
+const AUTOSAVE_SECONDS := 300.0
 
 const COLOR_CURSOR := Color(1, 1, 1, 0.45)
 const COLOR_INVALID := Color(1, 0.15, 0.1, 0.5)
@@ -138,6 +142,12 @@ var _action_bar: ActionBar
 var _inventory: InventoryPanel
 var _dialogue: DialoguePanel
 var _journal: JournalPanel
+var _save_menu: SaveMenu
+## Seconds played in this campaign (saved with it), the playtime at the last
+## save, and why an autosave is due ("" = none, besides the timer).
+var _playtime := 0.0
+var _last_save_playtime := 0.0
+var _autosave_reason := ""
 var _dialog: PanelContainer
 var _dialog_label: Label
 var _banner: Label
@@ -166,6 +176,10 @@ func _ready() -> void:
 			if state == null and Net.mode == NetSession.Mode.GUEST:
 				Net.leave("Couldn't reach the host. Check the address, and that they are hosting (see HOW_TO_PLAY_TOGETHER)."))
 		Net.claim_backlog()
+	elif not SaveStore.pending.is_empty():
+		var picked := SaveStore.pending
+		SaveStore.pending = {}
+		_start_save(picked)
 	else:
 		_restart()
 
@@ -173,6 +187,11 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if state == null:
 		return
+	_playtime += delta / Engine.time_scale
+	if _autosave_due() and _save_blocker() == "":
+		_save(SaveStore.next_auto_slot(), "Autosave" + (": " + _autosave_reason if _autosave_reason != "" else ""))
+		_log.push_front("Autosaved.")
+		_refresh()
 	_update_hover()
 	if _preview_due_msec > 0 and Time.get_ticks_msec() >= _preview_due_msec:
 		_preview_due_msec = 0
@@ -224,6 +243,12 @@ func _update_hover() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouse:
 		_mouse_pos = event.position
+	if _save_menu.visible:
+		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+			_save_menu.close()
+		if event is InputEventKey or event is InputEventMouseButton:
+			get_viewport().set_input_as_handled()
+			return
 	if event is InputEventKey and event.pressed and not event.echo:
 		if _dialogue.handle_key(event.keycode):
 			return
@@ -237,7 +262,13 @@ func _unhandled_input(event: InputEvent) -> void:
 			_aim_slot(slot)
 			return
 		match event.keycode:
-			KEY_ESCAPE: _aim(ActionInfo.NONE)
+			KEY_ESCAPE:
+				if _action == ActionInfo.NONE and _teleport_target == null:
+					_save_menu.open(Net.is_host(), _save_blocker())
+				else:
+					_aim(ActionInfo.NONE)
+			KEY_F5: _quicksave()
+			KEY_F9: _quickload()
 			KEY_TAB: _select_next()
 			KEY_F1: _select_index(0)
 			KEY_F2: _select_index(1)
@@ -282,6 +313,9 @@ func _restart() -> void:
 		return
 	var baked := _baked
 	_baked = null
+	_playtime = 0.0
+	_last_save_playtime = 0.0
+	_autosave_reason = ""
 	Net.level_path = level_scene.resource_path
 	Net.set_authority(baked)
 	_start_from(baked)
@@ -545,6 +579,91 @@ func _apply_or_resync(command: SimCommand) -> bool:
 	push_warning("A command from the host doesn't apply here; resyncing: %s" % command.to_dict())
 	Net.request_snapshot()
 	return false
+
+
+# --- Saving --------------------------------------------------------------------
+
+## Why the game can't be saved right now, or "" if it can: only the host
+## saves, and only between actions (in combat: on the party's turn).
+func _save_blocker() -> String:
+	if not Net.is_host():
+		return "Only the host can save."
+	if state == null or Net.authority == null:
+		return "Nothing to save yet."
+	if _busy or _playing or not _ops.is_empty() or _enemy_turn_running:
+		return "Wait for the current action to finish."
+	if state.combat.active and not _is_players_turn():
+		return "Wait for your turn."
+	return ""
+
+
+func _autosave_due() -> bool:
+	return Net.is_host() and (_autosave_reason != "" or _playtime - _last_save_playtime >= AUTOSAVE_SECONDS)
+
+
+## Writes the host's state to `slot`. Returns whether it worked.
+func _save(slot: String, title: String) -> bool:
+	if title == "":
+		title = Net.level_path.get_file().get_basename().capitalize()
+	var error := SaveStore.write(slot, title, Net.authority, Net.level_path, int(_playtime))
+	_last_save_playtime = _playtime
+	_autosave_reason = ""
+	if error != OK:
+		_show_banner("Saving failed: %s" % error_string(error))
+		return false
+	return true
+
+
+func _quicksave() -> void:
+	var blocker := _save_blocker()
+	if blocker != "":
+		_show_banner(blocker)
+	elif _save(SaveStore.QUICK, "Quicksave"):
+		_show_banner("Quicksaved")
+
+
+func _quickload() -> void:
+	if SaveStore.read_header(SaveStore.QUICK).is_empty():
+		_show_banner("No quicksave yet")
+	else:
+		_load_slot(SaveStore.QUICK)
+
+
+## Host: replaces the world with a save (a connected guest is sent it, as on joining).
+func _load_slot(slot: String) -> void:
+	if not Net.is_host():
+		_show_banner("Only the host can load.")
+		return
+	var data := SaveStore.read(slot)
+	if data.is_empty():
+		_show_banner("That save can't be loaded (damaged, or from a newer version).")
+		return
+	_start_save(data)
+
+
+## Loads the save's level for its scenery, then plays from the saved state
+## instead of the fresh bake.
+func _start_save(data: Dictionary) -> void:
+	var header: Dictionary = data.header
+	var path: String = header.get("level", "")
+	if not ResourceLoader.exists(path):
+		_show_banner("That save's level is missing: %s" % path)
+		if state == null:
+			_restart()
+		return
+	level_scene = load(path)
+	var session := await _load_level()
+	if session != _session:
+		return
+	_baked = null
+	var loaded: SimState = data.state
+	Net.level_path = path
+	Net.set_authority(loaded)
+	_start_from(loaded)
+	_playtime = header.get("playtime", 0)
+	_last_save_playtime = _playtime
+	_autosave_reason = ""
+	_show_banner("Loaded: %s" % header.get("title", ""))
 
 
 # --- The op stream ------------------------------------------------------------
@@ -896,8 +1015,12 @@ func _present(s: SimState, events: Array[SimEvent]) -> void:
 			_show_banner("Victory!" if e.amount == SimEntity.Faction.PLAYERS else "Defeat")
 		elif e.type == SimEvent.Type.QUEST_STARTED and QuestRules.quests.has(e.text):
 			_show_banner("New quest: %s   (J: journal)" % QuestRules.quests[e.text].title)
+			_autosave_reason = "new quest"
 		elif e.type == SimEvent.Type.QUEST_ENDED and QuestRules.quests.has(e.text):
 			_show_banner("Quest ended: %s" % QuestRules.quests[e.text].title)
+			_autosave_reason = "quest ended"
+		elif e.type == SimEvent.Type.COMBAT_STARTED:
+			_autosave_reason = "fight"
 	_entity_renderer.walk_seconds = 1.0 / EXPLORE_TICKS_PER_SECOND if not s.combat.active else 0.0
 	_grid_renderer.render(s.grid)
 	_fire_field.sync(s.grid)
@@ -1431,6 +1554,16 @@ func _build_scene() -> void:
 			Net.submit(ChooseCommand.new(state.conversation.talker, index)))
 	_journal = JournalPanel.new()
 	canvas.add_child(_journal)
+	_save_menu = SaveMenu.new()
+	_save_menu.z_index = 10  # above the other panels
+	canvas.add_child(_save_menu)
+	_save_menu.save_requested.connect(func(title: String) -> void:
+		if _save(SaveStore.new_slot(), title):
+			_save_menu.saved())
+	_save_menu.load_requested.connect(func(slot: String) -> void:
+		_save_menu.close()
+		_load_slot(slot))
+	_save_menu.quit_requested.connect(func() -> void: Net.leave())
 
 	_inventory = InventoryPanel.new()
 	canvas.add_child(_inventory)
@@ -1564,7 +1697,7 @@ func _refresh() -> void:
 		var whose := "" if _selected_is_mine() else "   (your partner's — you can't control them)"
 		lines.append("%s the %s   weapon: %s   carrying: %s%s" % [actor.name, SimArchetypes.title(actor.archetype), actor.weapon if actor.weapon != "" else "none", items, whose])
 	lines.append("%s   %s" % [_mode_name(), _preview_text])
-	lines.append("RMB move   LMB use / select   1-9 actions   Esc cancel   F1-F4 / Tab select   Enter end turn   Space (hold) fast-forward   R restart")
+	lines.append("RMB move   LMB use / select   1-9 actions   Esc cancel   F1-F4 / Tab select   Enter end turn   Space (hold) fast-forward   R restart   F5/F9 quicksave/load   Esc menu")
 	lines.append("WASD pan   Q/E or middle-drag rotate   wheel zoom   P look: %s" % _retro.style_name())
 	lines.append(_perf_text())
 	_hud.text = "\n".join(lines)

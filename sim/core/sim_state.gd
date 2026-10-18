@@ -129,8 +129,16 @@ func duplicate_state() -> SimState:
 	return copy
 
 
-## The whole state as compressed bytes (a co-op guest joining, or catching up
-## after a desync). from_snapshot() rebuilds an identical state.
+## Snapshot format version (co-op joins and save files). Bump it when a change
+## needs more than defaults to read older snapshots (renamed or reinterpreted
+## fields, new grid arrays), and add the step to _migrate(). New entity,
+## combat or state fields need no bump: missing keys keep their defaults.
+## tests/fixtures holds a save from each version; they must keep loading.
+const SNAPSHOT_VERSION := 1
+
+
+## The whole state as compressed bytes (a co-op guest joining, catching up
+## after a desync, or a save file). from_snapshot() rebuilds an identical state.
 func to_snapshot() -> PackedByteArray:
 	var entity_data: Array = []
 	for e in entities:
@@ -139,27 +147,43 @@ func to_snapshot() -> PackedByteArray:
 		"grid": grid.to_dict(), "entities": entity_data, "combat": combat.to_dict(),
 		"rng": rng.state, "tick": tick, "provoked": provoked, "next_entity_id": _next_entity_id,
 		"facts": facts, "quests": quests, "conversation": conversation,
+		"version": SNAPSHOT_VERSION,
 	}
 	var raw := var_to_bytes(data)
 	return var_to_bytes([raw.size(), raw.compress(FileAccess.COMPRESSION_ZSTD)])
 
 
+## Returns null for bytes that aren't a snapshot, or one from a newer version.
 static func from_snapshot(bytes: PackedByteArray) -> SimState:
-	var packed: Array = bytes_to_var(bytes)
+	var packed: Variant = bytes_to_var(bytes)
+	if not packed is Array or packed.size() != 2 or not packed[1] is PackedByteArray:
+		return null
 	var raw: PackedByteArray = (packed[1] as PackedByteArray).decompress(packed[0], FileAccess.COMPRESSION_ZSTD)
-	var data: Dictionary = bytes_to_var(raw)
+	var unpacked: Variant = bytes_to_var(raw)
+	if not unpacked is Dictionary or unpacked.get("version", 1) > SNAPSHOT_VERSION:
+		return null
+	var data := _migrate(unpacked)
 	var state := SimState.new(SimGrid.from_dict(data.grid))
 	for d: Dictionary in data.entities:
 		state.entities.append(SimEntity.from_dict(d))
 	state.combat = SimCombat.from_dict(data.combat)
 	state.rng.state = data.rng
 	state.tick = data.tick
-	state.provoked = data.provoked
-	state.facts = data.facts
-	state.quests = data.quests
-	state.conversation = data.conversation
+	state.provoked = data.get("provoked", false)
+	state.facts = data.get("facts", {})
+	state.quests = data.get("quests", {})
+	state.conversation = data.get("conversation", {})
 	state._next_entity_id = data.next_entity_id
 	return state
+
+
+## Brings snapshot data from an older SNAPSHOT_VERSION up to the current one,
+## one version step at a time (none yet: version 1 is the first).
+static func _migrate(data: Dictionary) -> Dictionary:
+	var version: int = data.get("version", 1)
+	# if version == 1: ...; version = 2
+	assert(version == SNAPSHOT_VERSION)
+	return data
 
 
 ## SHA-256 over all authoritative state; equal checksums mean identical sims.
