@@ -3,10 +3,20 @@ extends VBoxContainer
 ## Party frames down the left edge: one same-sized frame per party member
 ## with a portrait, name, role and level, HP bar and AP pips. Clicking a frame
 ## selects that character; dropping an inventory item on it gives it to them.
+## Chained characters' frames sit together, joined by a link; dragging a frame
+## away unchains it, dragging it onto another frame chains the two.
 
 signal member_selected(id: int)
 ## An inventory item was dragged onto a member's frame (give it to them).
 signal item_dropped(to_id: int, from_id: int, index: int)
+## A frame was dragged onto another member's frame (onto_id), or away from
+## every frame (onto_id -1).
+signal chain_dropped(id: int, onto_id: int)
+
+const DRAG_KIND := "party_frame"
+## Extra room between chains.
+const CHAIN_GAP := 14
+const LINK_COLOR := Color(0.72, 0.66, 0.5)
 
 const FRAME_SIZE := Vector2(250, 78)
 const PORTRAIT_SIZE := 62.0
@@ -22,6 +32,8 @@ const HP_LOW_COLOR := Color(0.95, 0.45, 0.1)
 const FALLEN_DIM := Color(0.55, 0.55, 0.55)
 
 var _cards := {}  # entity id -> _Card
+var _layout := []  # [ids in shown order, linked flags] last laid out
+var _spacers: Array[Control] = []
 
 
 func _ready() -> void:
@@ -38,7 +50,7 @@ func _ready() -> void:
 
 ## turn_start_ap: entity id -> AP at the start of this turn (sets pip count).
 ## partner_ids: entity id -> true for characters the partner controls.
-func update_party(party: Array[SimEntity], selected_id: int, turn_start_ap: Dictionary, pending_ap: int, partner_ids: Dictionary = {}) -> void:
+func update_party(party: Array[SimEntity], selected_id: int, turn_start_ap: Dictionary, pending_ap: int, partner_ids: Dictionary = {}, chains: PartyChains = null) -> void:
 	var seen := {}
 	for e in party:
 		seen[e.id] = true
@@ -47,6 +59,7 @@ func update_party(party: Array[SimEntity], selected_id: int, turn_start_ap: Dict
 			card = _Card.new(e.id)
 			card.clicked.connect(func(id: int) -> void: member_selected.emit(id))
 			card.item_dropped.connect(func(to_id: int, from_id: int, index: int) -> void: item_dropped.emit(to_id, from_id, index))
+			card.chain_dropped.connect(func(id: int, onto_id: int) -> void: chain_dropped.emit(id, onto_id))
 			add_child(card)
 			_cards[e.id] = card
 		var selected := e.id == selected_id
@@ -59,6 +72,48 @@ func update_party(party: Array[SimEntity], selected_id: int, turn_start_ap: Dict
 		if not seen.has(id):
 			_cards[id].queue_free()
 			_cards.erase(id)
+	_lay_out(party, partner_ids, chains)
+
+
+## Orders the frames chain by chain (the partner's after), with a gap between
+## chains and a link between chained neighbours.
+func _lay_out(party: Array[SimEntity], partner_ids: Dictionary, chains: PartyChains) -> void:
+	var ids: Array[int] = []
+	var linked: Array[bool] = []
+	if chains != null:
+		var layout := chains.layout()
+		var prev := -1
+		for id: int in layout[0]:
+			if _cards.has(id) and not partner_ids.has(id):
+				linked.append(prev != -1 and chains.together(prev, id))
+				ids.append(id)
+				prev = id
+	for e in party:
+		if not ids.has(e.id):
+			ids.append(e.id)
+			linked.append(false)
+	var key := [ids, linked]
+	if key == _layout:
+		return
+	_layout = key
+	for spacer in _spacers:
+		remove_child(spacer)
+		spacer.free()
+	_spacers.clear()
+	var at := 0
+	for i in ids.size():
+		if i > 0 and not linked[i]:
+			var spacer := Control.new()
+			spacer.custom_minimum_size = Vector2(0, CHAIN_GAP)
+			spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			add_child(spacer)
+			move_child(spacer, at)
+			_spacers.append(spacer)
+			at += 1
+		var card: _Card = _cards[ids[i]]
+		move_child(card, at)
+		card.set_linked(linked[i])
+		at += 1
 
 
 class _Card:
@@ -66,6 +121,11 @@ class _Card:
 
 	signal clicked(id: int)
 	signal item_dropped(to_id: int, from_id: int, index: int)
+	signal chain_dropped(id: int, onto_id: int)
+
+	var _linked := false
+	var _partner := false
+	var _dragging := false
 
 	var _id: int
 	var _portrait_back: PanelContainer
@@ -165,14 +225,61 @@ class _Card:
 		_hp_text.text = "%d / %d" % [e.hp, e.max_hp] if e.is_alive() else "Fallen"
 		_pips.set_points(e.ap, turn_start_ap, pending)
 		_style.border_color = border
+		_partner = partner
 		modulate = PartyBar.PARTNER_DIM if partner else Color.WHITE
 		_portrait.modulate = Color.WHITE if e.is_alive() else PartyBar.FALLEN_DIM
 
+	func set_linked(linked: bool) -> void:
+		if linked != _linked:
+			_linked = linked
+			queue_redraw()
+
+	# A chain link across the gap to the frame above when chained to it.
+	func _draw() -> void:
+		if not _linked:
+			return
+		var x := 8.0 + PartyBar.PORTRAIT_SIZE / 2.0
+		draw_rect(Rect2(x - 3, -11, 6, 7), PartyBar.LINK_COLOR, false, 2.0)
+		draw_rect(Rect2(x - 3, -6, 6, 7), PartyBar.LINK_COLOR, false, 2.0)
+
+	func _get_drag_data(_at: Vector2) -> Variant:
+		if _partner:
+			return null
+		_dragging = true
+		if get_viewport().gui_is_dragging():
+			set_drag_preview(_drag_preview())
+		return {"kind": PartyBar.DRAG_KIND, "id": _id}
+
+	func _drag_preview() -> Control:
+		var preview := TextureRect.new()
+		preview.texture = _portrait.texture
+		preview.self_modulate = _portrait_style.bg_color.lightened(0.3)
+		preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		preview.size = Vector2(PartyBar.PORTRAIT_SIZE, PartyBar.PORTRAIT_SIZE) * 0.8
+		preview.position = -preview.size / 2.0
+		var holder := Control.new()
+		holder.add_child(preview)
+		return holder
+
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_DRAG_END and _dragging:
+			_dragging = false
+			if not get_viewport().gui_is_drag_successful():
+				chain_dropped.emit(_id, -1)  # let go away from every frame: unchain
+
 	func _can_drop_data(_at: Vector2, data: Variant) -> bool:
-		return data is Dictionary and data.get("kind") == InventoryPanel.DRAG_KIND and data.from_id != _id
+		if not data is Dictionary:
+			return false
+		if data.get("kind") == PartyBar.DRAG_KIND:
+			return not _partner  # back on its own frame: nothing changes
+		return data.get("kind") == InventoryPanel.DRAG_KIND and data.from_id != _id
 
 	func _drop_data(_at: Vector2, data: Variant) -> void:
-		item_dropped.emit(_id, data.from_id, data.index)
+		if data.get("kind") == PartyBar.DRAG_KIND:
+			if data.id != _id:
+				chain_dropped.emit(data.id, _id)
+		else:
+			item_dropped.emit(_id, data.from_id, data.index)
 
 	func _gui_input(event: InputEvent) -> void:
 		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:

@@ -4,7 +4,9 @@ extends Node3D
 ## with start_in_combat begin straight in a fight (the arena).
 ##
 ## Exploration: the world ticks in real time; right-click (or left-click with
-## nothing aimed) walks the party there, the others following in formation.
+## nothing aimed) walks the selected character there, the rest of its chain
+## following in formation. Ctrl+G unchains / rechains the selected character;
+## drag a party frame away to unchain it, or onto another frame to chain them.
 ## Abilities work without AP. Enemy sight areas are tinted red; walking into one,
 ## or hurting an enemy, starts combat right where everyone stands. After a win
 ## the world goes back to real time.
@@ -147,6 +149,8 @@ var _rig: CameraRig
 ## Roofs come off the buildings this player's characters are in.
 var _cutaway := BuildingCutaway.new()
 var _fog: FogOfWar
+## Who walks together (Ctrl+G or dragging a party frame chains and unchains).
+var _chains := PartyChains.new()
 var _hud: Label
 var _log_label: Label
 var _party_bar: PartyBar
@@ -340,6 +344,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_F5: _quicksave()
 			KEY_F9: _quickload()
 			KEY_TAB: _select_next()
+			KEY_G:
+				if event.ctrl_pressed:
+					_toggle_chain(_selected_id)
 			KEY_F1: _select_index(0)
 			KEY_F2: _select_index(1)
 			KEY_F3: _select_index(2)
@@ -587,8 +594,8 @@ func _apply_tick() -> void:
 			_refresh()
 
 
-## Walks the selected character to `dest`; the rest of this player's party
-## follows to free cells around it, nearest first. Routes are searched a bit
+## Walks the selected character to `dest`; the rest of its chain follows to
+## free cells around it, nearest first. Routes are searched a bit
 ## each frame (_advance_walks) and each walk goes out once its route is found,
 ## with the route, so the host and the replay only check it.
 func _travel_party(dest: Vector3i) -> void:
@@ -597,9 +604,10 @@ func _travel_party(dest: Vector3i) -> void:
 		return
 	_walk_queue.clear()
 	_walk_queue.append(leader.id)
-	for member in _my_party():
-		if member.id != leader.id:
-			_walk_queue.append(member.id)
+	_sync_chains()
+	for id in _chains.chain_of(leader.id):
+		if id != leader.id:
+			_walk_queue.append(id)
 	_walk_dest = dest
 	_walk_taken = {dest: true}
 	_walk_spot = null
@@ -1318,6 +1326,42 @@ func _select(id: int, focus_camera: bool = true) -> void:
 	_aim(ActionInfo.NONE)
 
 
+## Keeps the chains in step with the characters this player controls.
+func _sync_chains() -> void:
+	var ids: Array[int] = []
+	for e in _my_party():
+		ids.append(e.id)
+	_chains.sync(ids)
+
+
+## Ctrl+G: unchains the character, or chains a lone one back to the others.
+func _toggle_chain(id: int) -> void:
+	var e := state.get_entity(id) if state != null else null
+	if e == null or not Net.may_control(Net.local_slot, e):
+		return
+	_sync_chains()
+	var chained := _chains.toggle(id)
+	_log.push_front("%s %s." % [e.name, "chained" if chained else "unchained"])
+	_refresh()
+
+
+## Party frame dragged onto another (chain them) or away (unchain).
+func _chain_dropped(id: int, onto_id: int) -> void:
+	var e := state.get_entity(id) if state != null else null
+	var onto := state.get_entity(onto_id) if state != null and onto_id != -1 else null
+	if e == null or not Net.may_control(Net.local_slot, e):
+		return
+	_sync_chains()
+	if onto == null:
+		if _chains.is_chained(id):
+			_chains.unchain(id)
+			_log.push_front("%s unchained." % e.name)
+	elif Net.may_control(Net.local_slot, onto) and not _chains.together(id, onto_id):
+		_chains.chain(id, onto_id)
+		_log.push_front("%s chained to %s." % [e.name, onto.name])
+	_refresh()
+
+
 ## The party members this player controls.
 func _my_party() -> Array[SimEntity]:
 	var mine: Array[SimEntity] = []
@@ -1797,6 +1841,7 @@ func _build_scene() -> void:
 			_select(id))
 	_party_bar.item_dropped.connect(func(to_id: int, from_id: int, index: int) -> void:
 		Net.submit(GiveCommand.new(from_id, to_id, index)))
+	_party_bar.chain_dropped.connect(_chain_dropped)
 	_end_turn_button = EndTurnButton.new()
 	canvas.add_child(_end_turn_button)
 	_end_turn_button.pressed.connect(func() -> void:
@@ -1953,7 +1998,8 @@ func _refresh() -> void:
 		end_turn = EndTurnButton.Look.WAITING
 	elif _can_command() and out_of_moves:
 		end_turn = EndTurnButton.Look.SUGGESTED
-	_party_bar.update_party(party, _selected_id, _turn_start_ap, _preview_cost, partner_ids)
+	_sync_chains()
+	_party_bar.update_party(party, _selected_id, _turn_start_ap, _preview_cost, partner_ids, _chains)
 	_end_turn_button.visible = state.combat.active
 	_end_turn_button.show_state(_can_command() and _is_players_turn(), end_turn)
 	var actor := state.get_entity(_selected_id)
@@ -2000,6 +2046,7 @@ func _refresh() -> void:
 			lines.append("%s the %s   weapon: %s   carrying: %s%s" % [actor.name, SimArchetypes.title(actor.archetype), actor.weapon if actor.weapon != "" else "none", items, whose])
 		lines.append("Sneaking (C) shows vision cones — red: enemies see you there, yellow: townsfolk watch")
 		lines.append("RMB move   LMB use / select   1-0 action bar ([ ] switch bars)   Esc cancel / menu   F1-F4 / Tab select   Enter end turn   Space (hold) fast-forward")
+		lines.append("Ctrl+G or drag a party frame away: unchain (walks alone); drag a frame onto another: chain them")
 		lines.append("C sneak   I inventory   J journal   Alt (hold) names + health   F5 / F9 quicksave / load   R restart")
 		lines.append("WASD pan   Q/E or middle-drag rotate   wheel zoom   P look: %s   ` perf   H hide" % _retro.style_name())
 	else:
