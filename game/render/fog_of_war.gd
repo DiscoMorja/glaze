@@ -88,12 +88,17 @@ func _collect_hidden(level: Node) -> void:
 		var csg := node as CSGShape3D
 		if csg.is_root_shape():
 			_hide(csg, csg.global_transform * csg.get_aabb())
-	for node in level.find_children("*", "StaticBody3D", true, false):
-		var body := node as StaticBody3D
-		var box := AABB(body.global_position, Vector3.ZERO)
-		for child in body.find_children("*", "VisualInstance3D", true, false):
-			box = box.merge((child as VisualInstance3D).global_transform * (child as VisualInstance3D).get_aabb())
-		_hide(body, box)
+	var props: Array[Node] = level.find_children("*", "StaticBody3D", true, false)
+	for node in level.get_tree().get_nodes_in_group("level_prop"):
+		if node is Node3D and not node is StaticBody3D and level.is_ancestor_of(node):
+			props.append(node)  # torches and other props without collision
+	for node in props:
+		var prop := node as Node3D
+		var box := AABB(prop.global_position, Vector3.ZERO)
+		for child in prop.find_children("*", "VisualInstance3D", true, false):
+			if child is GeometryInstance3D:
+				box = box.merge((child as VisualInstance3D).global_transform * (child as VisualInstance3D).get_aabb())
+		_hide(prop, box)
 
 
 func _hide(node: Node3D, box: AABB) -> void:

@@ -1,0 +1,83 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://game/props/flicker_light.gd" id="1_flicker"]
+
+[sub_resource type="StandardMaterial3D" id="Wood"]
+albedo_color = Color(0.32, 0.22, 0.14, 1)
+roughness = 1.0
+
+[sub_resource type="StandardMaterial3D" id="Iron"]
+albedo_color = Color(0.18, 0.17, 0.17, 1)
+metallic = 0.6
+roughness = 0.6
+
+[sub_resource type="CylinderMesh" id="Post"]
+material = SubResource("Wood")
+top_radius = 0.06
+bottom_radius = 0.08
+height = 2.0
+radial_segments = 6
+rings = 1
+
+[sub_resource type="CylinderMesh" id="Cup"]
+material = SubResource("Iron")
+top_radius = 0.14
+bottom_radius = 0.07
+height = 0.18
+radial_segments = 8
+rings = 1
+
+[sub_resource type="StandardMaterial3D" id="Flame"]
+shading_mode = 0
+albedo_color = Color(1, 0.62, 0.22, 1)
+
+[sub_resource type="StandardMaterial3D" id="FlameCore"]
+shading_mode = 0
+albedo_color = Color(1, 0.92, 0.6, 1)
+
+[sub_resource type="SphereMesh" id="FlameMesh"]
+material = SubResource("Flame")
+radius = 0.12
+height = 0.4
+radial_segments = 6
+rings = 3
+
+[sub_resource type="SphereMesh" id="CoreMesh"]
+material = SubResource("FlameCore")
+radius = 0.06
+height = 0.2
+radial_segments = 6
+rings = 3
+
+[node name="Torch" type="Node3D" node_paths=PackedStringArray("light", "flame") groups=["level_prop"]]
+script = ExtResource("1_flicker")
+light = NodePath("Light")
+flame = NodePath("Flame")
+
+[node name="Post" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+mesh = SubResource("Post")
+
+[node name="Cup" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.05, 0)
+mesh = SubResource("Cup")
+
+[node name="Flame" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.22, 0)
+
+[node name="Outer" type="MeshInstance3D" parent="Flame"]
+cast_shadow = 0
+mesh = SubResource("FlameMesh")
+
+[node name="Core" type="MeshInstance3D" parent="Flame"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.05, 0)
+cast_shadow = 0
+mesh = SubResource("CoreMesh")
+
+[node name="Light" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.35, 0)
+light_color = Color(1, 0.68, 0.38, 1)
+light_energy = 1.6
+light_volumetric_fog_energy = 2.0
+omni_range = 8.0
+omni_attenuation = 1.4

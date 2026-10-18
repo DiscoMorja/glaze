@@ -1,0 +1,6 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[resource]
+resource_name = "woodDark"
+albedo_color = Color(0.380, 0.260, 0.170, 1)
+roughness = 1.0

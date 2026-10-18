@@ -1,0 +1,6 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[resource]
+resource_name = "corn"
+albedo_color = Color(0.860, 0.710, 0.360, 1)
+roughness = 1.0

@@ -7,6 +7,8 @@ extends Marker3D
 ## taking from it while they are neutral is theft. See LootCommand.
 
 @export var display_name := "Chest"
+## How it looks (PropLooks): chest, barrel, crate, crate_large, basket, pot.
+@export_enum("chest", "barrel", "crate", "crate_large", "basket", "pot") var look := "chest"
 @export var items: Array[String] = []
 ## Item that unlocks it (e.g. "Camp key"); empty = not locked.
 @export var key := ""

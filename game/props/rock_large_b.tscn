@@ -1,0 +1,15 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://levels/shared/props/kenney_nature/rock_largeB.glb" id="1_model"]
+
+[sub_resource type="BoxShape3D" id="Shape"]
+size = Vector3(1.9, 1.1, 2.5)
+
+[node name="RockLargeB" type="StaticBody3D" groups=["level_prop"]]
+
+[node name="Collision" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.55, 0)
+shape = SubResource("Shape")
+
+[node name="Model" parent="." instance=ExtResource("1_model")]
+transform = Transform3D(2.5, 0, 0, 0, 2.5, 0, 0, 0, 2.5, 0, 0, 0)

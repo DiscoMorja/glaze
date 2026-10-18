@@ -1,0 +1,6 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[resource]
+resource_name = "leafsGreen"
+albedo_color = Color(0.320, 0.490, 0.230, 1)
+roughness = 1.0

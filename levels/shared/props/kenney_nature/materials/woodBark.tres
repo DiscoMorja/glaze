@@ -1,0 +1,6 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[resource]
+resource_name = "woodBark"
+albedo_color = Color(0.420, 0.300, 0.200, 1)
+roughness = 1.0

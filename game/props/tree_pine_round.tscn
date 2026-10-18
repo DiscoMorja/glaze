@@ -1,0 +1,16 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://levels/shared/props/kenney_nature/tree_pineRoundA.glb" id="1_model"]
+
+[sub_resource type="CylinderShape3D" id="Shape"]
+height = 3.0
+radius = 0.3
+
+[node name="TreePineRound" type="StaticBody3D" groups=["level_prop"]]
+
+[node name="Collision" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+shape = SubResource("Shape")
+
+[node name="Model" parent="." instance=ExtResource("1_model")]
+transform = Transform3D(4.0, 0, 0, 0, 4.0, 0, 0, 0, 4.0, 0, 0, 0)

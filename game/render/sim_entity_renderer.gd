@@ -287,6 +287,9 @@ class _View:
 	var _sneaking := false
 	## The body's height when standing.
 	var _rest_height := 0.0
+	## Drawn with a textured model (a character or a prop look), so tints keep
+	## the model's own colours.
+	var _textured := false
 	var _hp := -1
 	var _max_hp := 1
 	var _name := ""
@@ -310,6 +313,12 @@ class _View:
 			_body.position.y = 0.75
 			_base_color = PLAYER_COLOR if e.faction == SimEntity.Faction.PLAYERS else ENEMY_COLOR
 			top = 1.75
+		var prop: Node3D = PropLooks.create(PropLooks.look_of(e)) if _model == null else null
+		if prop != null:
+			add_child(prop)
+			_figure = prop
+			_base_color = Color.WHITE
+			_textured = true
 		elif e.model == "chest":
 			var box := BoxMesh.new()
 			box.size = Vector3(0.9, 0.6, 0.6)
@@ -327,7 +336,11 @@ class _View:
 			_base_color = PROP_COLOR
 			top = 1.15
 		_material.albedo_color = _base_color
-		if _model != null:
+		if prop != null:
+			_materials = PropLooks.materials(prop)
+			top = maxf(PropLooks.height(prop) * PropLooks.LOOKS[PropLooks.look_of(e)][1], 0.6) + 0.25
+		elif _model != null:
+			_textured = true
 			_materials = _model.materials()
 		else:
 			_materials = [_material]
@@ -336,7 +349,7 @@ class _View:
 			_figure = _body
 			add_child(_body)
 		for material in _materials:
-			_material_bases.append(material.albedo_color if _model != null else _base_color)
+			_material_bases.append(material.albedo_color if _textured else _base_color)
 		if e.takes_turns() and e.faction != SimEntity.Faction.NONE:
 			_outline = OUTLINE_ALLY if e.faction == SimEntity.Faction.PLAYERS else OUTLINE_ENEMY
 			for material in _materials:
@@ -573,12 +586,12 @@ class _View:
 			if _sneaking:
 				base = base.darkened(0.45)
 			if _dead:
-				base = own * CORPSE_TINT if _model != null else CORPSE_TINT
+				base = own * CORPSE_TINT if _textured else CORPSE_TINT
 			var material := _materials[i]
-			material.albedo_color = base.lightened(0.3 if _model != null else 0.45) if _selected else base
+			material.albedo_color = base.lightened(0.3 if _textured else 0.45) if _selected else base
 			material.emission_enabled = _selected or _targetable
-			material.emission = TARGETABLE_GLOW if _targetable else (Color(0.25, 0.25, 0.25) if _model != null else _base_color * 0.4)
-			if _model != null and material.emission_enabled:
+			material.emission = TARGETABLE_GLOW if _targetable else (Color(0.25, 0.25, 0.25) if _textured else _base_color * 0.4)
+			if _textured and material.emission_enabled:
 				material.emission_energy_multiplier = 0.35 if _targetable else 0.2
 
 	## A one-shot on the model (attack, cast, hit, drink), turning toward

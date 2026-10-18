@@ -1,0 +1,6 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[resource]
+resource_name = "colorTan"
+albedo_color = Color(0.800, 0.630, 0.460, 1)
+roughness = 1.0
