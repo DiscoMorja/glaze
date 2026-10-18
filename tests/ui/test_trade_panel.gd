@@ -14,6 +14,7 @@ func before_each() -> void:
 	_state = Fixtures.flat_state(Vector3i(12, 5, 12))
 	var ari := SimArchetypes.make("vanguard", "Ari", SimEntity.Faction.PLAYERS, Vector3i(5, Y, 5), ["Silver ring", "Map"] as Array[String])
 	ari.gold = 5
+	ari.charisma = 0  # list prices
 	_state.add_entity(ari)
 	var merchant := SimArchetypes.make("merchant", "Merchant", SimEntity.Faction.NEUTRAL, Vector3i(5, Y, 6), ["Healing potion"] as Array[String])
 	merchant.trader = true

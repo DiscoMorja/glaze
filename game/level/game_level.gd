@@ -227,6 +227,7 @@ func _place_markers(state: SimState) -> void:
 		var items: Array[String] = []
 		items.assign(box.items)
 		var chest := SimEntity.container(box.display_name, cell, items, box.key, box.hp)
+		chest.lock_level = box.lock_level
 		chest.model = box.look
 		chest.group = box.group_name()
 		var pack_name := box.pack_name()

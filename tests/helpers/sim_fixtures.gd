@@ -24,6 +24,21 @@ static func duel_state() -> SimState:
 	return state
 
 
+## Gives `e` exactly these abilities, with the school ranks to use them.
+static func teach(e: SimEntity, abilities: Array) -> void:
+	e.abilities.assign(abilities)
+	var ranks := StatRules.schools_for(e.abilities)
+	for i in ranks.size():
+		e.schools[i] = maxi(e.schools[i], ranks[i])
+
+
+## Oil flasks for whoever throws them (SimAbilities.FROM_ITEM).
+static func give_flasks(e: SimEntity, count: int = 3) -> SimEntity:
+	for _i in count:
+		e.inventory.append("Oil flask")
+	return e
+
+
 static func hero(state: SimState) -> SimEntity:
 	return state.get_entity(1)
 

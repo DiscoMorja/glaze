@@ -56,7 +56,7 @@ func test_attack_has_no_cooldown() -> void:
 
 func test_cooldowns_count_down_in_real_time_outside_combat() -> void:
 	var state := Fixtures.flat_state()
-	var e := state.add_entity(SimEntity.character("Walker", PLAYERS, Vector3i(1, Y, 1), 10, "", 0, [], [A.OIL_FLASK]))
+	var e := state.add_entity(SimEntity.character("Walker", PLAYERS, Vector3i(1, Y, 1), 10, "", 0, ["Oil flask", "Oil flask"] as Array[String], [A.OIL_FLASK]))
 	assert_true(state.apply_command(CastCommand.new(e.id, A.OIL_FLASK, Vector3i(3, Y, 3))))
 	assert_false(state.apply_command(CastCommand.new(e.id, A.OIL_FLASK, Vector3i(5, Y, 5))), "cooling down")
 	state.step_ticks(SimAbilities.COOLDOWN[A.OIL_FLASK] * CombatRules.REALTIME_TICKS_PER_TURN)
@@ -80,8 +80,8 @@ func test_healer_and_caster_duel_ends() -> void:
 	var state := Fixtures.duel_state()
 	var hero := Fixtures.hero(state)
 	var shaman := Fixtures.bandit(state)
-	hero.abilities.assign([A.FIREBOLT])
-	shaman.abilities.assign([A.MEND, A.FIREBOLT])
+	Fixtures.teach(hero, [A.FIREBOLT])
+	Fixtures.teach(shaman, [A.MEND, A.FIREBOLT])
 	EntityOps.place(state, shaman, Vector3i(7, Y, 2))
 	var rounds := 0
 	while state.combat.active and rounds < 20:

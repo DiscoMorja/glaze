@@ -3,8 +3,9 @@ extends SimCommand
 ## Outside combat: a party member takes an item (index), or everything
 ## (index -1), from something next to them that holds items and isn't a
 ## living character: a chest, a broken crate, a corpse. A locked one needs its
-## key (`lock` names the item) in the looter's pack; the first take unlocks it
-## for good. Bashing or burning it open works too (a destroyed container keeps
+## key (`lock` names the item) in the looter's pack, or a pickable lock
+## (`lock_level`) Thievery of that rank and a lockpick; the first take unlocks
+## it for good. Bashing or burning it open works too (a destroyed container keeps
 ## its contents). Taking what belongs to townsfolk who are still neutral is
 ## theft: the items are tagged stolen and witnesses react (CrimeRules).
 
@@ -41,10 +42,30 @@ static func blocker(state: SimState, looter: SimEntity, container: SimEntity) ->
 		return "Not during a fight"
 	if looter.faction != SimEntity.Faction.PLAYERS or not looter.is_alive() or not looter.takes_turns():
 		return "Can't do that"
-	if container.lock != "" and container.is_alive() and not looter.inventory.has(container.lock):
-		return "Locked — needs %s" % container.lock
+	if is_locked(container) and opener(looter, container) == "":
+		if container.lock_level <= 0:
+			return "Locked — needs %s" % container.lock
+		var key := "%s or " % container.lock if container.lock != "" else ""
+		return "Locked — needs %sThievery %d and a lockpick" % [key, container.lock_level]
 	if not SimAbilities.is_adjacent(looter.cell, container.cell) and looter.cell != container.cell:
 		return "Too far"
+	return ""
+
+
+## Still locked: a key lock or a pickable lock, and not broken open.
+static func is_locked(container: SimEntity) -> bool:
+	return container.is_alive() and (container.lock != "" or container.lock_level > 0)
+
+
+## What opens the lock for this looter: its key, "lockpick" (Thievery at least
+## the lock's level and something with the "lockpick" property), or "".
+static func opener(looter: SimEntity, container: SimEntity) -> String:
+	if container.lock != "" and looter.inventory.has(container.lock):
+		return container.lock
+	if container.lock_level > 0 and looter.thievery >= container.lock_level:
+		for item in looter.inventory:
+			if SimItems.has_property(item, "lockpick"):
+				return "lockpick"
 	return ""
 
 
@@ -55,7 +76,7 @@ static func is_container(e: SimEntity) -> bool:
 		return false
 	if e.takes_turns() and e.is_alive():
 		return false
-	return not e.inventory.is_empty() or e.lock != ""
+	return not e.inventory.is_empty() or e.lock != "" or e.lock_level > 0
 
 
 func validate(state: SimState) -> bool:
@@ -71,11 +92,11 @@ func validate(state: SimState) -> bool:
 func execute(state: SimState) -> void:
 	var looter := state.get_entity(looter_id)
 	var container := state.get_entity(container_id)
-	if container.lock != "" and container.is_alive():
+	if is_locked(container):
 		var unlocked := state.emit_event(SimEvent.Type.UNLOCKED, container.cell, container.id, looter.id)
-		unlocked.text = container.lock
-		container.lock = ""
+		unlocked.text = opener(looter, container)
 	container.lock = ""  # (a broken one has no lock left either)
+	container.lock_level = 0
 	var owner_pack := neutral_owner(state, container)
 	var count := container.inventory.size() if index == ALL else 1
 	for _i in count:

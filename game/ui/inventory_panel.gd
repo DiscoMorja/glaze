@@ -39,7 +39,8 @@ const DOLL := {
 
 var _title: Label
 var _sheet: Label
-var _points_row: HBoxContainer
+## Attributes, schools and civil skills, with + buttons while points are left.
+var _stats: VBoxContainer
 var _doll: Control
 var _doll_slots := {}  # slot name -> ItemSlot
 var _grid: GridContainer
@@ -85,8 +86,9 @@ func _ready() -> void:
 	_sheet.add_theme_font_size_override("font_size", 13)
 	_sheet.add_theme_color_override("font_color", UiStyle.TEXT_DIM)
 	box.add_child(_sheet)
-	_points_row = HBoxContainer.new()
-	box.add_child(_points_row)
+	_stats = VBoxContainer.new()
+	_stats.add_theme_constant_override("separation", 2)
+	box.add_child(_stats)
 
 	var columns := HBoxContainer.new()
 	columns.add_theme_constant_override("separation", 14)
@@ -154,7 +156,8 @@ func show_for(owner: SimEntity, party: Array[SimEntity], can_give: bool, can_sor
 	for p in party:
 		names.append(p.name)
 	var key := [owner.id, owner.inventory.duplicate(), owner.stolen.duplicate(), owner.worn.duplicate(), owner.weapon, names,
-			can_give, can_sort, owner.gold, owner.xp, owner.level, owner.points, owner.hp, owner.max_hp]
+			can_give, can_sort, owner.gold, owner.xp, owner.level, owner.points, owner.hp, owner.max_hp,
+			owner.combat_points, owner.civil_points, owner.schools.duplicate(), _stat_values(owner)]
 	if key == _shown_key:
 		return
 	if _owner == null or owner.id != _owner.id or owner.inventory.size() <= _selected:
@@ -201,18 +204,56 @@ func _show_sheet() -> void:
 	var e := _owner
 	var role := SimArchetypes.title(e.archetype)
 	var next := ProgressionRules.xp_for_level(e.level + 1)
-	_sheet.text = "%sLevel %d   ·   %d / %d XP   ·   %d gold\nHP %d/%d   ·   %d damage   ·   armour %d   ·   power %d" % [
+	var carried := StatRules.carried(e)
+	_sheet.text = "%sLevel %d   ·   %d / %d XP   ·   %d gold\nHP %d/%d   ·   %d damage   ·   armour %d   ·   spells +%d   ·   carrying %s / %s%s" % [
 		role + "   ·   " if role != "" else "", e.level, e.xp, next, e.gold,
-		e.hp, e.max_hp, e.attack_damage(), e.armor, e.spell_power()]
-	for child in _points_row.get_children():
+		e.hp, e.max_hp, e.attack_damage(), e.armor, e.spell_power(),
+		SimItems.weight_text(carried), SimItems.weight_text(StatRules.carry_limit(e)),
+		" (overloaded: slowed)" if StatRules.is_overloaded(e) else ""]
+	for child in _stats.get_children():
 		child.queue_free()
-	if e.points > 0 and _can_sort:
+	_stat_row(e, "Attributes", StatRules.ATTRIBUTES, e.points)
+	_stat_row(e, "Schools", StatRules.SCHOOLS, e.combat_points)
+	_stat_row(e, "Civil", StatRules.CIVIL, e.civil_points)
+
+
+## One line of stats ("Strength 3"), each with a + while a point is left to
+## spend on it (this player's character only).
+func _stat_row(e: SimEntity, heading: String, stats: Array[String], points: int) -> void:
+	var row := HFlowContainer.new()
+	row.add_theme_constant_override("h_separation", 10)
+	_stats.add_child(row)
+	var head := Label.new()
+	head.text = heading + (" (%d to spend)" % points if points > 0 else "") + ":"
+	head.add_theme_font_size_override("font_size", 13)
+	head.add_theme_color_override("font_color", UiStyle.ACCENT if points > 0 and _can_sort else UiStyle.TEXT_DIM)
+	row.add_child(head)
+	for stat in stats:
+		var cell := HBoxContainer.new()
+		cell.add_theme_constant_override("separation", 3)
+		cell.tooltip_text = StatRules.DESCRIPTIONS.get(stat, "")
+		cell.mouse_filter = Control.MOUSE_FILTER_PASS
+		row.add_child(cell)
+		var value := StatRules.value(e, stat)
 		var label := Label.new()
-		label.text = "%d point%s to spend:" % [e.points, "s" if e.points > 1 else ""]
-		label.add_theme_color_override("font_color", UiStyle.ACCENT)
-		_points_row.add_child(label)
-		for stat: String in ProgressionRules.STATS:
-			_points_row.add_child(UiStyle.button(stat.capitalize(), func() -> void: spend_requested.emit(e.id, stat), ProgressionRules.STATS[stat]))
+		label.text = "%s %d" % [stat.capitalize(), value]
+		label.add_theme_font_size_override("font_size", 13)
+		label.mouse_filter = Control.MOUSE_FILTER_PASS
+		if value == 0:
+			label.add_theme_color_override("font_color", UiStyle.TEXT_DIM)
+		cell.add_child(label)
+		if _can_sort and ProgressionRules.can_spend(e, stat):
+			var plus := UiStyle.button("+", func() -> void: spend_requested.emit(e.id, stat), "Spend a point: " + StatRules.DESCRIPTIONS.get(stat, ""))
+			plus.add_theme_font_size_override("font_size", 12)
+			plus.custom_minimum_size = Vector2(20, 18)
+			cell.add_child(plus)
+
+
+static func _stat_values(e: SimEntity) -> Array[int]:
+	var values: Array[int] = []
+	for stat in StatRules.ATTRIBUTES + StatRules.CIVIL:
+		values.append(StatRules.value(e, stat))
+	return values
 
 
 ## A bag ("bag", index) or paperdoll ("worn", slot) slot wired to this panel.

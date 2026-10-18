@@ -11,7 +11,7 @@ static func step(state: SimState) -> void:
 	var grid := state.grid
 	if not state.combat.active:
 		for e in state.entities:
-			var half_speed := e.slowed > 0 or e.sneaking
+			var half_speed := e.slowed > 0 or StatRules.is_overloaded(e) or (e.sneaking and e.thievery < StatRules.SNEAK_FAST_RANK)
 			if e.is_alive() and not e.travel.is_empty() and (not half_speed or state.tick % 2 == 0):
 				_walk(state, e)
 		SimPerception.look_around(state)

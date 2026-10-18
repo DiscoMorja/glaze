@@ -54,7 +54,7 @@ func test_mage_ignites_oil_under_players() -> void:
 	var state := Fixtures.duel_state()
 	var hero := Fixtures.hero(state)
 	var bandit := Fixtures.bandit(state)
-	bandit.abilities.assign([A.FIREBOLT])
+	Fixtures.teach(bandit, [A.FIREBOLT])
 	EntityOps.place(state, bandit, Vector3i(7, Y, 2))
 	# A puddle of oil around the hero but not on its own cell.
 	for n: Vector3i in SimGrid.NEIGHBORS_4:
@@ -68,7 +68,7 @@ func test_ai_will_not_burn_its_own_side() -> void:
 	var state := Fixtures.duel_state()
 	var hero := Fixtures.hero(state)
 	var mage := Fixtures.bandit(state)
-	mage.abilities.assign([A.FIREBOLT])
+	Fixtures.teach(mage, [A.FIREBOLT])
 	EntityOps.place(state, mage, Vector3i(9, Y, 2))
 	# A second enemy stands next to the hero in a shared oil pool.
 	var ally := state.add_entity(SimEntity.character("Grunt", ENEMIES, Vector3i(3, Y, 2), 30, "Club", 3))
@@ -99,7 +99,7 @@ func test_thief_takes_items_but_never_player_weapons() -> void:
 	var bandit := Fixtures.bandit(state)
 	hero.can_be_disarmed = false
 	hero.inventory.assign(["Gold"])
-	bandit.abilities.assign([A.STEAL])
+	Fixtures.teach(bandit, [A.STEAL])
 	EntityOps.place(state, bandit, Vector3i(3, Y, 2))
 	var chosen := _enemy_turn(state)
 	assert_true(_has_cast(chosen, A.STEAL))
@@ -110,7 +110,7 @@ func test_thief_takes_items_but_never_player_weapons() -> void:
 func test_healer_mends_hurt_ally() -> void:
 	var state := Fixtures.duel_state()
 	var shaman := Fixtures.bandit(state)
-	shaman.abilities.assign([A.MEND])
+	Fixtures.teach(shaman, [A.MEND])
 	var grunt := state.add_entity(SimEntity.character("Grunt", ENEMIES, Vector3i(9, Y, 7), 20, "Club", 3))
 	grunt.hp = 8
 	var chosen := _enemy_turn(state)
@@ -121,8 +121,8 @@ func test_healer_mends_hurt_ally() -> void:
 func test_ai_is_deterministic() -> void:
 	var a := Fixtures.duel_state()
 	var b := Fixtures.duel_state()
-	Fixtures.bandit(a).abilities.assign([A.FIREBOLT, A.SHOVE])
-	Fixtures.bandit(b).abilities.assign([A.FIREBOLT, A.SHOVE])
+	Fixtures.teach(Fixtures.bandit(a), [A.FIREBOLT, A.SHOVE])
+	Fixtures.teach(Fixtures.bandit(b), [A.FIREBOLT, A.SHOVE])
 	_enemy_turn(a)
 	_enemy_turn(b)
 	assert_eq(a.checksum(), b.checksum())

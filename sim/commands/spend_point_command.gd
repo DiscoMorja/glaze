@@ -1,6 +1,7 @@
 class_name SpendPointCommand
 extends SimCommand
-## A party member spends a level-up point on a stat (ProgressionRules.STATS).
+## A party member spends a level-up point on an attribute, a school rank or a
+## civil skill (StatRules keys; ProgressionRules.spend()).
 ## Any time, free.
 
 const TYPE := "spend_point"
@@ -24,7 +25,7 @@ func actor_id() -> int:
 
 func validate(state: SimState) -> bool:
 	var e := state.get_entity(entity_id)
-	return e != null and e.faction == SimEntity.Faction.PLAYERS and e.points > 0 and ProgressionRules.STATS.has(stat)
+	return e != null and e.faction == SimEntity.Faction.PLAYERS and ProgressionRules.can_spend(e, stat)
 
 
 func execute(state: SimState) -> void:

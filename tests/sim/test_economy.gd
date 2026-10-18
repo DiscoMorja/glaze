@@ -10,9 +10,10 @@ const NEUTRAL := SimEntity.Faction.NEUTRAL
 
 ## A 30x5x30 field outside combat: Ari (id 1) and Bram (id 2) of the party
 ## side by side, and a merchant (id 3, trader, village pack 5) next to Ari.
+## Ari's Charisma is 0, so trades are at list prices.
 func _town() -> SimState:
 	var state := Fixtures.flat_state(Vector3i(30, 5, 30))
-	state.add_entity(SimArchetypes.make("vanguard", "Ari", PLAYERS, Vector3i(5, Y, 5)))
+	state.add_entity(SimArchetypes.make("vanguard", "Ari", PLAYERS, Vector3i(5, Y, 5))).charisma = 0
 	state.add_entity(SimArchetypes.make("pyromancer", "Bram", PLAYERS, Vector3i(6, Y, 5)))
 	var merchant := SimArchetypes.make("merchant", "Merchant", NEUTRAL, Vector3i(5, Y, 6), ["Healing potion", "Map", "Chain shirt"] as Array[String])
 	merchant.trader = true
@@ -135,6 +136,19 @@ func test_money_sells_at_full_value_and_you_must_afford_it() -> void:
 	assert_true(ari.inventory.has("Chain shirt"))
 
 
+func test_charisma_lowers_prices_and_raises_offers() -> void:
+	var state := _town()
+	var ari := _ari(state)
+	var merchant := _merchant(state)
+	assert_eq(TradeCommand.price_of(merchant, "Chain shirt", ari), 70)
+	ari.charisma = 2
+	assert_eq(TradeCommand.price_of(merchant, "Chain shirt", ari), 63, "10 % off")
+	assert_eq(TradeCommand.offer_for("Silver ring", ari), 24, "60 % of 40")
+	assert_eq(TradeCommand.offer_for("Gold", ari), 25, "money stays at full value")
+	merchant.suspicious = true
+	assert_eq(TradeCommand.price_of(merchant, "Chain shirt", ari), 94, "half again when wary")
+
+
 func test_the_trader_needs_gold_to_buy() -> void:
 	var state := _town()
 	_merchant(state).gold = 5
@@ -199,26 +213,53 @@ func test_killing_townsfolk_gives_no_xp() -> void:
 	assert_eq(_ari(state).xp, 0)
 
 
-func test_points_buy_stats() -> void:
+func test_points_buy_attributes_schools_and_civil_skills() -> void:
 	var state := _town()
-	var bram := _bram(state)
-	bram.points = 3
+	var bram := _bram(state)  # Pyromancer: Mind 3, Fire 2, Historian 1
+	bram.points = 2
+	bram.combat_points = 1
+	bram.civil_points = 1
 	var hp := bram.max_hp
 	assert_true(state.apply_command(SpendPointCommand.new(2, "vitality")))
-	assert_eq(bram.max_hp, hp + ProgressionRules.VITALITY_HP)
-	assert_true(state.apply_command(SpendPointCommand.new(2, "power")))
-	assert_eq(bram.attack_damage(), 3)
-	assert_true(state.apply_command(SpendPointCommand.new(2, "resolve")))
-	assert_eq(bram.stagger_max, SimArchetypes.DEFAULT_STAGGER + 1)
-	assert_false(SpendPointCommand.new(2, "power").validate(state), "out of points")
+	assert_eq(bram.max_hp, hp + StatRules.HP_PER_VITALITY)
+	assert_eq(bram.attack_damage(), 3, "staff 2 + Mind 3 / 2")
+	assert_true(state.apply_command(SpendPointCommand.new(2, "mind")))
+	assert_eq(bram.attack_damage(), 4, "a staff hits with Mind")
+	assert_false(SpendPointCommand.new(2, "mind").validate(state), "out of attribute points")
+	assert_true(state.apply_command(SpendPointCommand.new(2, "death")))
+	assert_eq(bram.schools[StatRules.School.DEATH], 1)
+	assert_false(SpendPointCommand.new(2, "fire").validate(state), "out of combat points")
+	assert_true(state.apply_command(SpendPointCommand.new(2, "charisma")))
+	assert_eq(bram.charisma, 1)
+	assert_false(SpendPointCommand.new(2, "thievery").validate(state), "out of civil points")
 	assert_false(SpendPointCommand.new(1, "luck").validate(state))
 
 
-func test_power_adds_to_spells() -> void:
+func test_ranks_stop_at_five() -> void:
+	var state := _town()
+	var ari := _ari(state)
+	ari.combat_points = 9
+	for i in StatRules.MAX_RANK - 2:  # Vanguard starts at Warrior 2
+		assert_true(state.apply_command(SpendPointCommand.new(1, "warrior")))
+	assert_eq(ari.schools[StatRules.School.WARRIOR], StatRules.MAX_RANK)
+	assert_false(SpendPointCommand.new(1, "warrior").validate(state))
+
+
+func test_levels_give_attribute_combat_and_every_other_civil_point() -> void:
+	var state := _town()
+	var ari := _ari(state)
+	var hp := ari.max_hp
+	ProgressionRules.award(state, ProgressionRules.xp_for_level(4))
+	assert_eq(ari.level, 4)
+	assert_eq([ari.points, ari.combat_points, ari.civil_points], [3, 3, 2], "levels 2, 3, 4; civil at 2 and 4")
+	assert_eq(ari.max_hp, hp + 3 * ProgressionRules.HP_PER_LEVEL)
+
+
+func test_mind_adds_to_spells() -> void:
 	var state := Fixtures.duel_state()
 	var hero := Fixtures.hero(state)
 	var bandit := Fixtures.bandit(state)
-	hero.power = 2
+	hero.mind = 4
 	EntityOps.place(state, hero, Vector3i(7, Y, 9))
 	var hp := bandit.hp
 	state.apply_command(CastCommand.new(1, SimAbilities.Ability.FIREBOLT, bandit.cell))
@@ -246,14 +287,18 @@ func test_new_fields_survive_snapshots() -> void:
 	ari.xp = 120
 	ari.level = 2
 	ari.points = 1
-	ari.power = 1
+	ari.combat_points = 2
+	ari.dexterity = 4
+	ari.thievery = 2
 	EquipRules.put(ari, "body", "Chain shirt")
 	EquipRules.put(ari, "ring2", "Copper ring")
 	var copy := SimState.from_snapshot(state.to_snapshot())
 	var a := copy.get_entity(1)
-	assert_eq([a.gold, a.xp, a.level, a.points, a.power, a.armor, a.max_hp, a.gear_hp], [33, 120, 2, 1, 1, 2, ari.max_hp, 2])
+	assert_eq([a.gold, a.xp, a.level, a.points, a.combat_points, a.dexterity, a.thievery, a.armor, a.max_hp, a.gear_hp],
+			[33, 120, 2, 1, 2, 4, 2, 2, ari.max_hp, 2])
+	assert_eq(a.schools, ari.schools)
 	assert_eq(a.worn, {"body": "Chain shirt", "ring2": "Copper ring"})
 	assert_true(copy.get_entity(3).trader)
 	for command: SimCommand in [UseItemCommand.new(1, 0, 2), RestCommand.new(1), TradeCommand.new(1, 3, [0] as Array[int], [1] as Array[int]),
-			EquipCommand.new(1, -1, "body"), SpendPointCommand.new(1, "power")]:
+			EquipCommand.new(1, -1, "body"), SpendPointCommand.new(1, "mind")]:
 		assert_eq(SimCommandRegistry.from_dict(command.to_dict()).to_dict(), command.to_dict())

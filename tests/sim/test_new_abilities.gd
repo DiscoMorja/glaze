@@ -8,6 +8,7 @@ const A := SimAbilities.Ability
 func _near_duel() -> SimState:
 	var state := Fixtures.duel_state()
 	EntityOps.place(state, Fixtures.bandit(state), Vector3i(5, Y, 2))
+	Fixtures.give_flasks(Fixtures.hero(state))
 	return state
 
 
@@ -87,9 +88,10 @@ func test_cleave_hits_everyone_adjacent() -> void:
 	EntityOps.place(state, bandit, Vector3i(3, Y, 2))
 	var friend := state.add_entity(SimEntity.character("Friend", Fixtures.PLAYERS, Vector3i(2, Y, 3), 10))
 	var far := state.add_entity(SimEntity.character("Far", Fixtures.ENEMIES, Vector3i(6, Y, 6), 10))
+	var damage := 4 + SimAbilities.potency(Fixtures.hero(state), A.CLEAVE)  # sword, and Warrior ranks above 1
 	assert_true(state.apply_command(CastCommand.new(1, A.CLEAVE, bandit.cell)))
-	assert_eq(bandit.hp, 12 - 4)
-	assert_eq(friend.hp, 10 - 4, "cleave doesn't care whose side you're on")
+	assert_eq(bandit.hp, 12 - damage)
+	assert_eq(friend.hp, 10 - damage, "cleave doesn't care whose side you're on")
 	assert_eq(far.hp, 10)
 
 
@@ -107,7 +109,7 @@ func test_steal_cannot_take_protected_weapon() -> void:
 	var hero := Fixtures.hero(state)
 	var bandit := Fixtures.bandit(state)
 	hero.can_be_disarmed = false
-	bandit.abilities.assign([A.STEAL])
+	Fixtures.teach(bandit, [A.STEAL])
 	EntityOps.place(state, bandit, Vector3i(3, Y, 2))
 	state.apply_command(EndTurnCommand.new(Fixtures.PLAYERS))
 	assert_false(state.apply_command(CastCommand.new(2, A.STEAL, hero.cell)), "nothing it is allowed to take")
@@ -120,7 +122,9 @@ func test_steal_cannot_take_protected_weapon() -> void:
 func test_archetypes_build_roles() -> void:
 	var ari := SimArchetypes.make("vanguard", "Ari", Fixtures.PLAYERS, Vector3i(1, Y, 1))
 	assert_eq(ari.archetype, "vanguard")
-	assert_eq(ari.max_hp, SimArchetypes.ROLES.vanguard.hp)
+	assert_eq(ari.max_hp, SimArchetypes.ROLES.vanguard.hp + 2 * StatRules.HP_PER_VITALITY, "base HP, and Vitality 2")
+	assert_eq([ari.strength, ari.vitality, ari.charisma], [3, 2, 1])
+	assert_eq(ari.schools[StatRules.School.WARRIOR], 2)
 	assert_true(ari.abilities.has(A.CLEAVE))
 	assert_false(ari.can_be_disarmed, "player characters keep their weapons")
 	var thug := SimArchetypes.make("thug", "Thug", Fixtures.ENEMIES, Vector3i(1, Y, 1))
@@ -139,7 +143,7 @@ func test_every_role_is_valid() -> void:
 func test_rain_lays_its_whole_puddle_at_once() -> void:
 	var state := _near_duel()
 	var hero := Fixtures.hero(state)
-	hero.abilities.assign([A.RAIN])
+	Fixtures.teach(hero, [A.RAIN])
 	assert_true(state.apply_command(CastCommand.new(1, A.RAIN, Vector3i(5, Y, 5))))
 	var splash := SimAbilities.splash_cells(state.grid, Vector3i(5, Y, 5), SimAbilities.RAIN_RADIUS).size()
 	var water := func() -> int: return state.grid.surface_type.count(SimMaterials.Surface.WATER)
@@ -151,7 +155,7 @@ func test_rain_lays_its_whole_puddle_at_once() -> void:
 func test_rain_puts_out_fire_at_once() -> void:
 	var state := _near_duel()
 	var hero := Fixtures.hero(state)
-	hero.abilities.assign([A.RAIN])
+	Fixtures.teach(hero, [A.RAIN])
 	for c in SimAbilities.splash_cells(state.grid, Vector3i(5, Y, 5), 2):
 		state.grid.add_surface(c, SimMaterials.Surface.OIL, 24)
 	FireRules.ignite(state, Vector3i(5, Y, 5))
@@ -165,7 +169,7 @@ func test_rain_puts_out_fire_at_once() -> void:
 func test_oil_thrown_next_to_fire_catches_at_once() -> void:
 	var state := _near_duel()
 	var hero := Fixtures.hero(state)
-	hero.abilities.assign([A.OIL_FLASK])
+	Fixtures.teach(hero, [A.OIL_FLASK])
 	# A lone fire one cell beyond the splash's edge.
 	FireRules.ignite(state, Vector3i(5, Y, 8))
 	assert_true(state.apply_command(CastCommand.new(1, A.OIL_FLASK, Vector3i(5, Y, 5))))
@@ -175,7 +179,7 @@ func test_oil_thrown_next_to_fire_catches_at_once() -> void:
 
 func test_oil_thrown_away_from_fire_stays_unlit() -> void:
 	var state := _near_duel()
-	Fixtures.hero(state).abilities.assign([A.OIL_FLASK])
+	Fixtures.teach(Fixtures.hero(state), [A.OIL_FLASK])
 	FireRules.ignite(state, Vector3i(10, Y, 10))
 	assert_true(state.apply_command(CastCommand.new(1, A.OIL_FLASK, Vector3i(5, Y, 5))))
 	assert_eq(state.grid.fire_cells.size(), 1)

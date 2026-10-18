@@ -30,7 +30,7 @@ func execute(state: SimState) -> void:
 	var target := state.get_entity(target_id)
 	CombatRules.spend(state, attacker, CombatRules.ATTACK_AP)
 	state.emit_event(SimEvent.Type.ATTACKED, target.cell, target.id, attacker.id)
-	EntityOps.damage(state, target, attacker.attack_damage(), attacker.id)
+	EntityOps.damage(state, target, StatRules.hit_damage(attacker, target), attacker.id)
 
 
 func actor_id() -> int:

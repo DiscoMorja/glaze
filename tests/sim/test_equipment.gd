@@ -45,7 +45,7 @@ func test_a_new_weapon_swaps_the_old_one_into_the_bag() -> void:
 	var state := _camp()
 	assert_true(_equip(state, "Fine sword"))
 	assert_eq(_ari(state).weapon, "Fine sword")
-	assert_eq(_ari(state).attack_damage(), 6)
+	assert_eq(_ari(state).attack_damage(), 6 + 1, "and Strength 3 / 2")
 	assert_true(_ari(state).inventory.has("Greatsword"))
 
 

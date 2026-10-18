@@ -12,6 +12,9 @@ extends RefCounted
 ##   ~ take Gold                          the talker hands the NPC an item
 ##   ~ trade                              offer to trade (the UI opens the
 ##                                        trade window once the talk ends)
+##   ~ calm                               the NPC stops being suspicious
+##   {talker.charisma >= 2} ...           checks on the talker's stats
+##                                        (SimFacts: talker.<stat>)
 ##   * [Tell me about them.] -> knot      a choice; a block of them ends a page
 ##   * {cond} [Only sometimes.] -> knot
 ##   -> knot                              jump; -> END ends the conversation
@@ -85,8 +88,8 @@ static func _parse_line(line: String) -> Variant:
 		return {"kind": "goto", "cond": cond, "target": line.trim_prefix("->").strip_edges()}
 	if line.begins_with("~"):
 		var effect := line.trim_prefix("~").strip_edges()
-		if effect == "trade":
-			return {"kind": "trade", "cond": cond}
+		if effect == "trade" or effect == "calm":
+			return {"kind": effect, "cond": cond}
 		for verb in ["give", "take"]:
 			if effect.begins_with(verb + " "):
 				return {"kind": verb, "cond": cond, "item": effect.substr(verb.length() + 1).strip_edges()}
@@ -134,7 +137,7 @@ static func end(state: SimState) -> void:
 ## end of the conversation.
 static func _run(state: SimState, knot: String) -> void:
 	var convo := state.conversation
-	var context := {"npc": convo.npc}
+	var context := {"npc": convo.npc, "talker": convo.talker}
 	var choices: Array = []
 	var current := knot
 	var i := 0
@@ -171,6 +174,8 @@ static func _run(state: SimState, knot: String) -> void:
 				_hand_over(state, state.get_entity(convo.npc), state.get_entity(convo.talker), s.item)
 			"take":
 				_hand_over(state, state.get_entity(convo.talker), state.get_entity(convo.npc), s.item)
+			"calm":
+				state.get_entity(convo.npc).suspicious = false
 			"trade":
 				var offer := state.emit_event(SimEvent.Type.TRADE_OFFERED, Vector3i.ZERO, convo.npc, convo.talker)
 				offer.cell = state.get_entity(convo.npc).cell

@@ -14,8 +14,13 @@ extends RefCounted
 ##           fill both hands
 ##   "damage": n (weapons; worn elsewhere, extra damage), "armor": n,
 ##   "power": n (weapon and spell damage), "max_hp": n   (EquipRules)
+##   "scales": "str" | "dex" | "mind"   the attribute a weapon hits with
+##           (StatRules; default str)
 ##   "money": true       traders take it at full value (TradeCommand)
 ##   "rest": true        the party can rest with it (RestCommand)
+##   "casts": "Ability"  carrying it grants that ability; each use spends one
+##                       (SimAbilities.FROM_ITEM)
+##   "lockpick": true    picks locks with Thievery (LootCommand)
 
 const DEFAULT := {"value": 0, "weight": 1000, "kind": "misc", "blurb": ""}
 
@@ -32,21 +37,25 @@ const ITEMS := {
 			"blurb": "Cools the skin; puts out burning."},
 	"Warming draught": {"value": 12, "weight": 250, "kind": "potion", "temperature": 1,
 			"blurb": "Thaws the frozen and the cold."},
+	"Oil flask": {"value": 6, "weight": 500, "kind": "potion", "casts": "Oil Flask",
+			"blurb": "Lamp oil in a clay flask. Throw it, then light it."},
+	"Lockpick": {"value": 15, "weight": 100, "kind": "key", "lockpick": true,
+			"blurb": "Bent wire and patience. Opens locks with enough Thievery."},
 	"Bedroll": {"value": 10, "weight": 2000, "kind": "misc", "rest": true,
 			"blurb": "Rest with it when no enemies are near: the whole party heals."},
 	# Main hand (two-handed ones leave no room for the off hand)
-	"Greatsword": {"value": 30, "weight": 3500, "kind": "weapon", "slot": "main_hand", "two_handed": true, "damage": 5, "blurb": "Two-handed."},
-	"Greataxe": {"value": 30, "weight": 4000, "kind": "weapon", "slot": "main_hand", "two_handed": true, "damage": 6, "blurb": "Two-handed. Heavy."},
-	"Daggers": {"value": 18, "weight": 800, "kind": "weapon", "slot": "main_hand", "damage": 3, "blurb": "Quick and quiet."},
-	"Knife": {"value": 6, "weight": 300, "kind": "weapon", "slot": "main_hand", "damage": 3, "blurb": "Sharp enough."},
-	"Staff": {"value": 10, "weight": 1800, "kind": "weapon", "slot": "main_hand", "two_handed": true, "damage": 2, "blurb": "Two-handed. A walking stick, mostly."},
-	"Totem": {"value": 12, "weight": 1500, "kind": "weapon", "slot": "main_hand", "damage": 2, "blurb": "Carved and painted."},
-	"Spear": {"value": 15, "weight": 2200, "kind": "weapon", "slot": "main_hand", "two_handed": true, "damage": 4, "blurb": "Two-handed. Long reach, simple."},
-	"Club": {"value": 3, "weight": 1500, "kind": "weapon", "slot": "main_hand", "damage": 3, "blurb": "A heavy branch."},
-	"Fine sword": {"value": 60, "weight": 1500, "kind": "weapon", "slot": "main_hand", "damage": 6, "blurb": "Well balanced; leaves a hand free."},
+	"Greatsword": {"value": 30, "weight": 3500, "kind": "weapon", "slot": "main_hand", "two_handed": true, "damage": 5, "scales": "str", "blurb": "Two-handed."},
+	"Greataxe": {"value": 30, "weight": 4000, "kind": "weapon", "slot": "main_hand", "two_handed": true, "damage": 6, "scales": "str", "blurb": "Two-handed. Heavy."},
+	"Daggers": {"value": 18, "weight": 800, "kind": "weapon", "slot": "main_hand", "damage": 3, "scales": "dex", "blurb": "Quick and quiet."},
+	"Knife": {"value": 6, "weight": 300, "kind": "weapon", "slot": "main_hand", "damage": 3, "scales": "dex", "blurb": "Sharp enough."},
+	"Staff": {"value": 10, "weight": 1800, "kind": "weapon", "slot": "main_hand", "two_handed": true, "damage": 2, "scales": "mind", "blurb": "Two-handed. A walking stick, mostly."},
+	"Totem": {"value": 12, "weight": 1500, "kind": "weapon", "slot": "main_hand", "damage": 2, "scales": "mind", "blurb": "Carved and painted."},
+	"Spear": {"value": 15, "weight": 2200, "kind": "weapon", "slot": "main_hand", "two_handed": true, "damage": 4, "scales": "str", "blurb": "Two-handed. Long reach, simple."},
+	"Club": {"value": 3, "weight": 1500, "kind": "weapon", "slot": "main_hand", "damage": 3, "scales": "str", "blurb": "A heavy branch."},
+	"Fine sword": {"value": 60, "weight": 1500, "kind": "weapon", "slot": "main_hand", "damage": 6, "scales": "str", "blurb": "Well balanced; leaves a hand free."},
 	# Off hand
 	"Wooden shield": {"value": 14, "weight": 3000, "kind": "armor", "slot": "off_hand", "armor": 1, "blurb": "Round, oak, dented."},
-	"Parrying dagger": {"value": 16, "weight": 400, "kind": "weapon", "slot": "off_hand", "damage": 1, "blurb": "For the other hand."},
+	"Parrying dagger": {"value": 16, "weight": 400, "kind": "weapon", "slot": "off_hand", "damage": 1, "scales": "dex", "blurb": "For the other hand."},
 	# Armour and trinkets
 	"Leather cap": {"value": 8, "weight": 400, "kind": "armor", "slot": "head", "max_hp": 2, "blurb": "Better than nothing."},
 	"Iron helm": {"value": 30, "weight": 2000, "kind": "armor", "slot": "head", "armor": 1, "max_hp": 2, "blurb": "Heavy and loud."},

@@ -10,6 +10,7 @@
 {bandits_known} Merchant: Any news about the camp on the hill?
 * {not bandits_known} [Lucky how?] -> merchant_bandits
 * {bandits_known} [Tell me about the bandits again.] -> merchant_bandits
+* {self.suspicious and not merchant_calmed and talker.charisma >= 2} [(Charisma) A misunderstanding. We're on your side.] -> merchant_calm
 * [Let's trade.] -> merchant_trade
 * [What do you sell?] -> merchant_goods
 * [Goodbye.] -> END
@@ -30,6 +31,12 @@ Merchant: Gods bless you. Mind the one with the fire, he's mad.
 === merchant_refuse
 Merchant: No. No, I suppose it isn't.
 -> END
+
+=== merchant_calm
+~ merchant_calmed = 1
+~ calm
+Merchant: ...Fine. Fine. Bandits on the road, everyone's jumpy. Forget it.
+-> merchant
 
 === merchant_goods
 {self.has.Map} Merchant: Bread, rope, and a map of these roads, if you've coin. Nobody has coin, with the road shut.
@@ -56,7 +63,21 @@ Merchant: You did it? The camp is empty? Then here, as I promised.
 {quest.bandits.cleared} -> END
 Guard: Move along. And stay off the west road unless you want a knife in you.
 * [Why don't you deal with the bandits?] -> guard_bandits
+* {self.suspicious and not guard_calmed and talker.charisma >= 2} [(Charisma) You've the wrong people, guard.] -> guard_calm
+* {talker.historian >= 1 and not guard_lore} [(Historian) That camp was a toll post once, wasn't it?] -> guard_lore
 * [Fine.] -> END
+
+=== guard_calm
+~ guard_calmed = 1
+~ calm
+Guard: ...Maybe. Maybe I have. Don't make me regret it.
+-> END
+
+=== guard_lore
+~ guard_lore = 1
+Guard: Aye, the old toll post. Before the road went bad. You know your history.
+Guard: Built on the rise so you see the whole road from it. Mind the high ground up there.
+-> END
 
 === guard_bandits
 Guard: One spear against six? I'd be dead by noon and the village would have no guard at all.

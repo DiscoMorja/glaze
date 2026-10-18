@@ -41,12 +41,23 @@ var gear_hp := 0
 var gold := 0
 ## Townsfolk who buy and sell (TradeCommand).
 var trader := false
-## Progression (ProgressionRules): experience, level, unspent level-up
-## points, and bonus damage bought with them.
+## Progression (ProgressionRules): experience, level and unspent points:
+## attribute points, combat (school) points and civil points.
 var xp := 0
 var level := 1
 var points := 0
-var power := 0
+var combat_points := 0
+var civil_points := 0
+## Attributes, school ranks (by StatRules.School) and civil skills (StatRules).
+var strength := 0
+var vitality := 0
+var dexterity := 0
+var mind := 0
+var ward := 0
+var schools := PackedInt32Array()
+var thievery := 0
+var charisma := 0
+var historian := 0
 var inventory: Array[String] = []
 ## SimAbilities.Ability values this entity can use.
 var abilities: Array[int] = []
@@ -88,8 +99,10 @@ var stolen: Array[String] = []
 var group := ""
 ## The dialogue knot talking to it starts at ("" = nothing to say).
 var dialogue := ""
-## Containers: the item that unlocks it ("" = not locked). See LootCommand.
+## Containers: the item that unlocks it ("" = no key), and how hard it is
+## to pick (0 = can't be picked). See LootCommand.
 var lock := ""
+var lock_level := 0
 ## What it looks like ("chest", or "" for the default capsule/cylinder);
 ## presentation only, rules never read it.
 var model := ""
@@ -106,6 +119,8 @@ var in_combat := false
 func _init() -> void:
 	cooldowns.resize(SimAbilities.NAMES.size())
 	cooldowns.fill(0)
+	schools.resize(StatRules.SCHOOLS.size())
+	schools.fill(0)
 
 
 func cooldown(ability: int) -> int:
@@ -133,9 +148,9 @@ func is_frozen() -> bool:
 	return temperature <= EntityOps.TEMP_MIN
 
 
-## Moving costs double: slowed by oil, or Cold.
+## Moving costs double: slowed by oil, Cold, or carrying too much.
 func is_slowed() -> bool:
-	return slowed > 0 or temperature == EntityOps.TEMP_MIN + 1
+	return slowed > 0 or temperature == EntityOps.TEMP_MIN + 1 or StatRules.is_overloaded(self)
 
 
 func is_alive() -> bool:
@@ -146,13 +161,15 @@ func takes_turns() -> bool:
 	return max_ap > 0
 
 
+## A weapon hit's damage (from the front): weapon, gear, and the attribute
+## the weapon scales with. StatRules.hit_damage() adds hits from behind.
 func attack_damage() -> int:
-	return (weapon_damage if weapon != "" else unarmed_damage) + gear_damage + power + gear_power
+	return (weapon_damage if weapon != "" else unarmed_damage) + gear_damage + gear_power + StatRules.weapon_bonus(self)
 
 
-## Bonus damage for spells: points spent on power, and gear.
+## Bonus damage for spells: Mind and gear.
 func spell_power() -> int:
-	return power + gear_power
+	return gear_power + StatRules.spell_bonus(self)
 
 
 func to_dict() -> Dictionary:
@@ -163,7 +180,9 @@ func to_dict() -> Dictionary:
 		"weapon": weapon, "can_be_disarmed": can_be_disarmed, "weapon_damage": weapon_damage, "unarmed_damage": unarmed_damage,
 		"worn": worn.duplicate(), "armor": armor, "gear_damage": gear_damage, "gear_power": gear_power, "gear_hp": gear_hp,
 		"gold": gold, "trader": trader,
-		"xp": xp, "level": level, "points": points, "power": power,
+		"xp": xp, "level": level, "points": points, "combat_points": combat_points, "civil_points": civil_points,
+		"strength": strength, "vitality": vitality, "dexterity": dexterity, "mind": mind, "ward": ward,
+		"schools": schools.duplicate(), "thievery": thievery, "charisma": charisma, "historian": historian,
 		"inventory": inventory.duplicate(),
 		"abilities": abilities.duplicate(),
 		"cooldowns": cooldowns.duplicate(),
@@ -177,6 +196,7 @@ func to_dict() -> Dictionary:
 		"group": group,
 		"dialogue": dialogue,
 		"lock": lock,
+		"lock_level": lock_level,
 		"model": model,
 		"slowed": slowed,
 		"temperature": temperature,
@@ -221,7 +241,18 @@ static func from_dict(data: Dictionary) -> SimEntity:
 	e.xp = data.get("xp", e.xp)
 	e.level = data.get("level", e.level)
 	e.points = data.get("points", e.points)
-	e.power = data.get("power", e.power)
+	e.combat_points = data.get("combat_points", e.combat_points)
+	e.civil_points = data.get("civil_points", e.civil_points)
+	e.strength = data.get("strength", e.strength)
+	e.vitality = data.get("vitality", e.vitality)
+	e.dexterity = data.get("dexterity", e.dexterity)
+	e.mind = data.get("mind", e.mind)
+	e.ward = data.get("ward", e.ward)
+	e.schools = PackedInt32Array(data.get("schools", e.schools))
+	e.schools.resize(StatRules.SCHOOLS.size())
+	e.thievery = data.get("thievery", e.thievery)
+	e.charisma = data.get("charisma", e.charisma)
+	e.historian = data.get("historian", e.historian)
 	e.inventory.assign(data.get("inventory", []))
 	e.abilities.assign(data.get("abilities", []))
 	e.cooldowns = PackedInt32Array(data.get("cooldowns", e.cooldowns))
@@ -236,6 +267,7 @@ static func from_dict(data: Dictionary) -> SimEntity:
 	e.group = data.get("group", e.group)
 	e.dialogue = data.get("dialogue", e.dialogue)
 	e.lock = data.get("lock", e.lock)
+	e.lock_level = data.get("lock_level", e.lock_level)
 	e.model = data.get("model", e.model)
 	e.slowed = data.get("slowed", e.slowed)
 	e.temperature = data.get("temperature", e.temperature)
@@ -270,6 +302,7 @@ static func character(
 	e.weapon_damage = p_weapon_damage
 	e.inventory.assign(p_inventory)
 	e.abilities.assign(p_abilities)
+	e.schools = StatRules.schools_for(e.abilities)  # knows enough to use its verbs
 	return e
 
 

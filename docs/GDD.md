@@ -108,8 +108,8 @@ Explore (real time) ──► interact with world, scheme, steal, set up ──�
 | Fire | Water | Steam cloud, fire out |
 | Cold | Water | Ice (slippery) |
 | Fire | Ice | Water |
-| Lightning | Water | Electrified water (stun on contact) |
-| Lightning | Steam | Electrified cloud |
+| Lightning | Water | Electrified water (stun on contact) — post-Prologue: no school owns lightning (§5.9) |
+| Lightning | Steam | Electrified cloud — post-Prologue |
 | Fire | Poison gas | Explosion |
 | Water | Fire (on unit) | Extinguish |
 
@@ -131,7 +131,7 @@ Characters, barrels, chairs, doors, chests and potions share **one property mode
 | Shove | 1 | adjacent | Pushes 2 cells; walls and bodies hurt, ledges drop |
 | Steal | 1 | adjacent | Takes an enemy's weapon, otherwise an item. Player characters can't be disarmed |
 | Frost | 2 | 6 | Chills a radius: freezes water to ice now, puts out fire, 2 damage |
-| Oil Flask | 1 | 6 | Splashes a radius-2 puddle at once, ready to be lit (thick oil stays put on flat ground); thrown onto or next to fire, the whole puddle catches at once |
+| Oil Flask | 1 | 6 | An item anyone carrying one throws (each throw uses one up). Splashes a radius-2 puddle at once, ready to be lit (thick oil stays put on flat ground); thrown onto or next to fire, the whole puddle catches at once |
 | Mend | 2 | 5 | Heals 6 (self or others) |
 | Cleave | 2 | adjacent | Weapon hit on everything adjacent, allies included |
 | Blink | 1 | 4 | Caster jumps to a free cell in sight |
@@ -230,8 +230,97 @@ All of these are commands on properties, never on item names (rule 9): items in 
 - **Rest** (`RestCommand`): with a Bedroll in the party, outside combat, no enemies within 12 cells: the standing party heals fully and clears statuses and cooldowns. The fallen need Revive first.
 - **Trade** (`TradeCommand`): characters carry `gold`. Traders (`LevelSpawn.trades`) offer it in dialogue (`~ trade`); one deal = buy and sell lists. Buying costs value (×1.5 when suspicious), selling fetches half (money at full value). A trader won't buy back its own group's stolen goods; other stolen goods get fenced.
 - **Equipment** (`EquipCommand`, `EquipRules`, outside combat): a paperdoll of eleven slots — head, neck, body, hands, waist, legs, feet, two rings, main hand, off hand. Two-handed weapons fill both hands (wearing one takes the other off). Gear stats add up: weapon damage, extra damage (off-hand dagger, gloves), armour (each point takes 1 off a physical hit, at most half the hit; fire/frost ignore it), power, max HP. Characters can start wearing things (`LevelSpawn.equipment`); fallen enemies drop everything they wore.
-- **Progression** (`ProgressionRules`): shared XP (everyone in the party gets all of it) from defeated enemies (4 × max HP) and quest outcomes (`xp:` line in .quest files). Level n+1 at 50·n·(n+1) XP: +2 max HP and a point for Vitality (+4 HP), Power (+1 damage, spells too) or Resolve (+1 stagger). Shown in the inventory's character sheet.
+- **Progression** (`ProgressionRules`): shared XP (everyone in the party gets all of it) from defeated enemies (4 × max HP) and quest outcomes (`xp:` line in .quest files). Level n+1 at 50·n·(n+1) XP; what a level gives and the points to spend are §5.9. Shown in the inventory's character sheet.
 - Quests only end once known: clearing the camp before hearing of it ends the quest the moment you do.
+
+### 5.9 Character progression
+
+**Built (phase A, `StatRules`):** attributes, school ranks gating and boosting the existing verbs, civil skills (pickpocket choice, lockpicking, sneaking, prices, `talker.*` dialogue facts, `~ calm`), the levelling points, role presets and kits, weapon `scales`, the Oil Flask as an item, the character sheet with + buttons. Not built yet: talents, skillbooks, the new skills, Historian's readables/identifying/scrolls, greyed-out dialogue choices, psychic durations.
+
+Replaces the Vitality / Power / Resolve points of §5.8. Shared XP and the XP curve stay.
+
+**Ground rules**
+- **Classless.** Anyone can learn anything. The four party roles become *starting presets* (attributes, school ranks, known skills, kit, talent ideas). Enemy roles are built from the same fields (pillar 2), so the AI keeps using whatever skills a role has.
+- **Small integers, breakpoints.** Numbers stay small (Firebolt 4, HP 16–26), so bonuses are "+1 per N points", never percentages (5 % of 4 is 0). Tooltips show the resulting number.
+- **No dice.** Checks are thresholds (`rank >= 2`), damage is fixed, previews stay exact. No random crits: Dexterity rewards hitting from behind instead (facing cones already exist).
+- **Resistances reduce numbers, never block effects.** Armour, Ward and Mind shave damage or shorten durations; a shove, freeze, knock-down or fear always lands (§2: Divinity's armour pools killed CC creativity).
+- **Rank gates, attributes scale.** A school's rank decides which of its skills you can use and adds +1 potency per rank above the skill's own rank (each skill says what potency adds: damage, heal, stagger, cells, turns); attributes scale all your damage and healing of a kind.
+
+**Levelling**
+
+| Every level | Every other level (2, 4, 6…) | Creation, level 5, level 10 |
+|---|---|---|
+| +2 max HP, +1 attribute point, +1 combat point | +1 civil point | +1 talent (max 3) |
+
+Creation: 5 attribute points, 2 combat points, 1 civil point, 1 talent. The Prologue ends around level 6 (1500 XP), so each character has two talents in it. A paid respec NPC in the village resets points.
+
+**Attributes** (start at 0)
+
+| Attribute | Rules |
+|---|---|
+| Strength | +1 damage per 2 Str with Str weapons. Carry limit 20 kg + 4 kg per Str (over it: Slowed). Shove/lift mass limit 80 + 10·Str (today a flat 120). |
+| Vitality | +3 max HP per point; +1 armour and +1 stagger limit per 4 Vit. |
+| Dexterity | +1 damage per 2 Dex with Dex weapons. +1 move unit per Dex (20 units = 1 AP = 2 cells today; Dex 5 → 2.5 cells per AP). **Rear hits** (attacker outside the target's 120° front cone): +1 damage per 2 Dex. |
+| Mind | +1 spell damage per 2 Mind (every school). Teleport/telekinesis mass limit 100 + 10·Mind (today a flat 150). Psychic effects on you last 1 turn less per 4 Mind, never below 1. |
+| Ward | Fire, frost, death and psychic damage taken −1 per 3 Ward (at most half a hit, like armour). Heals you cast +1 per 2 Ward; heals you receive +1 per 3 Ward. |
+
+Weapons carry a `scales` property (`str`, `dex`, `mind`): greatsword, greataxe, club → Str; daggers, knife, bows → Dex; staff, totem → Mind. Item `power` stays a flat bonus; gear may carry attribute properties (`strength: 1`).
+
+**Combat schools.** Eight schools, ranks 0–5; the Prologue uses ranks 1–2 (rank-3 capstones later). Skills are learned from **skillbooks**: items with `teaches` and `rank`, read outside combat when your rank is high enough, consumed. Bought, looted and stolen (pickpocket the Firecaller's book). Presets start with their skills known.
+
+| School | Theme | Prologue skills (rank) | Later (only once the Prologue is fun) |
+|---|---|---|---|
+| Fire | burning, destruction, speed, heat | Firebolt (1), **Kindle** (1): target +1 temperature; a **Hot** character gets +1 AP at its turn start; on a barrel heats its contents | Combust (2): everything Hot or Burning in radius 3 bursts |
+| Ice | freezing, water, cleansing, cold | Rain (1), Frost (1; also freezes `liquid` items in the targets' pockets, unusable until warmed). Rain washes away poison: cleansing is a property of water | Glacier (2): a water puddle freezes into solid ice cells for 3 turns |
+| Life | healing, nature, growing | Mend (1), **Overgrowth** (1): a **vines** surface radius 2 — double move cost, flammable (burns fast, smokes), wet vines don't burn, frost kills them | Wellspring (2): everyone standing in water nearby heals |
+| Death | decay, darkness, draining | **Drain** (1): 3 damage, heal what it dealt. **Blight** (2): water → **poison water** (1 damage per turn standing in it); a corpse bursts into **poison gas** (explodes with fire, §5.1) | Shroud (2): darkness gas that blocks sight and cones |
+| Psychic | mind, telekinesis, manipulation | Teleport (1), Blink (1), **Distract** (1): the target faces a chosen cell for 2 turns (16 ticks out of combat) — one player distracts, the other steals | Dread (2): the target only flees on its next turn, dropping its off-hand item |
+| Warrior | shields, two-handers, warfare | Shove (1), Cleave (1), Shockwave (2) | Brace (2): with a shield, can't be shoved, +2 armour until your next turn |
+| Rogue | backstab, stealth, trickery | Steal (1), Low Blow (1), **Backstab** (2): a weapon hit ×2 from outside the target's front cone | Smoke Bomb (1) |
+| Ranger | ranged weapons, survival | **Loaded Shot** (1): shoots your ammo item, whose properties decide the effect (`ignite`, `surface: water/oil`, `chill`) — new arrows are data entries. **Pinning Shot** (1): a hit, and the target can't move next turn | Snare (2): a hidden trap, 3 stagger. Animals post-Prologue |
+
+Ranger needs a new weapon kind: `ranged: n` (bow, sling), attacks at range with line of sight, +1 damage per level of height above the target (a rule for every ranged attack). **Oil Flask becomes an item** anyone throws (1 AP, `splash: oil`); the Pyromancer starts with a few.
+
+Build order: (A) attributes, schools and civil checks on the existing verbs (built; talents follow); (B) the bold new Prologue skills above (8 verbs; new materials: vines, poison water, poison gas; ranged weapons; Hot = +1 AP); (C) the "Later" column only after the Prologue proves fun. "Fewer verbs, each deep" (§3) holds: 2–3 skills per school.
+
+**Civil skills** (ranks 0–5, thresholds, never rolls). The *acting* character's rank counts — whoever talks or steals — so each player's pair tends to have a face and a pair of hands.
+- **Thievery.** Pickpocket: rank 0 lifts the first item (today); rank 1+ chooses the item, value ≤ 30·rank gold; rank 3 anything not worn. Locks: containers and doors get a `lock_level` 1–3 next to `lock`; Thievery ≥ lock_level opens it with a Lockpick (a kit, not consumed). A key always works; bashing still works and is loud. Sneaking: rank 2 at full walking speed, rank 3 also silent when walking normally.
+- **Charisma.** Dialogue facts `talker.charisma` (and `talker.thievery`, `talker.historian`): `* {talker.charisma >= 2} [Persuade] …`; choices you can't take show greyed with their requirement. Prices: buy at (100 − 5·Cha) % (rounded up; a suspicious trader still asks half again), sell at (50 + 5·Cha) %. Cha ≥ 2: talk a **suspicious** NPC back to normal, once per NPC.
+- **Historian.** Lore options in dialogue. Readables carry `lore: n` (below it: "faded, unreadable") and may set facts (a password, a hidden-chest hint). Items may hide properties (`hidden`, e.g. a secretly cursed ring) until someone with Historian ≥ n inspects them. **Scrolls**: one-shot casts of any school's skill without its rank, but reading one needs Historian ≥ its tier.
+
+**Talents** (max 3: creation, level 5, level 10). Each changes how you play the board, through existing properties. Prologue shortlist:
+
+| Talent | Effect |
+|---|---|
+| Cannonball | Landing from a fall, Teleport or Blink onto or next to characters: they take the fall damage and +2 stagger, you take half. Your partner's Teleport is now artillery. |
+| Featherweight | Your mass counts as 20: allies (and enemies) teleport and shove you anywhere; falls don't hurt you. |
+| Immovable | Mass +80; a shove against you fails and staggers the shover. |
+| Deep Pockets | Pick up any object under your Str mass limit as one inventory slot (a barrel, a chair) and drop it anywhere (1 AP). |
+| Human Sponge | Walking through water or oil soaks it up (into your `contents`, up to a barrel); wring it out as a puddle (1 AP). Burning with oil inside: you burst. |
+| Hot-Blooded | Never below Normal temperature. Burning doesn't hurt you, but every cell you walk on catches fire. |
+| Cold-Blooded | Never above Hot. Water you stand in freezes; ice never trips you and skating over it costs no AP. |
+| Thermal Touch | Weapon hits pass your temperature on (Hot: target +1, you −1; Cold: target −1, you +1). |
+| Scapegoat | A witness of your crime blames the nearest *other* party member it sees (pillar 6: betray your partner). |
+| Plant | Reverse pickpocket: put an item into someone's pocket — stolen goods on a guard, a quest item on the mayor. |
+| Silver Purse | In combat, pay 10 × level gold to make an enemy skip its next turn counting coins. |
+| Butterfingers | Characters you knock down drop their weapon into their cell (player weapons excepted). |
+| Switcheroo | Your Teleport and Blink can swap places with a character instead of needing a free cell. |
+| Bottle Lobber | Throw any usable item at a cell: it affects everyone within 1 cell; liquids leave a small puddle. |
+| Shadow-Skinned | Inside smoke you can't be seen or targeted, even in combat. |
+| Martyr | Damage an adjacent ally takes is split evenly between you two. |
+
+Later candidates: Grave Talker (talk to corpses; costs dialogue content), Echo Step (replay last turn's first skill for 1 AP), Hoarder's Luck.
+
+**Presets**
+
+| Preset | Attributes | Schools | Civil | Skills | Talent ideas |
+|---|---|---|---|---|---|
+| Vanguard | Str 3, Vit 2 | Warrior 2 | Charisma 1 | Shove, Cleave, Shockwave | Immovable, Cannonball |
+| Pyromancer | Mind 3, Ward 1, Dex 1 | Fire 2 | Historian 1 | Firebolt, Kindle (+ Oil Flasks) | Hot-Blooded, Thermal Touch |
+| Trickster | Dex 3, Mind 2 | Rogue 1, Psychic 1 | Thievery 1 | Steal, Low Blow, Teleport, Blink | Switcheroo, Plant, Scapegoat |
+| Tidecaller | Mind 2, Ward 3 | Ice 1, Life 1 | Historian 1 | Rain, Frost, Mend | Cold-Blooded, Bottle Lobber |
+
+Enemy roles get the same fields (Brute: Warrior 1, Str 3; Firecaller: Fire 1, Psychic 1; Shaman: Life 1, Ice 1; …).
 
 ## 6. Quests & Events — Outcomes, Not Methods
 
@@ -411,4 +500,7 @@ Levels are built freely in Godot and baked into the sim (`GameLevel.bake()`, run
 | 2026-10-18 | Fog of war: the map is unexplored (black) until a party member comes within 20 cells; explored ground stays visible, dimmed when nobody is near. Characters out of sight are hidden (fighters in the current battle stay shown); props and the fallen show once their ground is explored. Explored tiles (2 x 2 m) live in `SimState.explored`, saved and shared by both players. Max camera zoom out 48 m (was 80). |
 | 2026-10-18 | Party chains (as in Divinity): walk orders move the selected character's chain only. Ctrl+G toggles, party frames drag to chain or unchain. Kept in the game layer (`PartyChains`), not the sim: it changes who gets orders, not any rule. |
 | 2026-10-18 | Vertical slice dressing, misty morning: volumetric fog with mist banks over the water, the pond and the low woods; a low warm sun from the east; SSAO and a little glow. Gentle sculpted rises in the open land; Kenney CC0 trees, rocks, fences, tents, crops, flowers and bushes (palette remapped to muted greens and browns); torches and a campfire with flickering light. Loot: baskets, barrels, crates and pots around the village (the townsfolk's: taking is theft) and the camp, and six hidden chests tucked away in the wilds. |
+| 2026-10-18 | Character progression designed (§5.9, not built): classless with the four roles as presets; attributes Strength, Vitality, Dexterity, Mind, Ward as small-integer breakpoints; eight combat schools (Fire, Ice, Life, Death, Psychic, Warrior, Rogue, Ranger) whose ranks gate skills learned from stealable skillbooks; civil skills Thievery, Charisma, Historian as thresholds on existing systems; talents at creation, level 5 and level 10 (max 3). No dice: random crits replaced by rear-hit bonuses; resistances reduce numbers but never block effects. Lightning has no school and is out of the Prologue; Oil Flask becomes a throwable item; Ranger gets ranged weapons and ammo-as-properties, animals come after the Prologue. Built in phases, 2–3 skills per school in the Prologue. |
+| 2026-10-18 | Progression phase A built: `StatRules` attributes/schools/civil skills replace Vitality/Power/Resolve points; ranks gate the existing verbs (Shockwave needs Warrior 2) and add potency above the skill's rank; role presets keep their old HP (base HP lowered by their Vitality); Oil Flask is an item (Pyromancer starts with 3, Trickster with a lockpick); saves migrate to snapshot version 2 (Power refunded as points). Charisma prices changed to a discount from list price instead of a markup. |
+| 2026-10-19 | Default action bar is short for new characters: page 1 holds Attack and school skills from the left and healing potions from the right; Help up, Revive, Pickpocket and other items start on page 2. Saved bars from before were reset once to this default. |
 | 2026-10-17 | Scope: Prologue (1 hub + 1 zone, 2–3 h co-op) targeted at 12–18 months, 6–8 h/week, Claude Code writes the code. |

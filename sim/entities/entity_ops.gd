@@ -38,6 +38,8 @@ static func damage(state: SimState, e: SimEntity, amount: int, source_id: int = 
 		return
 	if element == Element.PHYSICAL and e.armor > 0:
 		amount = maxi(amount - e.armor, (amount + 1) / 2)  # armour softens blows, at most by half
+	elif element != Element.PHYSICAL:
+		amount = StatRules.ward_reduced(e, amount)  # and Ward softens fire and frost
 	e.hp = maxi(e.hp - amount, 0)
 	var event := state.emit_event(SimEvent.Type.DAMAGED, e.cell, e.id, source_id, amount)
 	event.element = element
@@ -130,7 +132,7 @@ static func stand_in_fire(state: SimState, e: SimEntity) -> void:
 
 # --- Stagger and knockdown -----------------------------------------------------
 
-## Builds stagger (in combat); reaching the entity's stagger_max knocks it
+## Builds stagger (in combat); reaching the entity's stagger limit knocks it
 ## down. Stagger clears at the start of the entity's own turn, so knocking
 ## someone down takes hits landing within one round.
 static func add_stagger(state: SimState, e: SimEntity, amount: int, source_id: int = -1) -> void:
@@ -138,7 +140,7 @@ static func add_stagger(state: SimState, e: SimEntity, amount: int, source_id: i
 		return
 	e.stagger += amount
 	state.emit_event(SimEvent.Type.STAGGERED, e.cell, e.id, source_id, amount)
-	if e.stagger >= e.stagger_max:
+	if e.stagger >= StatRules.stagger_limit(e):
 		e.stagger = 0
 		e.knocked_down = true
 		e.ap = 0
@@ -257,8 +259,9 @@ static func slow_if_in_oil(state: SimState, e: SimEntity) -> void:
 	e.slowed = maxi(e.slowed, SLOW_TURNS)
 
 
+## Heals `amount` (Ward adds to heals received).
 static func heal(state: SimState, e: SimEntity, amount: int, source_id: int = -1) -> void:
-	var healed := mini(amount, e.max_hp - e.hp)
+	var healed := mini(amount + StatRules.heal_received_bonus(e), e.max_hp - e.hp)
 	if not e.is_alive() or healed <= 0:
 		return
 	e.hp += healed

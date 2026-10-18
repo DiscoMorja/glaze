@@ -6,13 +6,19 @@ extends RefCounted
 ## preference, so it lives in the player's user folder, not in the sim or the
 ## save (keyed by character name).
 ##
-## New actions and new kinds of usable items go to the first free slot the
-## first time a character has them; after that the player arranges them
-## (moving one away or clearing it sticks).
+## New actions and new kinds of usable items get a slot the first time a
+## character has them (default_spot()): the first page holds Attack and the
+## character's school skills from the left and healing potions from the
+## right; everything else (Help up, Revive, Pickpocket, other items) starts
+## on the second page, so a new character's bar stays short. After that the
+## player arranges them (moving one away or clearing it sticks).
 
 const PAGES := 3
 const SLOTS := 10
 const EMPTY := ""
+## Layouts saved before this version are dropped once, so everyone gets the
+## current default arrangement.
+const VERSION := 2
 
 ## Where layouts are kept (tests point it elsewhere).
 static var path := "user://hotbars.cfg"
@@ -86,7 +92,7 @@ static func _layout_for(e: SimEntity) -> Dictionary:
 			slots.resize(SLOTS)
 			slots.fill(EMPTY)
 			pages.append(slots)
-		_layouts[e.name] = {"pages": pages, "seen": []}
+		_layouts[e.name] = {"pages": pages, "seen": [], "v": VERSION}
 	var layout: Dictionary = _layouts[e.name]
 	var changed := false
 	var wanted: Array[String] = []
@@ -100,12 +106,37 @@ static func _layout_for(e: SimEntity) -> Dictionary:
 			continue
 		layout.seen.append(entry)
 		changed = true
-		var free := _first_free(layout.pages)
+		var spot := default_spot(entry)
+		var free := _free_on(layout.pages, spot.x, spot.y < 0)
+		if free.x < 0:
+			free = _first_free(layout.pages)
 		if free.x >= 0:
 			layout.pages[free.x][free.y] = entry
 	if changed:
 		save()
 	return layout
+
+
+## Where a new entry goes by default: (page, side), side 1 from the left, -1
+## from the right. Fighting actions (Attack, school skills, thrown items) and
+## healing potions on the first page; the rest on the second.
+static func default_spot(entry: String) -> Vector2i:
+	if is_action(entry):
+		var action := action_of(entry)
+		var fighting: bool = action == ActionInfo.ATTACK or SimAbilities.SCHOOL[action] >= 0 or SimAbilities.FROM_ITEM.has(action)
+		return Vector2i(0, 1) if fighting else Vector2i(1, 1)
+	var item := item_of(entry)
+	var potion := SimItems.kind_of(item) == "potion" and SimItems.amount(item, "heal") > 0 and SimItems.amount(item, "temperature") == 0
+	return Vector2i(0, -1) if potion else Vector2i(1, 1)
+
+
+## The first free slot on a page, from the left or (from_right) the right.
+static func _free_on(pages: Array, page_index: int, from_right: bool) -> Vector2i:
+	for k in SLOTS:
+		var i := SLOTS - 1 - k if from_right else k
+		if pages[page_index][i] == EMPTY:
+			return Vector2i(page_index, i)
+	return Vector2i(-1, -1)
 
 
 static func _first_free(pages: Array) -> Vector2i:
@@ -125,7 +156,7 @@ static func _load() -> void:
 		return
 	for name in file.get_section_keys("bars") if file.has_section("bars") else PackedStringArray():
 		var data: Variant = file.get_value("bars", name)
-		if data is Dictionary and data.get("pages") is Array and data.pages.size() == PAGES:
+		if data is Dictionary and data.get("pages") is Array and data.pages.size() == PAGES and data.get("v", 1) >= VERSION:
 			_layouts[name] = data
 
 

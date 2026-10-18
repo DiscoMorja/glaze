@@ -726,6 +726,10 @@ func _left_click() -> void:
 	_action = ActionInfo.NONE
 	_teleport_target = null
 	_confirm_cell = null
+	var cast := command as CastCommand
+	if cast != null and cast.ability == SimAbilities.Ability.PICKPOCKET and state.get_entity(cast.caster_id).thievery > 0:
+		_loot.open_pockets(clicked.id, cast.caster_id)  # a skilled thief chooses what to take
+		return
 	Net.submit(command)
 
 
@@ -1428,7 +1432,7 @@ func _can_teleport_target(target: SimEntity) -> bool:
 static func _teleportable(s: SimState, actor: SimEntity, target: SimEntity) -> bool:
 	var ability := SimAbilities.Ability.TELEPORT
 	return (target != null and target != actor and target.is_alive()
-			and target.mass <= SimAbilities.TELEPORT_MAX_MASS
+			and target.mass <= StatRules.teleport_limit(actor)
 			and SimAbilities.can_reach(ability, actor.cell, target.cell)
 			and SimLos.has_line_of_sight(s.grid, actor.cell, target.cell))
 
@@ -1860,6 +1864,12 @@ func _build_scene() -> void:
 	_loot = LootPanel.new()
 	canvas.add_child(_loot)
 	_loot.take_requested.connect(func(index: int) -> void:
+		if _loot.thief_id >= 0:
+			var victim := state.get_entity(_loot.container_id)
+			var pick := CastCommand.new(_loot.thief_id, SimAbilities.Ability.PICKPOCKET, victim.cell, Vector3i.ZERO, index)
+			if pick.validate(state):
+				Net.submit(pick)
+			return
 		var take := LootCommand.new(_selected_id, _loot.container_id, index)
 		if take.validate(state):
 			Net.submit(take))
@@ -2006,7 +2016,7 @@ func _refresh() -> void:
 	var talker := state.get_entity(state.conversation.get("talker", -1)) if not state.conversation.is_empty() else null
 	_dialogue.show_conversation(state, talker != null and Net.may_control(Net.local_slot, talker))
 	_journal.show_journal(state)
-	if _loot.visible and LootCommand.blocker(state, actor, state.get_entity(_loot.container_id)) != "":
+	if _loot.visible and _loot.thief_id < 0 and LootCommand.blocker(state, actor, state.get_entity(_loot.container_id)) != "":
 		_loot.close()  # walked away, a fight started, or someone else is selected
 	_loot.show_contents(state)
 	_trade.show_trade(state)

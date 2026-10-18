@@ -166,7 +166,7 @@ static func candidates(state: SimState, e: SimEntity, walk: Dictionary = {}) -> 
 		if SimAbilities.is_adjacent(e.cell, o.cell):
 			result.append(AttackCommand.new(e.id, o.id))
 	var allies := CombatRules.fighters(state, e.faction)
-	for ability in e.abilities:
+	for ability in SimAbilities.available(e):
 		match ability:
 			SimAbilities.Ability.FIREBOLT:
 				for c in _fire_targets(state, e, opponents):

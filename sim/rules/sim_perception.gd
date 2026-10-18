@@ -30,12 +30,13 @@ static func facing_toward(a: Vector3i, b: Vector3i, current: int) -> int:
 
 ## Whether `watcher` notices `target` where they stand now.
 static func can_see(state: SimState, watcher: SimEntity, target: SimEntity) -> bool:
-	return sees_cell(state, watcher, target.cell, target.sneaking)
+	return sees_cell(state, watcher, target.cell, target.sneaking, target.thievery < StatRules.SILENT_RANK)
 
 
-## Whether `watcher` would notice someone at `c` (sneaking or not).
+## Whether `watcher` would notice someone at `c` (sneaking or not; `audible`:
+## walking normally can be heard, unless Thievery makes it silent).
 @warning_ignore("integer_division")
-static func sees_cell(state: SimState, watcher: SimEntity, c: Vector3i, sneaking: bool) -> bool:
+static func sees_cell(state: SimState, watcher: SimEntity, c: Vector3i, sneaking: bool, audible: bool = true) -> bool:
 	if watcher.sight <= 0 or not watcher.is_alive() or c == watcher.cell:
 		return false
 	var dx := c.x - watcher.cell.x
@@ -43,7 +44,7 @@ static func sees_cell(state: SimState, watcher: SimEntity, c: Vector3i, sneaking
 	var dist2 := dx * dx + dz * dz
 	if absi(c.y - watcher.cell.y) > watcher.sight:
 		return false
-	if not sneaking and dist2 <= HEARING * HEARING:
+	if not sneaking and audible and dist2 <= HEARING * HEARING:
 		return true  # heard, whichever way it faces
 	var reach := watcher.sight if not sneaking else maxi(1, watcher.sight * SNEAK_SIGHT_PERCENT / 100)
 	if dist2 > reach * reach or not in_cone(watcher.facing, dx, dz):

@@ -61,7 +61,7 @@ static func path_for(state: SimState, e: SimEntity, to: Vector3i) -> Array[Vecto
 ## AP for walking path; double while slowed.
 static func ap_cost(e: SimEntity, from: Vector3i, path: Array[Vector3i]) -> int:
 	var cost := SimPathfinder.movement_cost(from, path)
-	return CombatRules.move_ap_cost(cost * 2 if e.is_slowed() else cost)
+	return CombatRules.move_ap_cost(cost * 2 if e.is_slowed() else cost, e)
 
 
 func actor_id() -> int:

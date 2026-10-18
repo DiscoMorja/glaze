@@ -15,17 +15,24 @@ const RANGE := [7, 7, 7, 1, 1, 6, 6, 5, 1, 4, 1, 1, 1, 5, 1]
 ## 3 = every third turn. In combat they count down at the start of the user's
 ## turn; outside combat every CombatRules.REALTIME_TICKS_PER_TURN ticks.
 const COOLDOWN := [1, 2, 3, 1, 2, 2, 2, 3, 2, 2, 0, 0, 0, 2, 3]
+## The school each ability belongs to (StatRules.School, -1 = everyone's) and
+## the rank in it needed to use it. Ranks above that add potency.
+## (StatRules.School order: FIRE 0, ICE 1, LIFE 2, DEATH 3, PSYCHIC 4,
+## WARRIOR 5, ROGUE 6, RANGER 7.)
+const SCHOOL := [0, 1, 4, 5, 6, 1, -1, 2, 5, 4, -1, -1, -1, 5, 6]
+const RANK := [1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 2, 1]
+## Abilities that come from an item instead of being known: carrying an item
+## whose "casts" names the ability grants it, and each use spends one.
+const FROM_ITEM := [Ability.OIL_FLASK]
 
 const FIREBOLT_DAMAGE := 4
 ## Rain lays its whole puddle at once, like the Oil Flask: puddle-deep water
 ## on every cell of the disc, so it doesn't creep afterwards.
 const RAIN_AMOUNT := 20
 const RAIN_RADIUS := 2
-const TELEPORT_MAX_MASS := 150
 ## Highest a Teleport can put its target above the ground below (cells): a
 ## drop from there hurts (up to 8 damage) but can't kill outright.
 const TELEPORT_MAX_DROP := 3
-const SHOVE_MAX_MASS := 120
 const SHOVE_DISTANCE := 2
 const FROST_DAMAGE := 2
 const FROST_RADIUS := 1
@@ -52,6 +59,47 @@ const SHOCKWAVE_STAGGER := 2
 ## Low Blow: a dirty trip on one adjacent character, enough to knock most
 ## people down by itself.
 const LOW_BLOW_STAGGER := 3
+
+
+## Potency: the caster's rank in the ability's school above the rank it needs.
+static func potency(caster: SimEntity, ability: int) -> int:
+	var school: int = SCHOOL[ability]
+	return maxi(0, StatRules.rank(caster, school) - RANK[ability]) if school >= 0 else 0
+
+
+## Whether the caster's school rank is high enough for the ability.
+static func has_rank(caster: SimEntity, ability: int) -> bool:
+	return SCHOOL[ability] < 0 or StatRules.rank(caster, SCHOOL[ability]) >= RANK[ability]
+
+
+## Index of the first carried item that grants `ability` (-1 = none).
+static func granting_item(caster: SimEntity, ability: int) -> int:
+	for i in caster.inventory.size():
+		if SimItems.info(caster.inventory[i]).get("casts", "") == NAMES[ability]:
+			return i
+	return -1
+
+
+## What the entity can try to use: the abilities it knows (FROM_ITEM ones only
+## with the item), then those its items grant. Rank is checked by validate().
+static func available(e: SimEntity) -> Array[int]:
+	var result: Array[int] = []
+	for ability in e.abilities:
+		if not FROM_ITEM.has(ability) or granting_item(e, ability) >= 0:
+			result.append(ability)
+	for ability: int in FROM_ITEM:
+		if not result.has(ability) and granting_item(e, ability) >= 0:
+			result.append(ability)
+	return result
+
+
+## Why `caster` can't use `ability` at all ("" = it can try), for the UI.
+static func lacks(caster: SimEntity, ability: int) -> String:
+	if FROM_ITEM.has(ability) and granting_item(caster, ability) < 0:
+		return "Needs an item that casts it"
+	if not has_rank(caster, ability):
+		return "Needs %s %d" % [StatRules.SCHOOLS[SCHOOL[ability]].capitalize(), RANK[ability]]
+	return ""
 
 
 static func all() -> Array[int]:
@@ -139,8 +187,9 @@ static func can_take_weapon(victim: SimEntity) -> bool:
 	return victim.weapon != "" and victim.can_be_disarmed
 
 
-static func validate(state: SimState, caster: SimEntity, ability: int, target: Vector3i, destination: Vector3i) -> bool:
-	if ability < 0 or ability >= NAMES.size() or not caster.abilities.has(ability):
+## `item` picks what Pickpocket takes (-1 = the first item); see StatRules.can_pick().
+static func validate(state: SimState, caster: SimEntity, ability: int, target: Vector3i, destination: Vector3i, item: int = -1) -> bool:
+	if ability < 0 or ability >= NAMES.size() or not available(caster).has(ability) or not has_rank(caster, ability):
 		return false
 	if not CombatRules.can_act(state, caster, AP_COST[ability]):
 		return false
@@ -160,13 +209,13 @@ static func validate(state: SimState, caster: SimEntity, ability: int, target: V
 			return true
 		Ability.TELEPORT:
 			return (other_victim
-					and victim.mass <= TELEPORT_MAX_MASS
+					and victim.mass <= StatRules.teleport_limit(caster)
 					and in_range(caster.cell, destination, RANGE[Ability.TELEPORT])
 					and EntityOps.is_free(state, destination)
 					and drop_height(state, destination) <= TELEPORT_MAX_DROP
 					and SimLos.has_line_of_sight(state.grid, caster.cell, destination))
 		Ability.SHOVE:
-			return other_victim and victim.mass <= SHOVE_MAX_MASS
+			return other_victim and victim.mass <= StatRules.shove_limit(caster)
 		Ability.STEAL:
 			return other_victim and (can_take_weapon(victim) or not victim.inventory.is_empty())
 		Ability.MEND:
@@ -182,6 +231,8 @@ static func validate(state: SimState, caster: SimEntity, ability: int, target: V
 		Ability.PICKPOCKET:
 			# Outside combat, someone else's item (not their weapon): another
 			# side's, or your co-op partner's character.
+			if item >= 0 and (other_victim and (item >= victim.inventory.size() or not StatRules.can_pick(caster, victim.inventory[item]))):
+				return false
 			return (not state.combat.active and other_victim and victim.takes_turns()
 					and not victim.inventory.is_empty()
 					and (victim.faction != caster.faction or victim.owner != caster.owner))
@@ -192,15 +243,18 @@ static func validate(state: SimState, caster: SimEntity, ability: int, target: V
 	return false
 
 
-static func execute(state: SimState, caster: SimEntity, ability: int, target: Vector3i, destination: Vector3i) -> void:
+@warning_ignore("integer_division")
+static func execute(state: SimState, caster: SimEntity, ability: int, target: Vector3i, destination: Vector3i, item: int = -1) -> void:
 	CombatRules.spend(state, caster, AP_COST[ability])
+	if FROM_ITEM.has(ability):
+		caster.inventory.remove_at(granting_item(caster, ability))
 	caster.cooldowns[ability] = COOLDOWN[ability]
 	state.emit_event(SimEvent.Type.CAST, target, caster.id, -1, ability)
 	var victim := state.entity_at(target)
 	match ability:
 		Ability.FIREBOLT:
 			if victim != null:
-				EntityOps.damage(state, victim, FIREBOLT_DAMAGE + caster.spell_power(), caster.id, EntityOps.Element.FIRE)
+				EntityOps.damage(state, victim, FIREBOLT_DAMAGE + caster.spell_power() + potency(caster, ability), caster.id, EntityOps.Element.FIRE)
 				EntityOps.change_temperature(state, victim, FIREBOLT_HEAT, caster.id)
 			FireRules.ignite(state, target, false)  # the bolt already heated the victim
 		Ability.RAIN:
@@ -232,7 +286,7 @@ static func execute(state: SimState, caster: SimEntity, ability: int, target: Ve
 				state.grid.add_surface(c, SimMaterials.Surface.OIL, OIL_FLASK_AMOUNT)
 			FireRules.catch_from_fire(state, splash)
 		Ability.MEND:
-			EntityOps.heal(state, victim, MEND_HEAL, caster.id)
+			EntityOps.heal(state, victim, MEND_HEAL + StatRules.heal_cast_bonus(caster) + potency(caster, ability), caster.id)
 		Ability.CLEAVE:
 			_cleave(state, caster)
 		Ability.SHOCKWAVE:
@@ -242,7 +296,7 @@ static func execute(state: SimState, caster: SimEntity, ability: int, target: Ve
 			for c in line:
 				var hit := state.entity_at(c)
 				if hit != null and hit != caster:
-					EntityOps.add_stagger(state, hit, SHOCKWAVE_STAGGER, caster.id)
+					EntityOps.add_stagger(state, hit, SHOCKWAVE_STAGGER + potency(caster, ability) / 2, caster.id)
 		Ability.LOW_BLOW:
 			EntityOps.add_stagger(state, victim, LOW_BLOW_STAGGER, caster.id)
 		Ability.BLINK:
@@ -254,11 +308,12 @@ static func execute(state: SimState, caster: SimEntity, ability: int, target: Ve
 		Ability.REVIVE:
 			EntityOps.revive(state, state.corpse_at(target), caster.id)
 		Ability.PICKPOCKET:
-			_pickpocket(state, caster, victim)
+			_pickpocket(state, caster, victim, maxi(item, 0))
 
 
 ## Pushes the victim up to SHOVE_DISTANCE cells away from the caster. Walls and
 ## other entities stop it (and hurt); ledges drop it.
+@warning_ignore("integer_division")
 static func _shove(state: SimState, caster: SimEntity, victim: SimEntity) -> void:
 	var dir := Vector3i(signi(victim.cell.x - caster.cell.x), 0, signi(victim.cell.z - caster.cell.z))
 	if dir == Vector3i.ZERO:
@@ -266,7 +321,7 @@ static func _shove(state: SimState, caster: SimEntity, victim: SimEntity) -> voi
 	var path: Array[Vector3i] = []
 	var hit_wall := false
 	var hit: SimEntity = null
-	for _i in SHOVE_DISTANCE:
+	for _i in SHOVE_DISTANCE + potency(caster, Ability.SHOVE) / 2:
 		var next := victim.cell + dir
 		if state.grid.is_solid(next):
 			hit_wall = true
@@ -306,11 +361,12 @@ static func _shove(state: SimState, caster: SimEntity, victim: SimEntity) -> voi
 		EntityOps.enter_cell(state, victim)  # and lands in whatever is down there
 
 
-## Lifts the victim's first item. Whoever sees it happen (the victim
+## Lifts an item: the victim's first, or one a skilled thief chose. Whoever sees it happen (the victim
 ## included, if it can see the thief) reacts: neutrals get suspicious, then
 ## hostile; enemies spot the thief and a fight starts.
-static func _pickpocket(state: SimState, caster: SimEntity, victim: SimEntity) -> void:
-	var item: String = victim.inventory.pop_front()
+static func _pickpocket(state: SimState, caster: SimEntity, victim: SimEntity, index: int) -> void:
+	var item: String = victim.inventory[index]
+	victim.inventory.remove_at(index)
 	caster.inventory.append(item)
 	if victim.faction != caster.faction:
 		CrimeRules.mark_stolen(caster, item, victim.pack if victim.pack > 0 else -victim.id)
@@ -352,7 +408,7 @@ static func _frost(state: SimState, caster: SimEntity, target: Vector3i) -> void
 			state.emit_event(SimEvent.Type.FROZE, c)
 		var occupant := state.entity_at(c)
 		if occupant != null:
-			EntityOps.damage(state, occupant, FROST_DAMAGE + caster.spell_power(), caster.id, EntityOps.Element.FROST)
+			EntityOps.damage(state, occupant, FROST_DAMAGE + caster.spell_power() + potency(caster, Ability.FROST), caster.id, EntityOps.Element.FROST)
 			EntityOps.change_temperature(state, occupant, -FROST_CHILL, caster.id)
 
 
@@ -364,4 +420,4 @@ static func _cleave(state: SimState, caster: SimEntity) -> void:
 			victims.append(e)
 	for e in victims:
 		state.emit_event(SimEvent.Type.ATTACKED, e.cell, e.id, caster.id)
-		EntityOps.damage(state, e, caster.attack_damage(), caster.id)
+		EntityOps.damage(state, e, StatRules.hit_damage(caster, e) + potency(caster, Ability.CLEAVE), caster.id)

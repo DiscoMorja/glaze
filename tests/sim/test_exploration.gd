@@ -88,6 +88,7 @@ func test_hurting_an_enemy_starts_combat() -> void:
 func test_preparing_the_ground_does_not_start_combat() -> void:
 	var state := _field(0)
 	EntityOps.place(state, Fixtures.hero(state), Vector3i(13, Y, 5))
+	Fixtures.give_flasks(Fixtures.hero(state))
 	assert_true(state.apply_command(CastCommand.new(1, SimAbilities.Ability.OIL_FLASK, Vector3i(16, Y, 5))))
 	assert_false(state.combat.active)
 

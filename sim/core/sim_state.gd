@@ -155,7 +155,7 @@ func duplicate_state() -> SimState:
 ## fields, new grid arrays), and add the step to _migrate(). New entity,
 ## combat or state fields need no bump: missing keys keep their defaults.
 ## tests/fixtures holds a save from each version; they must keep loading.
-const SNAPSHOT_VERSION := 1
+const SNAPSHOT_VERSION := 2
 
 
 ## The whole state as compressed bytes (a co-op guest joining, catching up
@@ -201,12 +201,43 @@ static func from_snapshot(bytes: PackedByteArray) -> SimState:
 
 
 ## Brings snapshot data from an older SNAPSHOT_VERSION up to the current one,
-## one version step at a time (none yet: version 1 is the first).
+## one version step at a time.
 static func _migrate(data: Dictionary) -> Dictionary:
 	var version: int = data.get("version", 1)
-	# if version == 1: ...; version = 2
+	if version == 1:
+		for d: Dictionary in data.entities:
+			_migrate_v1_entity(d)
+		version = 2
 	assert(version == SNAPSHOT_VERSION)
 	return data
+
+
+## Version 2 (GDD §5.9): Power points became attributes, roles got starting
+## stats, the Oil Flask became an item. Spent Power is refunded as attribute
+## points; a role's stats are filled in without touching HP (old roles' HP
+## already counts them); whoever knew the Oil Flask gets three flasks.
+static func _migrate_v1_entity(d: Dictionary) -> void:
+	d.points = d.get("points", 0) + d.get("power", 0)
+	d.erase("power")
+	var abilities: Array[int] = []
+	abilities.assign(d.get("abilities", []))
+	if abilities.has(SimAbilities.Ability.OIL_FLASK):
+		abilities.erase(SimAbilities.Ability.OIL_FLASK)
+		var inventory: Array = d.get("inventory", [])
+		for _i in 3:
+			inventory.append("Oil flask")
+		d.inventory = inventory
+	d.abilities = abilities
+	var schools := StatRules.schools_for(abilities)
+	var role: Dictionary = SimArchetypes.ROLES.get(d.get("archetype", ""), {})
+	for stat: String in role.get("attributes", {}):
+		d[stat] = role.attributes[stat]
+	for stat: String in role.get("civil", {}):
+		d[stat] = role.civil[stat]
+	for stat: String in role.get("schools", {}):
+		var school := StatRules.SCHOOLS.find(stat)
+		schools[school] = maxi(schools[school], role.schools[stat])
+	d.schools = schools
 
 
 ## SHA-256 over all authoritative state; equal checksums mean identical sims.

@@ -9,6 +9,7 @@ const A := SimAbilities.Ability
 
 func _busy_state() -> SimState:
 	var state := Fixtures.duel_state()
+	Fixtures.give_flasks(Fixtures.hero(state))
 	state.apply_command(CastCommand.new(1, A.OIL_FLASK, Vector3i(5, Y, 5)))
 	state.apply_command(IgniteCommand.new(Vector3i(5, Y, 5)))
 	state.apply_command(ChillCommand.new(Vector3i(2, Y, 8), 1))

@@ -4,9 +4,10 @@ extends SimCommand
 ## inventory) and sells items (indices into their own) with a trader next to
 ## them, in one deal. Gold makes up the difference both ways; the deal fails
 ## if either side can't pay. Prices (price_of / offer_for):
-##   - buying costs the item's value; a suspicious trader asks half again
-##   - selling fetches half the value, rounded down; money (Gold, Coins) is
-##     taken at full value
+##   - buying costs the item's value, 5 % less per rank of the buyer's
+##     Charisma (rounded up); a suspicious trader asks half again
+##   - selling fetches half the value, 5 % more per rank of the seller's
+##     Charisma (rounded down); money (Gold, Coins) is taken at full value
 ##   - a trader won't buy what was stolen from its own group (it knows its
 ##     own things); anything else stolen sells, and loses its stolen tag
 
@@ -34,14 +35,23 @@ func actor_id() -> int:
 	return buyer_id
 
 
-static func price_of(trader: SimEntity, item: String) -> int:
-	var value := SimItems.value_of(item)
+## Percent of an item's value per rank of Charisma off buying, onto selling.
+const CHARISMA_PERCENT := 5
+
+
+@warning_ignore("integer_division")
+static func price_of(trader: SimEntity, item: String, buyer: SimEntity = null) -> int:
+	var percent := 100 - CHARISMA_PERCENT * (buyer.charisma if buyer != null else 0)
+	var value := (SimItems.value_of(item) * percent + 99) / 100
 	return value * 3 / 2 if trader.suspicious else value
 
 
-static func offer_for(item: String) -> int:
+@warning_ignore("integer_division")
+static func offer_for(item: String, seller: SimEntity = null) -> int:
 	var value := SimItems.value_of(item)
-	return value if SimItems.has_property(item, "money") else value / 2
+	if SimItems.has_property(item, "money"):
+		return value
+	return value * (50 + CHARISMA_PERCENT * (seller.charisma if seller != null else 0)) / 100
 
 
 ## The trader refuses this item from this seller (it was stolen from them).
@@ -67,9 +77,9 @@ static func can_trade(state: SimState, buyer: SimEntity, trader: SimEntity) -> b
 static func balance(trader: SimEntity, buyer: SimEntity, p_buy: Array[int], p_sell: Array[int]) -> int:
 	var total := 0
 	for i in p_buy:
-		total += price_of(trader, trader.inventory[i])
+		total += price_of(trader, trader.inventory[i], buyer)
 	for i in p_sell:
-		total -= offer_for(buyer.inventory[i])
+		total -= offer_for(buyer.inventory[i], buyer)
 	return total
 
 

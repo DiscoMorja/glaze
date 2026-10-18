@@ -180,6 +180,8 @@ func usable(entry: String) -> bool:
 		var action := HotbarLayout.action_of(entry)
 		if not ActionInfo.actions_for(_actor).has(action):
 			return false
+		if action >= 0 and SimAbilities.lacks(_actor, action) != "":
+			return false
 		return not (_needs_ap and _actor.ap < ActionInfo.cost(action)) and ActionInfo.remaining(action, _actor) == 0
 	if HotbarLayout.is_item(entry):
 		var item := HotbarLayout.item_of(entry)

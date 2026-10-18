@@ -17,6 +17,7 @@ func _init() -> void:
 		return
 	var y := Fixtures.FLOOR_Y
 	var state := Fixtures.duel_state()
+	Fixtures.give_flasks(Fixtures.hero(state))
 	state.apply_command(CastCommand.new(1, SimAbilities.Ability.OIL_FLASK, Vector3i(5, y, 5)))
 	state.apply_command(IgniteCommand.new(Vector3i(5, y, 5)))
 	state.step_ticks(3)
@@ -24,6 +25,10 @@ func _init() -> void:
 	hero.inventory.assign(["Gold", "Silver ring"])
 	hero.stolen.assign(["Village:Silver ring"])
 	hero.owner = 1
+	hero.dexterity = 3
+	hero.thievery = 1
+	hero.schools[StatRules.School.DEATH] = 1
+	hero.combat_points = 1
 	state.facts["bandits_known"] = 1
 	state.quests["bandits"] = {"known": true, "outcome": ""}
 	DirAccess.make_dir_recursive_absolute("res://tests/fixtures")

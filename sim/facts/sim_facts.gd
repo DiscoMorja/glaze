@@ -13,7 +13,10 @@ extends RefCounted
 ##   quest.<id>.known     1 once the quest is known
 ##   quest.<id>.<outcome> 1 if it ended that way
 ##   self.<x>             the NPC being talked to: self.suspicious, self.hostile,
-##                        self.alive, self.has.<Item>
+##                        self.alive, self.has.<Item>, and its stats (below)
+##   talker.<x>           the party member talking, the same way: its
+##                        attributes, school ranks and civil skills by name
+##                        (talker.charisma, talker.historian, talker.fire...)
 ## Anything else is a remembered fact.
 
 
@@ -21,6 +24,9 @@ static func value(state: SimState, name: String, context: Dictionary = {}) -> in
 	if name.begins_with("self."):
 		var npc: SimEntity = state.get_entity(context.get("npc", -1))
 		return _of_entity(npc, name.trim_prefix("self.")) if npc != null else 0
+	if name.begins_with("talker."):
+		var talker: SimEntity = state.get_entity(context.get("talker", -1))
+		return _of_entity(talker, name.trim_prefix("talker.")) if talker != null else 0
 	var head := name.get_slice(".", 0)
 	var rest := name.substr(head.length() + 1)
 	match head:
@@ -67,4 +73,6 @@ static func _of_entity(e: SimEntity, what: String) -> int:
 			return 1 if e.faction == SimEntity.Faction.ENEMIES else 0
 		"alive":
 			return 1 if e.is_alive() else 0
-	return 0
+		"level":
+			return e.level
+	return StatRules.value(e, what)

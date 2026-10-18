@@ -10,8 +10,10 @@ extends Marker3D
 ## How it looks (PropLooks): chest, barrel, crate, crate_large, basket, pot.
 @export_enum("chest", "barrel", "crate", "crate_large", "basket", "pot") var look := "chest"
 @export var items: Array[String] = []
-## Item that unlocks it (e.g. "Camp key"); empty = not locked.
+## Item that unlocks it (e.g. "Camp key"); empty = no key.
 @export var key := ""
+## Thievery rank (with a lockpick) that opens it; 0 = can't be picked.
+@export_range(0, 5) var lock_level := 0
 @export var hp := 8
 
 

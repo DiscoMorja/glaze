@@ -107,7 +107,7 @@ static func recalculate(e: SimEntity) -> void:
 		hp += SimItems.amount(item, "max_hp")
 		if slot != MAIN:
 			damage += SimItems.amount(item, "damage")
-	e.armor = armor
+	e.armor = armor + StatRules.armor_bonus(e)
 	e.gear_damage = damage
 	e.gear_power = power
 	var delta := hp - e.gear_hp

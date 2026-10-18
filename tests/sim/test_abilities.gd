@@ -58,7 +58,7 @@ func test_teleport_rejects_heavy_or_blocked() -> void:
 	var state := _near_duel()
 	var bandit := Fixtures.bandit(state)
 	assert_false(state.apply_command(CastCommand.new(1, A.TELEPORT, bandit.cell, Fixtures.hero(state).cell)), "destination occupied")
-	bandit.mass = SimAbilities.TELEPORT_MAX_MASS + 1
+	bandit.mass = StatRules.teleport_limit(Fixtures.hero(state)) + 1
 	assert_false(state.apply_command(CastCommand.new(1, A.TELEPORT, bandit.cell, Vector3i(6, Y, 6))))
 
 
@@ -117,5 +117,5 @@ func test_adjacent_abilities_need_adjacency() -> void:
 
 func test_unknown_ability_is_rejected() -> void:
 	var state := _near_duel()
-	Fixtures.hero(state).abilities.assign([A.SHOVE])
+	Fixtures.teach(Fixtures.hero(state), [A.SHOVE])
 	assert_false(state.apply_command(CastCommand.new(1, A.FIREBOLT, Fixtures.bandit(state).cell)))

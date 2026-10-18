@@ -122,7 +122,7 @@ func test_fire_on_a_frozen_character_brings_it_back_to_normal() -> void:
 	EntityOps.change_temperature(state, hero, -2)
 	assert_true(hero.is_frozen())
 	assert_eq(hero.ap, 0, "frozen: the turn is over")
-	state.get_entity(3).abilities.assign([A.FIREBOLT])
+	Fixtures.teach(state.get_entity(3), [A.FIREBOLT])
 	EntityOps.place(state, state.get_entity(3), Vector3i(2, Y, 6))
 	assert_true(state.apply_command(CastCommand.new(3, A.FIREBOLT, hero.cell)))
 	assert_eq(hero.temperature, 0)
@@ -158,7 +158,7 @@ func test_rain_douses_a_burning_character() -> void:
 	var state := _melee()
 	var hero := Fixtures.hero(state)
 	EntityOps.change_temperature(state, hero, 2)
-	state.get_entity(3).abilities.assign([A.RAIN])
+	Fixtures.teach(state.get_entity(3), [A.RAIN])
 	assert_true(state.apply_command(CastCommand.new(3, A.RAIN, hero.cell)))
 	assert_eq(hero.temperature, 0)
 
@@ -183,7 +183,7 @@ func test_water_cools_to_cold_at_most() -> void:
 func test_rain_cools_but_doesnt_freeze() -> void:
 	var state := _melee()
 	var hero := Fixtures.hero(state)
-	state.get_entity(3).abilities.assign([A.RAIN])
+	Fixtures.teach(state.get_entity(3), [A.RAIN])
 	assert_true(state.apply_command(CastCommand.new(3, A.RAIN, hero.cell)))
 	assert_eq(hero.temperature, -1)
 

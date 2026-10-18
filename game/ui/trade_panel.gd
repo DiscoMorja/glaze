@@ -122,9 +122,9 @@ func show_trade(state: SimState) -> void:
 	_title.text = "Trading with %s" % trader.name
 	_their_head.text = "%s's goods   ·   %d gold" % [trader.name, trader.gold]
 	_my_head.text = "%s's bag   ·   %d gold" % [buyer.name, buyer.gold]
-	_fill(_theirs, "theirs", trader.inventory, _buy, func(item: String) -> int: return TradeCommand.price_of(trader, item),
+	_fill(_theirs, "theirs", trader.inventory, _buy, func(item: String) -> int: return TradeCommand.price_of(trader, item, buyer),
 			func(_item: String) -> bool: return false)
-	_fill(_mine, "mine", buyer.inventory, _sell, func(item: String) -> int: return TradeCommand.offer_for(item),
+	_fill(_mine, "mine", buyer.inventory, _sell, func(item: String) -> int: return TradeCommand.offer_for(item, buyer),
 			func(item: String) -> bool: return TradeCommand.refuses(trader, buyer, item))
 	var pay := TradeCommand.balance(trader, buyer, _buy, _sell)
 	if _buy.is_empty() and _sell.is_empty():
@@ -189,9 +189,9 @@ func _show_details() -> void:
 			if mine and TradeCommand.refuses(trader, buyer, item):
 				line = "They won't buy their own goods back."
 			elif mine:
-				line = "Sells for %d gold%s." % [TradeCommand.offer_for(item), " (money: full value)" if SimItems.has_property(item, "money") else ""]
+				line = "Sells for %d gold%s." % [TradeCommand.offer_for(item, buyer), " (money: full value)" if SimItems.has_property(item, "money") else ""]
 			else:
-				line = "Costs %d gold%s." % [TradeCommand.price_of(trader, item), " (they're wary of you: half again)" if trader.suspicious else ""]
+				line = "Costs %d gold%s." % [TradeCommand.price_of(trader, item, buyer), " (they're wary of you: half again)" if trader.suspicious else ""]
 	if item == "":
 		_details.text = "Hover an item for details; click it to put it on the table."
 	else:

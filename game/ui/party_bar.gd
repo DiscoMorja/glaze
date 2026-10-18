@@ -209,15 +209,16 @@ class _Card:
 		info.add_child(_pips)
 
 	func show_member(e: SimEntity, turn_start_ap: int, pending: int, border: Color, partner: bool = false) -> void:
-		var key := [e.name, e.hp, e.max_hp, e.ap, turn_start_ap, pending, border, partner, e.level, e.points]
+		var unspent := e.points + e.combat_points + e.civil_points  # attribute, school and civil
+		var key := [e.name, e.hp, e.max_hp, e.ap, turn_start_ap, pending, border, partner, e.level, unspent]
 		if key == _shown:
 			return
 		_shown = key
 		_name.text = e.name + ("  (partner)" if partner else "")
 		var role := SimArchetypes.title(e.archetype)
 		_role.text = ("%s · level %d" % [role, e.level] if role != "" else "level %d" % e.level) \
-				+ ("   +%d point%s" % [e.points, "s" if e.points > 1 else ""] if e.points > 0 else "")
-		_role.add_theme_color_override("font_color", UiStyle.ACCENT if e.points > 0 else UiStyle.TEXT_DIM)
+				+ ("   +%d point%s" % [unspent, "s" if unspent > 1 else ""] if unspent > 0 else "")
+		_role.add_theme_color_override("font_color", UiStyle.ACCENT if unspent > 0 else UiStyle.TEXT_DIM)
 		_portrait_style.bg_color = GameIcons.role_color(e.archetype)
 		_hp.max_value = e.max_hp
 		_hp.value = e.hp

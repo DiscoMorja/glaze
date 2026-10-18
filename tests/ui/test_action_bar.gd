@@ -28,12 +28,16 @@ func after_all() -> void:
 	HotbarLayout.reset("user://hotbars.cfg")
 
 
-func test_default_layout_has_actions_then_usable_items() -> void:
+func test_default_layout_has_fighting_actions_left_and_potions_right() -> void:
 	var first := HotbarLayout.page(_ari, 0)
 	assert_eq(first[0], HotbarLayout.action_entry(ActionInfo.ATTACK))
 	assert_eq(first[1], HotbarLayout.action_entry(A.FIREBOLT))
-	var potion_at := first.find(HotbarLayout.item_entry("Healing potion"))
-	assert_gt(potion_at, 1, "the potion follows the actions")
+	assert_eq(first[2], HotbarLayout.action_entry(A.OIL_FLASK), "the kit's flasks are a fighting action")
+	assert_eq(first[3], HotbarLayout.EMPTY, "nothing else on the left")
+	assert_eq(first[HotbarLayout.SLOTS - 1], HotbarLayout.item_entry("Healing potion"), "the potion at the right end")
+	var second := HotbarLayout.page(_ari, 1)
+	assert_eq(second.slice(0, 3), [HotbarLayout.action_entry(A.HELP_UP), HotbarLayout.action_entry(A.REVIVE),
+			HotbarLayout.action_entry(A.PICKPOCKET)], "everyday actions wait on the second page")
 	assert_false(first.has(HotbarLayout.item_entry("Map")), "maps don't go on the bar")
 	assert_eq(first.count(HotbarLayout.item_entry("Healing potion")), 1, "one slot per kind")
 
@@ -51,7 +55,7 @@ func test_unusable_slots_do_nothing() -> void:
 	_bar.press(1)
 	_bar.show_actions(_ari, ActionInfo.NONE, false, false)
 	_bar.press(0)
-	_bar.press(9)  # empty
+	_bar.press(5)  # empty
 	assert_eq(_pressed, [])
 
 
@@ -77,8 +81,7 @@ func test_slots_swap_clear_and_stay_cleared() -> void:
 
 func test_new_usable_items_find_a_free_slot_once() -> void:
 	_ari.inventory.append("Cooling salve")
-	var first := HotbarLayout.page(_ari, 0)
-	assert_true(first.has(HotbarLayout.item_entry("Cooling salve")))
+	assert_true(HotbarLayout.page(_ari, 1).has(HotbarLayout.item_entry("Cooling salve")), "other items start on the second page")
 
 
 func test_pages_wrap_around() -> void:

@@ -404,7 +404,7 @@ class _View:
 				icons.append({"id": status, "color": Color(look.color), "count": turns[status] if counted else 0})
 			_set_loop(status, active)
 		if e.stagger > 0 and e.is_alive():
-			tags.append("[color=#%s]Stagger %d/%d[/color]" % [STAGGER_COLOR, e.stagger, e.stagger_max])
+			tags.append("[color=#%s]Stagger %d/%d[/color]" % [STAGGER_COLOR, e.stagger, StatRules.stagger_limit(e)])
 			icons.append({"id": "stagger", "color": Color(STAGGER_COLOR), "count": e.stagger})
 		if e.sneaking != _sneaking:
 			_sneaking = e.sneaking

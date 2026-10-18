@@ -73,6 +73,28 @@ func test_every_fixture_still_loads() -> void:
 	assert_gt(count, 0, "there is at least the version-1 fixture")
 
 
+func test_version_1_migrates_to_attributes_and_oil_flask_items() -> void:
+	var state := SimState.from_snapshot(FileAccess.get_file_as_bytes("res://tests/fixtures/snapshot_v1.bin"))
+	var hero := Fixtures.hero(state)
+	assert_false(hero.abilities.has(SimAbilities.Ability.OIL_FLASK), "the flask is an item now")
+	assert_true(SimAbilities.available(hero).has(SimAbilities.Ability.OIL_FLASK), "and the hero has some")
+	for ability in hero.abilities:
+		assert_eq(SimAbilities.lacks(hero, ability), "", "it can still use %s" % SimAbilities.NAMES[ability])
+	# A v1 role keeps its HP and gets its preset's stats; spent Power comes back as points.
+	var data := _unpack(Fixtures.duel_state().to_snapshot())
+	data.version = 1
+	var vanguard := SimArchetypes.make("vanguard", "Ari", Fixtures.PLAYERS, Vector3i(1, 1, 1)).to_dict()
+	for stat: String in StatRules.ATTRIBUTES + StatRules.CIVIL + ["schools", "combat_points", "civil_points"]:
+		vanguard.erase(stat)
+	vanguard.id = 9
+	vanguard.max_hp = 26
+	vanguard.power = 2
+	data.entities.append(vanguard)
+	var ari := SimState.from_snapshot(_pack(data)).get_entity(9)
+	assert_eq([ari.max_hp, ari.strength, ari.vitality, ari.charisma, ari.points], [26, 3, 2, 1, 2])
+	assert_eq(ari.schools[StatRules.School.WARRIOR], 2)
+
+
 func test_fields_missing_from_old_snapshots_take_defaults() -> void:
 	var state := Fixtures.duel_state()
 	var data := _unpack(state.to_snapshot())
