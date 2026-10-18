@@ -10,6 +10,8 @@ extends RefCounted
 const A := SimAbilities.Ability
 ## Cells an enemy notices the party from, outside combat (roles can override).
 const ENEMY_SIGHT := 6
+## Townsfolk watch a little less far.
+const NEUTRAL_SIGHT := 5
 ## Stagger that knocks a role down (roles can override with "stagger"). Most
 ## sources add 1, so it takes three hits in one round: two characters working
 ## together, or one with help from the environment.
@@ -58,6 +60,19 @@ const ROLES := {
 		"title": "Pikeman", "hp": 14, "weapon": "Spear", "damage": 4, "mass": 75, "stagger": 4,
 		"abilities": [A.SHOVE],
 	},
+	# --- Townsfolk (Faction.NEUTRAL until a crime turns them) ---
+	"villager": {
+		"title": "Villager", "hp": 10, "weapon": "", "damage": 1, "mass": 65,
+		"abilities": [],
+	},
+	"merchant": {
+		"title": "Merchant", "hp": 12, "weapon": "", "damage": 1, "mass": 75,
+		"abilities": [],
+	},
+	"guard": {
+		"title": "Guard", "hp": 18, "weapon": "Spear", "damage": 4, "mass": 85, "stagger": 4, "sight": 7,
+		"abilities": [A.SHOVE],
+	},
 	"thug": {
 		"title": "Thug", "hp": 12, "weapon": "Club", "damage": 3, "mass": 80,
 		"abilities": [],
@@ -74,6 +89,7 @@ static func make(role: String, p_name: String, faction: SimEntity.Faction, cell:
 	abilities.append(A.HELP_UP)  # everyone can help a fallen ally up
 	if faction == SimEntity.Faction.PLAYERS:
 		abilities.append(A.REVIVE)  # and the party revives its fallen after a fight
+		abilities.append(A.PICKPOCKET)  # and picks pockets outside one
 	var e := SimEntity.character(p_name, faction, cell, data.hp, data.weapon, data.damage, inventory, abilities)
 	e.archetype = role
 	e.mass = data.mass
@@ -81,6 +97,8 @@ static func make(role: String, p_name: String, faction: SimEntity.Faction, cell:
 	e.can_be_disarmed = faction != SimEntity.Faction.PLAYERS
 	if faction == SimEntity.Faction.ENEMIES:
 		e.sight = data.get("sight", ENEMY_SIGHT)
+	elif faction == SimEntity.Faction.NEUTRAL:
+		e.sight = data.get("sight", NEUTRAL_SIGHT)
 	return e
 
 

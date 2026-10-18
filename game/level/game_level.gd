@@ -178,6 +178,8 @@ func _place_markers(state: SimState) -> void:
 		var e := SimArchetypes.make(spawn.role, spawn.entity_name if spawn.entity_name != "" else SimArchetypes.title(spawn.role), spawn.faction(), cell, inventory)
 		if e.faction == SimEntity.Faction.PLAYERS:
 			e.owner = spawn.player
+		e.facing = spawn.facing()
+		e.home_facing = e.facing
 		var pack_name := spawn.pack_name()
 		if pack_name != "":
 			if not packs.has(pack_name):

@@ -94,6 +94,19 @@ func play(state: SimState, events: Array[SimEvent]) -> void:
 			SimEvent.Type.BURNING:
 				_later(delay, func() -> void:
 					VfxFactory.floating_text(self, _body(e.cell) + Vector3(0, 1.3, 0), "Burning", Color(1.0, 0.55, 0.15), 56))
+			SimEvent.Type.SUSPICIOUS:
+				_later(delay, func() -> void:
+					VfxFactory.floating_text(self, _body(e.cell) + Vector3(0, 1.4, 0), "!", Color(1.0, 0.65, 0.2), 110))
+			SimEvent.Type.TURNED_HOSTILE:
+				_later(delay, func() -> void:
+					VfxFactory.floating_text(self, _body(e.cell) + Vector3(0, 1.4, 0), "Hostile!", Color(1.0, 0.3, 0.25), 64))
+			SimEvent.Type.RECOGNIZED:
+				_later(delay, func() -> void:
+					VfxFactory.floating_text(self, _body(e.cell) + Vector3(0, 1.8, 0), "That's mine!", Color(1.0, 0.5, 0.3), 56))
+			SimEvent.Type.PICKPOCKETED:
+				var took := "Took %s" % e.text
+				_later(delay, func() -> void:
+					VfxFactory.floating_text(self, _body(e.cell) + Vector3(0, 1.0, 0), took, Color(1.0, 0.85, 0.3), 52))
 			SimEvent.Type.REVIVED:
 				_later(delay, func() -> void:
 					VfxFactory.burst(self, _body(e.cell), "heal", 1.4)

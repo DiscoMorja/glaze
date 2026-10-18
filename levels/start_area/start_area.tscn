@@ -143,38 +143,38 @@ inventory = Array[String](["Gold"])
 [node name="Bandits" type="Node3D" parent="." unique_id=1193246565]
 
 [node name="Chief" type="Marker3D" parent="Bandits" unique_id=1219204762]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 46.5, 4.5, 10.5)
+transform = Transform3D(-0.70710677, 0, 0.70710677, 0, 1, 0, -0.70710677, 0, -0.70710677, 46.5, 4.5, 10.5)
 script = ExtResource("2_spawn")
 role = "brute"
 entity_name = "Chief"
 inventory = Array[String](["Camp key"])
 
 [node name="Hexer" type="Marker3D" parent="Bandits" unique_id=913866369]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 53.5, 4.5, 17.5)
+transform = Transform3D(-0.70710677, 0, 0.70710677, 0, 1, 0, -0.70710677, 0, -0.70710677, 53.5, 4.5, 17.5)
 script = ExtResource("2_spawn")
 role = "firecaller"
 entity_name = "Hexer"
 
 [node name="Shaman" type="Marker3D" parent="Bandits" unique_id=1309126554]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 54.5, 4.5, 9.5)
+transform = Transform3D(-0.70710677, 0, 0.70710677, 0, 1, 0, -0.70710677, 0, -0.70710677, 54.5, 4.5, 9.5)
 script = ExtResource("2_spawn")
 role = "shaman"
 entity_name = "Shaman"
 
 [node name="Cutpurse" type="Marker3D" parent="Bandits" unique_id=441731080]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 42.5, 4.5, 15.5)
+transform = Transform3D(-0.70710677, 0, 0.70710677, 0, 1, 0, -0.70710677, 0, -0.70710677, 42.5, 4.5, 15.5)
 script = ExtResource("2_spawn")
 role = "skirmisher"
 entity_name = "Cutpurse"
 inventory = Array[String](["Gold"])
 
 [node name="Thug" type="Marker3D" parent="Bandits" unique_id=296618876]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 50.5, 4.5, 21.5)
+transform = Transform3D(-0.70710677, 0, 0.70710677, 0, 1, 0, -0.70710677, 0, -0.70710677, 50.5, 4.5, 21.5)
 script = ExtResource("2_spawn")
 entity_name = "Thug"
 
 [node name="Pikeman" type="Marker3D" parent="Bandits" unique_id=465914757]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 31.5, 1.5, 14.5)
+transform = Transform3D(-0.70710677, 0, 0.70710677, 0, 1, 0, -0.70710677, 0, -0.70710677, 31.5, 1.5, 14.5)
 script = ExtResource("2_spawn")
 role = "pikeman"
 entity_name = "Pikeman"
@@ -206,3 +206,43 @@ script = ExtResource("4_surface")
 kind = 1
 amount = 30
 radius = 1
+
+[node name="Village" type="Node3D" parent="."]
+
+[node name="Stall" type="CSGBox3D" parent="Village"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22.5, 1.5, 42)
+use_collision = true
+size = Vector3(3, 1, 1)
+material = SubResource("Mat_wood")
+
+[node name="Merchant" type="Marker3D" parent="Village"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 22.5, 2, 43.5)
+script = ExtResource("2_spawn")
+role = "merchant"
+entity_name = "Merchant"
+team = 2
+inventory = Array[String](["Coins", "Silver ring", "Map"])
+
+[node name="Villager" type="Marker3D" parent="Village"]
+transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 17.5, 2, 45.5)
+script = ExtResource("2_spawn")
+role = "villager"
+entity_name = "Villager"
+team = 2
+inventory = Array[String](["Bread"])
+
+[node name="Farmer" type="Marker3D" parent="Village"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 26.5, 2, 46.5)
+script = ExtResource("2_spawn")
+role = "villager"
+entity_name = "Farmer"
+team = 2
+inventory = Array[String](["Coins"])
+
+[node name="Guard" type="Marker3D" parent="Village"]
+transform = Transform3D(-0.70710678, 0, 0.70710678, 0, 1, 0, -0.70710678, 0, -0.70710678, 27.5, 2, 40.5)
+script = ExtResource("2_spawn")
+role = "guard"
+entity_name = "Guard"
+team = 2
+inventory = Array[String](["Key"])

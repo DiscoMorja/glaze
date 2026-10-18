@@ -12,6 +12,8 @@ func _field(bandit_sight: int = 6) -> SimState:
 	state.add_entity(SimEntity.character("Hero", PLAYERS, Vector3i(1, Y, 5), 20, "Sword", 4, [], SimAbilities.all()))
 	var bandit := state.add_entity(SimEntity.character("Bandit", ENEMIES, Vector3i(18, Y, 5), 12, "Club", 3))
 	bandit.sight = bandit_sight
+	bandit.facing = 6  # looking west, toward the hero
+	bandit.home_facing = 6
 	state.drain_events()
 	return state
 

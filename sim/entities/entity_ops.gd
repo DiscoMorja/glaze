@@ -39,8 +39,11 @@ static func damage(state: SimState, e: SimEntity, amount: int, source_id: int = 
 	e.hp = maxi(e.hp - amount, 0)
 	var event := state.emit_event(SimEvent.Type.DAMAGED, e.cell, e.id, source_id, amount)
 	event.element = element
-	if e.takes_turns() and e.faction != SimEntity.Faction.NONE:
-		_provoke(state, e, state.get_entity(source_id) if source_id >= 0 else null)
+	var source := state.get_entity(source_id) if source_id >= 0 else null
+	if e.faction == SimEntity.Faction.NEUTRAL and source != null:
+		CrimeRules.commit(state, source, e, CrimeRules.Severity.VIOLENT)
+	if e.takes_turns() and e.faction != SimEntity.Faction.NONE and e.faction != SimEntity.Faction.NEUTRAL:
+		_provoke(state, e, source)
 	if e.hp == 0:
 		_die(state, e)
 	elif element == Element.PHYSICAL and source_id >= 0:

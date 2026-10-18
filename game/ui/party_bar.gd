@@ -5,6 +5,8 @@ extends PanelContainer
 
 signal member_selected(id: int)
 signal end_turn_pressed
+## An inventory item was dragged onto a member's card (give it to them).
+signal item_dropped(to_id: int, from_id: int, index: int)
 
 const COLOR_SELECTED := Color(0.3, 1.0, 0.4)
 const COLOR_IDLE := Color(0.25, 0.27, 0.3)
@@ -63,6 +65,7 @@ func update_party(party: Array[SimEntity], selected_id: int, turn_start_ap: Dict
 		if card == null:
 			card = _Card.new(e.id)
 			card.clicked.connect(func(id: int) -> void: member_selected.emit(id))
+			card.item_dropped.connect(func(to_id: int, from_id: int, index: int) -> void: item_dropped.emit(to_id, from_id, index))
 			_row.add_child(card)
 			_row.move_child(card, _row.get_child_count() - 2)
 			_cards[e.id] = card
@@ -102,6 +105,7 @@ class _Card:
 	extends PanelContainer
 
 	signal clicked(id: int)
+	signal item_dropped(to_id: int, from_id: int, index: int)
 
 	var _id: int
 	var _name: Label
@@ -145,6 +149,12 @@ class _Card:
 		_hp.value = e.hp
 		_pips.set_points(e.ap, turn_start_ap, pending)
 		_style.border_color = border
+
+	func _can_drop_data(_at: Vector2, data: Variant) -> bool:
+		return data is Dictionary and data.get("kind") == InventoryPanel.DRAG_KIND and data.from_id != _id
+
+	func _drop_data(_at: Vector2, data: Variant) -> void:
+		item_dropped.emit(_id, data.from_id, data.index)
 
 	func _gui_input(event: InputEvent) -> void:
 		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:

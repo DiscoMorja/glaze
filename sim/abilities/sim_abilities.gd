@@ -4,16 +4,16 @@ extends RefCounted
 ## with materials and each other (GDD §5.3). Which character knows which verbs
 ## comes from SimArchetypes.
 
-enum Ability { FIREBOLT, RAIN, TELEPORT, SHOVE, STEAL, FROST, OIL_FLASK, MEND, CLEAVE, BLINK, HELP_UP, REVIVE }
+enum Ability { FIREBOLT, RAIN, TELEPORT, SHOVE, STEAL, FROST, OIL_FLASK, MEND, CLEAVE, BLINK, HELP_UP, REVIVE, PICKPOCKET }
 
-const NAMES := ["Firebolt", "Rain", "Teleport", "Shove", "Steal", "Frost", "Oil Flask", "Mend", "Cleave", "Blink", "Help up", "Revive"]
-const AP_COST := [2, 2, 2, 1, 1, 2, 1, 2, 2, 1, 1, 0]
+const NAMES := ["Firebolt", "Rain", "Teleport", "Shove", "Steal", "Frost", "Oil Flask", "Mend", "Cleave", "Blink", "Help up", "Revive", "Pickpocket"]
+const AP_COST := [2, 2, 2, 1, 1, 2, 1, 2, 2, 1, 1, 0, 0]
 ## Reach in cells. 1 means adjacent only (diagonals count).
-const RANGE := [7, 7, 7, 1, 1, 6, 6, 5, 1, 4, 1, 1]
+const RANGE := [7, 7, 7, 1, 1, 6, 6, 5, 1, 4, 1, 1, 1]
 ## Turns until an ability can be used again by its user: 1 = once per turn,
 ## 3 = every third turn. In combat they count down at the start of the user's
 ## turn; outside combat every CombatRules.REALTIME_TICKS_PER_TURN ticks.
-const COOLDOWN := [1, 2, 3, 1, 2, 2, 2, 3, 2, 2, 0, 0]
+const COOLDOWN := [1, 2, 3, 1, 2, 2, 2, 3, 2, 2, 0, 0, 0]
 
 const FIREBOLT_DAMAGE := 4
 ## Rain lays its whole puddle at once, like the Oil Flask: puddle-deep water
@@ -141,6 +141,12 @@ static func validate(state: SimState, caster: SimEntity, ability: int, target: V
 			return SimPathfinder.is_standable(state, target, caster.id) and victim == null
 		Ability.HELP_UP:
 			return other_victim and victim.knocked_down and victim.faction == caster.faction
+		Ability.PICKPOCKET:
+			# Outside combat, someone else's item (not their weapon): another
+			# side's, or your co-op partner's character.
+			return (not state.combat.active and other_victim and victim.takes_turns()
+					and not victim.inventory.is_empty()
+					and (victim.faction != caster.faction or victim.owner != caster.owner))
 		Ability.REVIVE:
 			var corpse: SimEntity = state.corpse_at(target)
 			return (not state.combat.active and corpse != null and corpse.faction == caster.faction
@@ -199,6 +205,8 @@ static func execute(state: SimState, caster: SimEntity, ability: int, target: Ve
 			EntityOps.help_up(state, victim, caster.id)
 		Ability.REVIVE:
 			EntityOps.revive(state, state.corpse_at(target), caster.id)
+		Ability.PICKPOCKET:
+			_pickpocket(state, caster, victim)
 
 
 ## Pushes the victim up to SHOVE_DISTANCE cells away from the caster. Walls and
@@ -248,6 +256,22 @@ static func _shove(state: SimState, caster: SimEntity, victim: SimEntity) -> voi
 	if victim.cell.y < height:
 		EntityOps.add_stagger(state, victim, IMPACT_STAGGER, caster.id)  # shoved off a ledge
 		EntityOps.enter_cell(state, victim)  # and lands in whatever is down there
+
+
+## Lifts the victim's first item. Whoever sees it happen (the victim
+## included, if it can see the thief) reacts: neutrals get suspicious, then
+## hostile; enemies spot the thief and a fight starts.
+static func _pickpocket(state: SimState, caster: SimEntity, victim: SimEntity) -> void:
+	var item: String = victim.inventory.pop_front()
+	caster.inventory.append(item)
+	if victim.faction != caster.faction:
+		CrimeRules.mark_stolen(caster, item, victim.pack if victim.pack > 0 else -victim.id)
+	var event := state.emit_event(SimEvent.Type.PICKPOCKETED, victim.cell, victim.id, caster.id)
+	event.text = item
+	CrimeRules.commit(state, caster, victim, CrimeRules.Severity.PETTY)
+	if victim.faction == SimEntity.Faction.ENEMIES and SimPerception.can_see(state, victim, caster):
+		victim.in_combat = true  # caught in the act: the fight starts
+		state.provoked = true
 
 
 ## Takes the victim's weapon if it can be disarmed, otherwise its first item.

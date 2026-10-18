@@ -2,9 +2,12 @@
 class_name LevelSpawn
 extends Marker3D
 ## Places a character in a level: a SimArchetypes role, a name and a side.
-## Only x/z matter; the character lands on whatever floor is below.
+## Only x/z matter; the character lands on whatever floor is below. Its
+## rotation sets which way it faces (its vision cone points along -Z, the
+## marker's forward arrow), snapped to 8 directions.
 
-enum Team { PLAYERS, ENEMIES }
+## NEUTRAL: townsfolk, who only fight if a crime turns them hostile.
+enum Team { PLAYERS, ENEMIES, NEUTRAL }
 
 @export var role := "thug":
 	set(value):
@@ -30,7 +33,18 @@ func _ready() -> void:
 
 
 func faction() -> SimEntity.Faction:
-	return SimEntity.Faction.PLAYERS if team == Team.PLAYERS else SimEntity.Faction.ENEMIES
+	match team:
+		Team.PLAYERS:
+			return SimEntity.Faction.PLAYERS
+		Team.NEUTRAL:
+			return SimEntity.Faction.NEUTRAL
+	return SimEntity.Faction.ENEMIES
+
+
+## SimPerception.FACINGS index the marker points to (index 0 = north, -Z).
+func facing() -> int:
+	var forward := -global_basis.z
+	return posmod(roundi(atan2(forward.x, -forward.z) / (PI / 4.0)), 8)
 
 
 func pack_name() -> String:

@@ -37,6 +37,7 @@ func execute(state: SimState) -> void:
 	var walked: Array[Vector3i] = []
 	var start := e.cell
 	for c in path:
+		e.facing = SimPerception.facing_toward(e.cell, c, e.facing)
 		e.cell = c
 		walked.append(c)
 		EntityOps.enter_cell(state, e)

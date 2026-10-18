@@ -7,6 +7,8 @@ extends Node3D
 
 const PLAYER_COLOR := Color(0.25, 0.6, 1.0)
 const ENEMY_COLOR := Color(0.9, 0.25, 0.2)
+const NEUTRAL_COLOR := Color(0.85, 0.75, 0.45)
+const OUTLINE_NEUTRAL := Color(1.0, 0.85, 0.3)
 const PROP_COLOR := Color(0.55, 0.38, 0.2)
 const MOVE_SECONDS_PER_CELL := 0.1
 const TARGETABLE_GLOW := Color(1.0, 0.8, 0.15)
@@ -35,6 +37,8 @@ const STATUS_LOOKS := {
 	"slowed": {"label": "Slowed", "color": "c9a061", "turns": true, "effects": [
 		{"emitter": "oil_drip", "scale": 1.0, "height": 0.8},
 	]},
+	"suspicious": {"label": "Suspicious!", "color": "ffa040", "effects": []},
+	"sneaking": {"label": "Sneaking", "color": "a0a8c0", "effects": []},
 	"knocked": {"label": "Knocked down", "color": "e0e0e0", "effects": [
 		{"emitter": "dazed", "scale": 1.0, "height": 0.7},
 	]},
@@ -99,6 +103,7 @@ func render(state: SimState, events: Array[SimEvent] = []) -> void:
 		# Characters stay as corpses (they can be revived); props just vanish.
 		view.visible = e.is_alive() or e.takes_turns()
 		view.set_dead(not e.is_alive())
+		view.set_side(e.faction)
 		if view.set_stats(e):
 			view.recent_until = now + RECENT_SECONDS
 		# Slowed characters take twice as long per cell.
@@ -159,6 +164,8 @@ class _View:
 	var _frozen := false
 	var _dead := false
 	var _outline := Color.TRANSPARENT
+	var _side := -1
+	var _sneaking := false
 	## The body's height when standing.
 	var _rest_height := 0.0
 	var _hp := -1
@@ -225,6 +232,8 @@ class _View:
 			"frozen": e.temp_turns if e.is_frozen() else 0,
 			"slowed": e.slowed,
 			"knocked": 1 if e.knocked_down else 0,
+			"suspicious": 1 if e.suspicious else 0,
+			"sneaking": 1 if e.sneaking else 0,
 		}
 		var tags: Array[String] = []
 		for status: String in STATUS_LOOKS:
@@ -236,6 +245,9 @@ class _View:
 			_set_loop(status, active)
 		if e.stagger > 0 and e.is_alive():
 			tags.append("[color=#d8c8a0]Stagger %d/%d[/color]" % [e.stagger, e.stagger_max])
+		if e.sneaking != _sneaking:
+			_sneaking = e.sneaking
+			_update_look()
 		_set_pose(e.knocked_down and e.is_alive(), e.is_frozen() and e.is_alive())
 		if _status != null:
 			_status.text = "[center]%s[/center]" % "  ".join(tags) if not tags.is_empty() else ""
@@ -301,6 +313,25 @@ class _View:
 		_targetable = targetable
 		_update_look()
 
+	## Colour and outline by side; townsfolk can turn hostile.
+	func set_side(faction: int) -> void:
+		if faction == _side or _outline.a == 0.0 and faction == SimEntity.Faction.NONE:
+			return
+		_side = faction
+		match faction:
+			SimEntity.Faction.PLAYERS:
+				_base_color = PLAYER_COLOR
+				_outline = OUTLINE_ALLY
+			SimEntity.Faction.ENEMIES:
+				_base_color = ENEMY_COLOR
+				_outline = OUTLINE_ENEMY
+			SimEntity.Faction.NEUTRAL:
+				_base_color = NEUTRAL_COLOR
+				_outline = OUTLINE_NEUTRAL
+		if not _dead:
+			_material.stencil_color = _outline
+		_update_look()
+
 	## Dead: lies down, greyed out, no outline, label or bar.
 	func set_dead(dead: bool) -> void:
 		if dead == _dead:
@@ -330,6 +361,8 @@ class _View:
 
 	func _update_look() -> void:
 		var base := _base_color.lerp(FROZEN_TINT, 0.65) if _frozen else _base_color
+		if _sneaking:
+			base = base.darkened(0.45)
 		if _dead:
 			base = CORPSE_TINT
 		_material.albedo_color = base.lightened(0.45) if _selected else base

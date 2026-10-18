@@ -11,8 +11,11 @@ static func step(state: SimState) -> void:
 	var grid := state.grid
 	if not state.combat.active:
 		for e in state.entities:
-			if e.is_alive() and not e.travel.is_empty() and (e.slowed == 0 or state.tick % 2 == 0):
+			var half_speed := e.slowed > 0 or e.sneaking
+			if e.is_alive() and not e.travel.is_empty() and (not half_speed or state.tick % 2 == 0):
 				_walk(state, e)
+		SimPerception.look_around(state)
+		CrimeRules.step(state)
 		if state.tick % CombatRules.REALTIME_TICKS_PER_TURN == CombatRules.REALTIME_TICKS_PER_TURN - 1:
 			for e in state.entities:
 				EntityOps.turn_end(state, e)
@@ -38,6 +41,7 @@ static func _walk(state: SimState, e: SimEntity) -> void:
 		e.travel.assign(detour)
 		next = e.travel[0]
 	e.travel.pop_front()
+	e.facing = SimPerception.facing_toward(e.cell, next, e.facing)
 	e.cell = next
 	var moved := state.emit_event(SimEvent.Type.MOVED, next, e.id)
 	moved.cells.assign([next])

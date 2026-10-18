@@ -68,6 +68,16 @@ static func describe(state: SimState, e: SimEvent) -> String:
 			return "Combat!"
 		SimEvent.Type.SLIPPED:
 			return "%s slips on the ice and goes down." % who
+		SimEvent.Type.SUSPICIOUS:
+			return "%s eyes %s suspiciously." % [who, other]
+		SimEvent.Type.TURNED_HOSTILE:
+			return "%s turns hostile!" % who
+		SimEvent.Type.RECOGNIZED:
+			return "%s recognizes the stolen goods on %s!" % [who, other]
+		SimEvent.Type.PICKPOCKETED:
+			return "%s lifts %s from %s." % [other, e.text, who]
+		SimEvent.Type.GIVEN:
+			return "%s gives %s to %s." % [other, e.text, who]
 		SimEvent.Type.REVIVED:
 			return "%s revives %s." % [other, who]
 		SimEvent.Type.KNOCKED_DOWN:

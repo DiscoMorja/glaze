@@ -210,6 +210,15 @@ A combat/event log and barks built from simulation events — e.g. *"Gerald was 
 
 ---
 
+### 5.7 Perception, stealth and crime (M3)
+
+- **Vision cones.** NPCs (enemies and townsfolk) see in a 120° cone along their facing, out to their sight (enemies 6, townsfolk 5, guards 7), with line of sight; someone walking normally is also heard within 2 cells from any side. Idle NPCs look around their post (±45° every 3 s); walking turns you to face the way you go. Level markers set facing from their rotation. Cones are drawn on the ground near the party: red = enemies (a fight starts), yellow = townsfolk (witnesses), orange = a suspicious one.
+- **Sneaking** (C, per character, outside combat): half walking speed; only seen inside cones, at half range; no hearing. Combat ends it.
+- **Pickpocket** (every party member, outside combat, adjacent, free): lifts the target's first item (never the weapon). Stolen items are tagged with their owner's group.
+- **Crime.** Townsfolk (`Faction.NEUTRAL`, `LevelSpawn.team = NEUTRAL`) who see a pickpocket become **suspicious** (!); caught again, or seeing violence, and the whole group turns **hostile** and fights. Attacking a neutral turns its group hostile even unseen. A suspicious NPC who later sees someone carrying its group's stolen goods turns hostile too. Pickpocketing an enemy in its sight starts a fight.
+- **Inventory** (I): a grid of 1-item slots per character, always with a free row (no limit). Items come from the catalog `sim/items/sim_items.gd` (value in gold, weight in grams, kind, blurb); drag an item onto another slot to move it (onto an empty slot: to the end; free, any time), or onto a party member's card to give it (outside combat); hover a slot for details, or click it to select and use the give buttons (stolen tags travel with it). The footer shows the count, total value and weight. Partners can pickpocket each other's characters (no crime).
+- Start area: a small village (Merchant at a stall, Villager, Farmer, Guard) between the party and the pond.
+
 ## 6. Quests & Events — Outcomes, Not Methods
 
 - Quests are **predicates over world facts**, never step-by-step scripts.
@@ -349,6 +358,7 @@ Levels are built freely in Godot and baked into the sim (`GameLevel.bake()`, run
 | 2026-10-18 | Movement respects real terrain height: no walking up or down a rise of more than 1.1 m between neighbouring cells. |
 | 2026-10-18 | Ground surfaces render as smooth, ground-hugging puddles (mask + threshold shader) instead of per-cell boxes; the square grid doesn't show through. |
 | 2026-10-18 | Rain splashes its full puddle instantly, like the Oil Flask; shallow water no longer creeps on flat ground; water cools to Cold at most. |
+| 2026-10-18 | M3 stealth & crime: vision cones with facing and hearing, sneaking, pickpocketing, neutral townsfolk with suspicion → group hostility, stolen-goods tags, inventory panel with giving. Spotting uses cones for enemies too. |
 | 2026-10-18 | First playtest feedback: middle-drag camera rotation, faction outlines, markers no longer cover characters, corpses stay and can be revived after combat. |
 | 2026-10-18 | M2 two-PC essentials: Windows export, connection help (Tailscale/LAN/port 24560 UDP), leave/rejoin, fast disconnect detection, ping. Next: the real playtest together. |
 | 2026-10-18 | Crowd control: stagger → Knocked down (skip next turn; Help up); body temperature −2..+2 with Frozen/Cold/Hot/Burning replacing the separate Burning status; ice staggers instead of ending your turn. |

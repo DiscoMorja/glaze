@@ -22,7 +22,8 @@ static func start(state: SimState, everyone: bool = true) -> bool:
 	state.provoked = false
 	var joined: Array[SimEntity] = []
 	for e in state.entities:
-		if e.is_alive() and e.takes_turns() and (everyone or e.in_combat or e.faction == SimEntity.Faction.PLAYERS):
+		var side := e.faction == SimEntity.Faction.PLAYERS or e.faction == SimEntity.Faction.ENEMIES
+		if side and e.is_alive() and e.takes_turns() and (everyone or e.in_combat or e.faction == SimEntity.Faction.PLAYERS):
 			joined.append(e)
 	for e in state.entities:
 		e.in_combat = false
@@ -34,6 +35,7 @@ static func start(state: SimState, everyone: bool = true) -> bool:
 		return false
 	for e in state.entities:
 		e.travel.clear()
+		e.sneaking = false  # no sneaking in a fight
 	combat.active = true
 	combat.side = SimEntity.Faction.PLAYERS
 	combat.round_number = 1
@@ -110,9 +112,7 @@ static func _mark_spotters(state: SimState, fighting: bool) -> bool:
 		if not targets.has(opponent):
 			continue
 		for other: SimEntity in targets[opponent]:
-			if SimAbilities.in_range(watcher.cell, other.cell, watcher.sight) \
-					and absi(other.cell.y - watcher.cell.y) <= watcher.sight \
-					and SimLos.has_line_of_sight(state.grid, watcher.cell, other.cell):
+			if SimPerception.can_see(state, watcher, other):
 				if not spotted:
 					state.emit_event(SimEvent.Type.SPOTTED, other.cell, other.id, watcher.id)
 				spotted = true

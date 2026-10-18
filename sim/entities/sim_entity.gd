@@ -4,7 +4,8 @@ extends RefCounted
 ## properties (mass, hp, contents, inventory), never on what kind of thing it is
 ## (CLAUDE.md rule 9).
 
-enum Faction { NONE, PLAYERS, ENEMIES }
+## NEUTRAL: townsfolk who don't fight unless a crime turns them (CrimeRules).
+enum Faction { NONE, PLAYERS, ENEMIES, NEUTRAL }
 
 var id: int = 0
 var name: String = ""
@@ -53,6 +54,16 @@ var knocked_down := false
 var knocked_skipping := false
 ## How far (cells) this entity notices opponents outside combat; 0 = never.
 var sight := 0
+## Facing (SimPerception.FACINGS index): its vision cone points this way.
+## Idle NPCs look around home_facing.
+var facing := 4
+var home_facing := 4
+## Sneaking (party, outside combat): half walking speed, harder to see.
+var sneaking := false
+## A neutral NPC that saw a petty crime: the next one turns its group hostile.
+var suspicious := false
+## Items in the inventory that were stolen, tagged "pack:item" (CrimeRules).
+var stolen: Array[String] = []
 ## Player slot that controls this entity in co-op (0 = host, 1 = guest), or -1
 ## for entities no player controls.
 var owner := -1
@@ -121,6 +132,11 @@ func to_dict() -> Dictionary:
 		"cooldowns": cooldowns.duplicate(),
 		"travel": travel.duplicate(),
 		"sight": sight,
+		"facing": facing,
+		"home_facing": home_facing,
+		"sneaking": sneaking,
+		"suspicious": suspicious,
+		"stolen": stolen.duplicate(),
 		"slowed": slowed,
 		"temperature": temperature,
 		"temp_turns": temp_turns,
@@ -157,6 +173,11 @@ static func from_dict(data: Dictionary) -> SimEntity:
 	e.cooldowns = PackedInt32Array(data.cooldowns)
 	e.travel.assign(data.travel)
 	e.sight = data.sight
+	e.facing = data.facing
+	e.home_facing = data.home_facing
+	e.sneaking = data.sneaking
+	e.suspicious = data.suspicious
+	e.stolen.assign(data.stolen)
 	e.slowed = data.slowed
 	e.temperature = data.temperature
 	e.temp_turns = data.temp_turns

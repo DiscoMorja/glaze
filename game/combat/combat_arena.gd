@@ -44,6 +44,9 @@ const MENU_SCENE := "res://game/menu/main_menu.tscn"
 ## A guest gives up joining after this long without the host's state.
 const JOIN_TIMEOUT_SECONDS := 10.0
 const COLOR_DANGER := Color(1.0, 0.2, 0.15, 0.13)
+## Townsfolk's vision cones (seen there = witnesses), and a suspicious one's.
+const COLOR_WATCHED := Color(1.0, 0.85, 0.2, 0.12)
+const COLOR_SUSPICIOUS := Color(1.0, 0.55, 0.1, 0.18)
 ## Only enemies this close (cells, per axis) to the party show their sight.
 const DANGER_SHOW_RADIUS := 40
 ## Exploring: the walk preview waits this long after the hovered cell changes.
@@ -132,6 +135,7 @@ var _hud: Label
 var _log_label: Label
 var _party_bar: PartyBar
 var _action_bar: ActionBar
+var _inventory: InventoryPanel
 var _dialog: PanelContainer
 var _dialog_label: Label
 var _banner: Label
@@ -239,6 +243,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_F10: Net.leave()
 			KEY_P:
 				_retro.cycle(_level)
+				_refresh()
+			KEY_C: _toggle_sneak()
+			KEY_I:
+				_inventory.toggle()
 				_refresh()
 	elif event is InputEventMouseButton and event.pressed:
 		if _confirming_end_turn:
@@ -354,7 +362,7 @@ func _has_moves(e: SimEntity) -> bool:
 	if CombatRules.move_budget(e) >= SimPathfinder.COST_STRAIGHT and not SimPathfinder.neighbors(state, e.cell, e.id).is_empty():
 		return true
 	for action in ActionInfo.actions_for(e):
-		if action == SimAbilities.Ability.REVIVE or action == SimAbilities.Ability.HELP_UP:
+		if action in [SimAbilities.Ability.REVIVE, SimAbilities.Ability.HELP_UP, SimAbilities.Ability.PICKPOCKET]:
 			continue  # only usable in special situations; not "moves left"
 		if e.ap >= ActionInfo.cost(action) and ActionInfo.remaining(action, e) == 0:
 			return true
@@ -362,6 +370,14 @@ func _has_moves(e: SimEntity) -> bool:
 		if other.knocked_down and SimAbilities.is_adjacent(e.cell, other.cell) and e.ap >= ActionInfo.cost(SimAbilities.Ability.HELP_UP):
 			return true
 	return false
+
+
+## Selected character (this player's) starts or stops sneaking.
+func _toggle_sneak() -> void:
+	var e := state.get_entity(_selected_id) if state != null else null
+	if e == null or not _can_order() or state.combat.active:
+		return
+	Net.submit(SneakCommand.new(e.id, not e.sneaking))
 
 
 func _can_command() -> bool:
@@ -1024,6 +1040,8 @@ func _target_reason(command: SimCommand) -> String:
 		return "No one selected"
 	if command is CastCommand:
 		var cast := command as CastCommand
+		if cast.ability == SimAbilities.Ability.PICKPOCKET and state.combat.active:
+			return "Pickpocketing works outside combat"
 		if cast.ability == SimAbilities.Ability.REVIVE:
 			if state.combat.active:
 				return "Revive works after the fight"
@@ -1075,9 +1093,9 @@ func _update_range_now() -> void:
 	var action := _hovered_action if _hovered_action != ActionInfo.NONE else _action
 	if _can_order() and actor != null and actor.is_alive():
 		if action == ActionInfo.NONE and _exploring():
-			for c in _danger_cells():
-				cells.append(c)
-				colors.append(COLOR_DANGER)
+			var watched := _watched_cells()
+			cells.append_array(watched[0])
+			colors.append_array(watched[1])
 		elif action == ActionInfo.NONE:
 			var reach := SimPathfinder.reachable(state, actor.cell, CombatRules.move_budget(actor), actor.id)
 			for c: Vector3i in reach:
@@ -1105,24 +1123,36 @@ func _update_range_now() -> void:
 	_refresh()
 
 
-## Floor cells some watchful enemy near the party can see: walking in starts
-## combat. Each watcher's cells are cached until it moves.
-func _danger_cells() -> Array[Vector3i]:
+## Vision cones on the ground near the party: where enemies would spot you
+## (red: a fight starts) and townsfolk would witness you (yellow, orange when
+## suspicious). Drawn for the selected character's sneaking state. Each
+## watcher's cells are cached until it moves or turns. Returns
+## [cells, colors].
+func _watched_cells() -> Array:
 	var party := CombatRules.fighters(state, SimEntity.Faction.PLAYERS)
+	var selected := state.get_entity(_selected_id)
+	var sneaking := selected != null and selected.sneaking
 	var occupied := SimPathfinder.occupancy(state)
-	var result: Array[Vector3i] = []
+	var cells: Array[Vector3i] = []
+	var colors: Array[Color] = []
 	var seen := {}
-	for watcher in CombatRules.fighters(state, SimEntity.Faction.ENEMIES):
-		if watcher.sight <= 0 or not _near_any(watcher.cell, party, DANGER_SHOW_RADIUS):
+	for watcher in state.entities:
+		var enemy := watcher.faction == SimEntity.Faction.ENEMIES
+		var neutral := watcher.faction == SimEntity.Faction.NEUTRAL
+		if not (enemy or neutral) or not watcher.is_alive() or watcher.sight <= 0:
 			continue
-		var key := [watcher.id, watcher.cell]
+		if not _near_any(watcher.cell, party, DANGER_SHOW_RADIUS):
+			continue
+		var key := [watcher.id, watcher.cell, watcher.facing, sneaking, watcher.sight]
 		if not _danger_cache.has(key):
-			_danger_cache[key] = _cells_seen_by(watcher, occupied)
+			_danger_cache[key] = _cells_seen_by(watcher, occupied, sneaking)
+		var color := COLOR_DANGER if enemy else (COLOR_SUSPICIOUS if watcher.suspicious else COLOR_WATCHED)
 		for c: Vector3i in _danger_cache[key]:
 			if not seen.has(c):
 				seen[c] = true
-				result.append(c)
-	return result
+				cells.append(c)
+				colors.append(color)
+	return [cells, colors]
 
 
 static func _near_any(c: Vector3i, others: Array[SimEntity], radius: int) -> bool:
@@ -1147,7 +1177,7 @@ func _floor_cells_near(center: Vector3i, radius: int) -> Array[Vector3i]:
 	return result
 
 
-func _cells_seen_by(watcher: SimEntity, occupied: Dictionary) -> Array[Vector3i]:
+func _cells_seen_by(watcher: SimEntity, occupied: Dictionary, sneaking: bool) -> Array[Vector3i]:
 	var grid := state.grid
 	var r := watcher.sight
 	var result: Array[Vector3i] = []
@@ -1157,7 +1187,7 @@ func _cells_seen_by(watcher: SimEntity, occupied: Dictionary) -> Array[Vector3i]
 				var c := Vector3i(x, y, z)
 				if not grid.in_bounds(c) or grid.is_solid(c) or not (grid.is_supported(c) or occupied.has(c)):
 					continue
-				if SimAbilities.in_range(watcher.cell, c, r) and SimLos.has_line_of_sight(grid, watcher.cell, c):
+				if SimPerception.sees_cell(state, watcher, c, sneaking):
 					result.append(c)
 	return result
 
@@ -1348,11 +1378,20 @@ func _build_scene() -> void:
 	_party_bar.member_selected.connect(func(id: int) -> void:
 		if not _busy and not _confirming_end_turn:
 			_select(id))
+	_party_bar.item_dropped.connect(func(to_id: int, from_id: int, index: int) -> void:
+		Net.submit(GiveCommand.new(from_id, to_id, index)))
 	_party_bar.end_turn_pressed.connect(func() -> void:
 		if _confirming_end_turn:
 			_end_turn(true)
 		else:
 			_end_turn())
+
+	_inventory = InventoryPanel.new()
+	canvas.add_child(_inventory)
+	_inventory.give_requested.connect(func(from_id: int, to_id: int, index: int) -> void:
+		Net.submit(GiveCommand.new(from_id, to_id, index)))
+	_inventory.sort_requested.connect(func(entity_id: int, from_index: int, to_index: int) -> void:
+		Net.submit(SortItemCommand.new(entity_id, from_index, to_index)))
 
 	_action_bar = ActionBar.new()
 	canvas.add_child(_action_bar)
@@ -1446,6 +1485,7 @@ func _refresh() -> void:
 		end_turn = PartyBar.EndTurn.SUGGESTED
 	_party_bar.update_party(party, _selected_id, _turn_start_ap, _preview_cost, _can_command() and _is_players_turn(), partner_ids, end_turn)
 	var actor := state.get_entity(_selected_id)
+	_inventory.show_for(actor, party, _selected_is_mine() and not state.combat.active, _selected_is_mine())
 	var note := "" if actor == null or _selected_is_mine() else "%s is controlled by your partner" % actor.name
 	_action_bar.show_actions(actor if actor != null and actor.is_alive() else null, _action, _can_order(), state.combat.active, note)
 	var lines: Array[String] = []
@@ -1457,7 +1497,8 @@ func _refresh() -> void:
 			turn = "Your turn — your partner is ready"
 		lines.append("Round %d — %s" % [state.combat.round_number, turn])
 	elif _exploring():
-		lines.append("Exploring — red ground is in an enemy's sight")
+		var sneak_hint := "C: sneak" if state.get_entity(_selected_id) == null or not state.get_entity(_selected_id).sneaking else "Sneaking (C to stop) — harder to see, half speed"
+		lines.append("Exploring — red: enemies see you there, yellow: townsfolk watch   %s   I: inventory" % sneak_hint)
 	else:
 		lines.append("Combat over — press R to restart")
 	if Net.is_online():

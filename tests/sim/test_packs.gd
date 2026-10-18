@@ -24,6 +24,8 @@ func _bandit(state: SimState, p_name: String, cell: Vector3i, pack: int, sight: 
 	var e := state.add_entity(SimEntity.character(p_name, ENEMIES, cell, 12, "Club", 3))
 	e.pack = pack
 	e.sight = sight
+	e.facing = 6  # looking west, toward the hero's side
+	e.home_facing = 6
 	return e
 
 
@@ -77,6 +79,7 @@ func test_a_pack_that_sees_the_fight_joins_next_turn() -> void:
 	var far := _named(state, "Far")
 	assert_false(far.in_combat)
 	EntityOps.place(state, far, Vector3i(7, Y, 8))
+	far.facing = SimPerception.facing_toward(far.cell, Fixtures.hero(state).cell, far.facing)
 	state.apply_command(EndTurnCommand.new(PLAYERS))
 	assert_true(far.in_combat, "it saw the hero at the start of the enemies' turn")
 	assert_gt(far.ap, 0, "and acts this turn")
