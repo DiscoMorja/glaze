@@ -68,6 +68,12 @@ var travel: Array[Vector3i] = []
 ## Turns left of being slowed (walking through oil): moving costs double AP in
 ## combat and walking takes twice as long in real time.
 var slowed := 0
+## Turns left pinned (Pinning Shot): it can't move in combat, this turn and the next.
+var pinned := 0
+## Turns left distracted (Distract): it keeps looking where it was turned.
+var distracted := 0
+## A corpse that Blight already burst into gas.
+var blighted := false
 ## Body temperature level: -2 Frozen, -1 Cold, 0 Normal, 1 Hot, 2 Burning
 ## (EntityOps.change_temperature()). At an extreme, temp_turns counts the
 ## turns it lasts before easing to Cold or Hot.
@@ -138,6 +144,10 @@ func tick_cooldowns() -> void:
 func tick_statuses() -> void:
 	if slowed > 0:
 		slowed -= 1
+	if pinned > 0:
+		pinned -= 1
+	if distracted > 0:
+		distracted -= 1
 
 
 func is_burning() -> bool:
@@ -199,6 +209,9 @@ func to_dict() -> Dictionary:
 		"lock_level": lock_level,
 		"model": model,
 		"slowed": slowed,
+		"pinned": pinned,
+		"distracted": distracted,
+		"blighted": blighted,
 		"temperature": temperature,
 		"temp_turns": temp_turns,
 		"stagger": stagger,
@@ -270,6 +283,9 @@ static func from_dict(data: Dictionary) -> SimEntity:
 	e.lock_level = data.get("lock_level", e.lock_level)
 	e.model = data.get("model", e.model)
 	e.slowed = data.get("slowed", e.slowed)
+	e.pinned = data.get("pinned", e.pinned)
+	e.distracted = data.get("distracted", e.distracted)
+	e.blighted = data.get("blighted", e.blighted)
 	e.temperature = data.get("temperature", e.temperature)
 	e.temp_turns = data.get("temp_turns", e.temp_turns)
 	e.stagger = data.get("stagger", e.stagger)

@@ -4,7 +4,7 @@ extends RefCounted
 ## sideways, then decay. Delta-based like LiquidRules for order independence;
 ## only cells holding gas (and the cells it moves into) are visited.
 
-const GASES := [SimMaterials.Gas.STEAM, SimMaterials.Gas.SMOKE]
+const GASES := [SimMaterials.Gas.STEAM, SimMaterials.Gas.SMOKE, SimMaterials.Gas.POISON]
 
 
 @warning_ignore("integer_division")
@@ -29,7 +29,7 @@ static func step(state: SimState) -> void:
 		var c := grid.coord(i)
 
 		var above := c + Vector3i.UP
-		if not grid.is_solid(above):
+		if SimMaterials.gas_rises(t) and not grid.is_solid(above):
 			var ai := grid.index(above)
 			if _can_receive(types, next_types, ai, t):
 				delta[i] = delta.get(i, 0) - amount
@@ -68,6 +68,45 @@ static func step(state: SimState) -> void:
 		else:
 			amounts[i] = a
 			types[i] = t
+
+
+## Fire reaching poison gas sets off the whole connected cloud at once:
+## everyone in or next to it takes EXPLOSION_DAMAGE fire damage (once), the
+## gas is gone, and its cells burst into flame.
+static func explode(state: SimState, start: Vector3i) -> void:
+	var grid := state.grid
+	if not grid.in_bounds(start) or grid.gas_type[grid.index(start)] != SimMaterials.Gas.POISON:
+		return
+	var cloud: Array[Vector3i] = []
+	var seen := {start: true}
+	var queue: Array[Vector3i] = [start]
+	var head := 0
+	while head < queue.size() and queue.size() < FireRules.IGNITE_FLOOD_LIMIT:
+		var c := queue[head]
+		head += 1
+		cloud.append(c)
+		for n: Vector3i in SimGrid.NEIGHBORS_6:
+			var nc := c + n
+			if seen.has(nc) or not grid.in_bounds(nc) or grid.gas_type[grid.index(nc)] != SimMaterials.Gas.POISON:
+				continue
+			seen[nc] = true
+			queue.append(nc)
+	var event := state.emit_event(SimEvent.Type.EXPLODED, start)
+	event.cells.assign(cloud)
+	var hit := {}
+	for c in cloud:
+		grid.clear_gas(grid.index(c))
+		for n: Vector3i in [Vector3i.ZERO] + SimGrid.NEIGHBORS_6:
+			var victim := state.entity_at(c + n)
+			if victim != null and victim.is_alive():
+				hit[victim.id] = victim
+	var ids: Array = hit.keys()
+	ids.sort()
+	for id: int in ids:
+		EntityOps.damage(state, hit[id], SimMaterials.EXPLOSION_DAMAGE, -1, EntityOps.Element.FIRE)
+	for c in cloud:
+		if not grid.is_solid(c):
+			FireRules.ignite(state, c)
 
 
 static func _can_receive(types: PackedByteArray, next_types: Dictionary, i: int, type: int) -> bool:

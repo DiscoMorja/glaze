@@ -11937,7 +11937,7 @@ role = "merchant"
 entity_name = "Merchant"
 team = 2
 dialogue = "merchant"
-inventory = Array[String](["Coins", "Silver ring", "Map", "Healing potion", "Healing potion", "Healing potion", "Cooling salve", "Warming draught", "Bedroll", "Leather armour", "Fine sword", "Wooden shield", "Leather cap", "Leather boots", "Copper ring", "Bone amulet"])
+inventory = Array[String](["Coins", "Silver ring", "Map", "Healing potion", "Healing potion", "Healing potion", "Cooling salve", "Warming draught", "Bedroll", "Leather armour", "Fine sword", "Wooden shield", "Leather cap", "Leather boots", "Copper ring", "Bone amulet", "Shortbow", "Sling", "Fire arrows", "Fire arrows", "Water arrows", "Oil arrows", "Frost arrows", "Lockpick", "Drain tome", "Loaded Shot tome", "Pinning Shot tome", "Backstab tome"])
 gold = 120
 trades = true
 
@@ -13006,6 +13006,13 @@ transform = Transform3D(-0.00000004371139, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, -
 script = ExtResource("2_spawn")
 role = "thug"
 entity_name = "Thug"
+team = 1
+
+[node name="Lookout" type="Marker3D" parent="Bandits"]
+transform = Transform3D(-0.00000004371139, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, -0.00000004371139, 88.50, 9.50, 131.50)
+script = ExtResource("2_spawn")
+role = "archer"
+entity_name = "Lookout"
 team = 1
 
 [node name="Pikeman" type="Marker3D" parent="Bandits"]

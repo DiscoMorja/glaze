@@ -22,6 +22,8 @@ enum Type {
 	# Items, trade, progression
 	SHOCKWAVE,
 	ITEM_USED, RESTED, TRADE_OFFERED, TRADED, EQUIPPED, XP_GAINED, LEVELED_UP,
+	# Phase B skills and materials
+	EXPLODED, PINNED, DISTRACTED, LEARNED, GREW, BLIGHTED,
 }
 
 var type: Type

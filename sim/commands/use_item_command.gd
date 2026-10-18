@@ -3,6 +3,8 @@ extends SimCommand
 ## A character uses (eats, drinks, applies) an item from their inventory on
 ## themselves or an ally next to them. What it does comes from the item's
 ## properties (SimItems: heal, temperature), so any item with them works.
+## A tome ("teaches") is read by its owner outside combat and teaches its
+## skill, if the reader's rank in its school is high enough.
 ## Costs AP_COST in combat, on the user's turn; free outside.
 
 const TYPE := "use_item"
@@ -36,7 +38,24 @@ func validate(state: SimState) -> bool:
 		return false
 	if target != user and (target.faction != user.faction or not SimAbilities.is_adjacent(user.cell, target.cell)):
 		return false
+	var skill := SimItems.teaches(user.inventory[index])
+	if skill >= 0:
+		return target == user and not state.combat.active and not user.abilities.has(skill) and SimAbilities.has_rank(user, skill)
 	return true
+
+
+## Why `user` can't read the tome at `index` ("" = it can, or it isn't one).
+static func cant_learn(state: SimState, user: SimEntity, item: String) -> String:
+	var skill := SimItems.teaches(item)
+	if skill < 0:
+		return ""
+	if user.abilities.has(skill):
+		return "Already known"
+	if not SimAbilities.has_rank(user, skill):
+		return SimAbilities.lacks(user, skill)
+	if state.combat.active:
+		return "Not during a fight"
+	return ""
 
 
 func execute(state: SimState) -> void:
@@ -56,6 +75,11 @@ func execute(state: SimState) -> void:
 	var warmth := SimItems.amount(item, "temperature")
 	if warmth != 0:
 		EntityOps.change_temperature(state, target, warmth, user.id)
+	var skill := SimItems.teaches(item)
+	if skill >= 0:
+		user.abilities.append(skill)
+		var learned := state.emit_event(SimEvent.Type.LEARNED, user.cell, user.id, -1, skill)
+		learned.text = SimAbilities.NAMES[skill]
 
 
 func to_dict() -> Dictionary:

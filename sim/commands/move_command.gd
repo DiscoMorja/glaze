@@ -24,6 +24,8 @@ func validate(state: SimState) -> bool:
 	var e := state.get_entity(entity_id)
 	if not CombatRules.can_act(state, e, 0) or e.cell == destination:
 		return false
+	if state.combat.active and e.pinned > 0:
+		return false  # pinned in place
 	var path := path_for(state, e, destination)
 	if path.is_empty():
 		return false

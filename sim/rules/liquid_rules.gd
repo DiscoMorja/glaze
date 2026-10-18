@@ -6,7 +6,7 @@ extends RefCounted
 ## cells holding a liquid (and the cells they flow into) are visited.
 
 
-const FLUIDS := [SimMaterials.Surface.WATER, SimMaterials.Surface.OIL]
+const FLUIDS := [SimMaterials.Surface.WATER, SimMaterials.Surface.OIL, SimMaterials.Surface.POISON]
 
 
 @warning_ignore("integer_division")

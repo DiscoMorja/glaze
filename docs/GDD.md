@@ -110,7 +110,12 @@ Explore (real time) ──► interact with world, scheme, steal, set up ──�
 | Fire | Ice | Water |
 | Lightning | Water | Electrified water (stun on contact) — post-Prologue: no school owns lightning (§5.9) |
 | Lightning | Steam | Electrified cloud — post-Prologue |
-| Fire | Poison gas | Explosion |
+| Fire | Poison gas | Explosion: the whole connected cloud goes off at once, 5 fire damage to everyone in or next to it, then burns |
+| Fire | Vines | Burn fast (twice oil's rate), smoke |
+| Cold | Vines | Withered (Frost clears them) |
+| Rain | Poison water | Washed clean (water) |
+| Unit | Vines | Slowed, like oil |
+| Unit | Poison water / gas | 1 damage at each turn start |
 | Water | Fire (on unit) | Extinguish |
 
 ### 5.2 Object Model — "Everything is an object"
@@ -154,7 +159,7 @@ Each character is built from a role: HP, weapon, mass and verbs. Roles are tuned
 | Trickster | Steal, Blink, Teleport, Low Blow | Control; disarms, repositions enemies into fire or the air, trips one down |
 | Tidecaller | Rain, Frost, Mend | Support; heals, douses, makes ice that trips people |
 
-**Enemies:** Brute (Shove, Cleave), Firecaller (Firebolt, Teleport), Skirmisher (Steal, Blink — takes items, never player weapons), Shaman (Mend, Rain, Frost), Pikeman (Shove), Thug (melee only).
+**Enemies:** Brute (Shove, Cleave), Firecaller (Firebolt, Teleport), Skirmisher (Steal, Blink — takes items, never player weapons), Shaman (Mend, Rain, Frost), Archer (shortbow; Pinning Shot, Loaded Shot with fire arrows — the bandit camp's Lookout on the watchtower), Pikeman (Shove), Thug (melee only).
 
 ### 5.4 NPC Simulation (light)
 
@@ -235,7 +240,8 @@ All of these are commands on properties, never on item names (rule 9): items in 
 
 ### 5.9 Character progression
 
-**Built (phase A, `StatRules`):** attributes, school ranks gating and boosting the existing verbs, civil skills (pickpocket choice, lockpicking, sneaking, prices, `talker.*` dialogue facts, `~ calm`), the levelling points, role presets and kits, weapon `scales`, the Oil Flask as an item, the character sheet with + buttons. Not built yet: talents, skillbooks, the new skills, Historian's readables/identifying/scrolls, greyed-out dialogue choices, psychic durations.
+**Built (phase A, `StatRules`):** attributes, school ranks gating and boosting the existing verbs, civil skills (pickpocket choice, lockpicking, sneaking, prices, `talker.*` dialogue facts, `~ calm`), the levelling points, role presets and kits, weapon `scales`, the Oil Flask as an item, the character sheet with + buttons.
+**Built (phase B):** the eight new Prologue skills, vines / poison water / heavy poison gas (explodes in fire), bows and slings (range, sight, +1 damage per level shot down from), arrows as ammo items, Pinned and Distracted statuses, Hot = +1 AP, skill tomes (read outside combat with enough rank), presets know Kindle (Pyromancer), Overgrowth (Tidecaller) and Distract (Trickster); the village merchant sells bows, arrows, a lockpick and four tomes. Not built yet: talents, Historian's readables/identifying/scrolls, greyed-out dialogue choices, the "Later" skills.
 
 Replaces the Vitality / Power / Resolve points of §5.8. Shared XP and the XP curve stay.
 
@@ -281,7 +287,7 @@ Weapons carry a `scales` property (`str`, `dex`, `mind`): greatsword, greataxe, 
 
 Ranger needs a new weapon kind: `ranged: n` (bow, sling), attacks at range with line of sight, +1 damage per level of height above the target (a rule for every ranged attack). **Oil Flask becomes an item** anyone throws (1 AP, `splash: oil`); the Pyromancer starts with a few.
 
-Build order: (A) attributes, schools and civil checks on the existing verbs (built; talents follow); (B) the bold new Prologue skills above (8 verbs; new materials: vines, poison water, poison gas; ranged weapons; Hot = +1 AP); (C) the "Later" column only after the Prologue proves fun. "Fewer verbs, each deep" (§3) holds: 2–3 skills per school.
+Build order: (A) attributes, schools and civil checks on the existing verbs (built; talents follow); (B) the bold new Prologue skills above (8 verbs; new materials: vines, poison water, poison gas; ranged weapons; Hot = +1 AP; built); (C) the "Later" column only after the Prologue proves fun. "Fewer verbs, each deep" (§3) holds: 2–3 skills per school.
 
 **Civil skills** (ranks 0–5, thresholds, never rolls). The *acting* character's rank counts — whoever talks or steals — so each player's pair tends to have a face and a pair of hands.
 - **Thievery.** Pickpocket: rank 0 lifts the first item (today); rank 1+ chooses the item, value ≤ 30·rank gold; rank 3 anything not worn. Locks: containers and doors get a `lock_level` 1–3 next to `lock`; Thievery ≥ lock_level opens it with a Lockpick (a kit, not consumed). A key always works; bashing still works and is loud. Sneaking: rank 2 at full walking speed, rank 3 also silent when walking normally.
@@ -503,4 +509,5 @@ Levels are built freely in Godot and baked into the sim (`GameLevel.bake()`, run
 | 2026-10-18 | Character progression designed (§5.9, not built): classless with the four roles as presets; attributes Strength, Vitality, Dexterity, Mind, Ward as small-integer breakpoints; eight combat schools (Fire, Ice, Life, Death, Psychic, Warrior, Rogue, Ranger) whose ranks gate skills learned from stealable skillbooks; civil skills Thievery, Charisma, Historian as thresholds on existing systems; talents at creation, level 5 and level 10 (max 3). No dice: random crits replaced by rear-hit bonuses; resistances reduce numbers but never block effects. Lightning has no school and is out of the Prologue; Oil Flask becomes a throwable item; Ranger gets ranged weapons and ammo-as-properties, animals come after the Prologue. Built in phases, 2–3 skills per school in the Prologue. |
 | 2026-10-18 | Progression phase A built: `StatRules` attributes/schools/civil skills replace Vitality/Power/Resolve points; ranks gate the existing verbs (Shockwave needs Warrior 2) and add potency above the skill's rank; role presets keep their old HP (base HP lowered by their Vitality); Oil Flask is an item (Pyromancer starts with 3, Trickster with a lockpick); saves migrate to snapshot version 2 (Power refunded as points). Charisma prices changed to a discount from list price instead of a markup. |
 | 2026-10-19 | Default action bar is short for new characters: page 1 holds Attack and school skills from the left and healing potions from the right; Help up, Revive, Pickpocket and other items start on page 2. Saved bars from before were reset once to this default. |
+| 2026-10-19 | Progression phase B built: Kindle, Overgrowth, Drain, Blight, Distract, Backstab, Loaded Shot, Pinning Shot; vines and poison surfaces, poison gas that hugs the ground and explodes in fire; bows/slings and arrow ammo; skill tomes; an Archer enemy role. Simplifications: Distract turns the target's back to the caster (no second target click); Kindle needs a target (no bare ground); vines and water don't share a cell, so Rain leaves vines as they are. |
 | 2026-10-17 | Scope: Prologue (1 hub + 1 zone, 2–3 h co-op) targeted at 12–18 months, 6–8 h/week, Claude Code writes the code. |

@@ -1,6 +1,8 @@
 class_name AttackCommand
 extends SimCommand
-## Melee attack on an adjacent entity (characters and props alike).
+## Weapon attack on an entity (characters and props alike): adjacent, or in
+## range and sight with a weapon that has "ranged" (bows, slings), which hits
+## harder from above (StatRules.hit_damage()).
 
 const TYPE := "attack"
 
@@ -22,7 +24,19 @@ func validate(state: SimState) -> bool:
 	var target := state.get_entity(target_id)
 	return (CombatRules.can_act(state, attacker, CombatRules.ATTACK_AP)
 			and target != null and target.is_alive() and target != attacker
-			and SimAbilities.is_adjacent(attacker.cell, target.cell))
+			and (SimAbilities.is_adjacent(attacker.cell, target.cell) or in_reach(state, attacker, target.cell)))
+
+
+## Cells the attacker's weapon reaches: its "ranged" range, 1 for melee.
+static func reach(attacker: SimEntity) -> int:
+	return maxi(1, SimItems.amount(attacker.weapon, "ranged"))
+
+
+## A ranged weapon in hand, the cell within its range and in sight.
+static func in_reach(state: SimState, attacker: SimEntity, c: Vector3i) -> bool:
+	var range_cells := SimItems.amount(attacker.weapon, "ranged")
+	return (range_cells > 0 and c != attacker.cell and SimAbilities.in_range(attacker.cell, c, range_cells)
+			and SimLos.has_line_of_sight(state.grid, attacker.cell, c))
 
 
 func execute(state: SimState) -> void:

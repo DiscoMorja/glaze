@@ -33,21 +33,21 @@ const ROLES := {
 	},
 	"pyromancer": {
 		"title": "Pyromancer", "hp": 16, "weapon": "Staff", "damage": 2, "mass": 65,
-		"abilities": [A.FIREBOLT],
+		"abilities": [A.FIREBOLT, A.KINDLE],
 		"attributes": {"mind": 3, "ward": 1, "dexterity": 1}, "schools": {"fire": 2}, "civil": {"historian": 1},
 		"kit": ["Oil flask", "Oil flask", "Oil flask"],
 		"blurb": "Area damage. Throws oil flasks, then lights them.",
 	},
 	"trickster": {
 		"title": "Trickster", "hp": 18, "weapon": "Daggers", "damage": 3, "mass": 60,
-		"abilities": [A.STEAL, A.BLINK, A.TELEPORT, A.LOW_BLOW],
+		"abilities": [A.STEAL, A.BLINK, A.TELEPORT, A.LOW_BLOW, A.DISTRACT],
 		"attributes": {"dexterity": 3, "mind": 2}, "schools": {"rogue": 1, "psychic": 1}, "civil": {"thievery": 1},
 		"kit": ["Lockpick"],
 		"blurb": "Control. Steals weapons, blinks around, teleports enemies into fire or the air, and trips people up with a Low Blow.",
 	},
 	"tidecaller": {
 		"title": "Tidecaller", "hp": 18, "weapon": "Staff", "damage": 2, "mass": 65,
-		"abilities": [A.RAIN, A.FROST, A.MEND],
+		"abilities": [A.RAIN, A.FROST, A.MEND, A.OVERGROWTH],
 		"attributes": {"mind": 2, "ward": 3}, "schools": {"ice": 1, "life": 1}, "civil": {"historian": 1},
 		"blurb": "Support. Heals, douses fires, and turns water into ice that trips people up.",
 	},
@@ -71,6 +71,11 @@ const ROLES := {
 		"title": "Shaman", "hp": 14, "weapon": "Totem", "damage": 2, "mass": 65,
 		"abilities": [A.MEND, A.RAIN, A.FROST],
 		"attributes": {"mind": 2, "ward": 3},
+	},
+	"archer": {
+		"title": "Archer", "hp": 12, "weapon": "Shortbow", "damage": 3, "mass": 65,
+		"abilities": [A.PINNING_SHOT, A.LOADED_SHOT],
+		"attributes": {"dexterity": 3, "strength": 1}, "kit": ["Fire arrows", "Fire arrows"],
 	},
 	"pikeman": {
 		"title": "Pikeman", "hp": 8, "weapon": "Spear", "damage": 4, "mass": 75, "stagger": 4,

@@ -3,7 +3,7 @@ extends RefCounted
 ## Shared rules for changing entities: damage, death, placement and falling.
 
 ## What dealt damage. Presentation colours damage numbers by it.
-enum Element { PHYSICAL, FIRE, FROST }
+enum Element { PHYSICAL, FIRE, FROST, DEATH }
 
 ## Damage per level fallen beyond the first.
 const FALL_DAMAGE_PER_LEVEL := 4
@@ -27,6 +27,8 @@ const HIT_STAGGER := 1
 const ICE_STAGGER := 1
 ## Turns a character stays slowed after stepping in oil (this one and the next).
 const SLOW_TURNS := 2
+## Turns a Pinning Shot holds someone in place (this one and the next).
+const PIN_TURNS := 2
 
 
 static func is_free(state: SimState, c: Vector3i) -> bool:
@@ -203,6 +205,16 @@ static func turn_start(state: SimState, e: SimEntity) -> void:
 		e.ap = 0
 		state.emit_event(SimEvent.Type.TURN_SKIPPED, e.cell, e.id)
 	on_ground(state, e)
+	_poison(state, e)
+
+
+## Standing in poison water or poison gas hurts at the start of each turn.
+static func _poison(state: SimState, e: SimEntity) -> void:
+	if not e.is_alive() or not e.takes_turns():
+		return
+	var i := state.grid.index(e.cell)
+	if state.grid.surface_type[i] == SimMaterials.Surface.POISON or state.grid.gas_type[i] == SimMaterials.Gas.POISON:
+		damage(state, e, SimMaterials.POISON_DAMAGE, -1, Element.DEATH)
 
 
 ## End of an entity's turn: after sitting a turn out, a knocked-down character
@@ -248,11 +260,12 @@ static func on_ground(state: SimState, e: SimEntity) -> void:
 	slow_if_in_oil(state, e)
 
 
-## Standing in oil slows a character (again) for SLOW_TURNS.
+## Standing in oil or vines slows a character (again) for SLOW_TURNS.
 static func slow_if_in_oil(state: SimState, e: SimEntity) -> void:
 	if not e.is_alive() or not e.takes_turns():
 		return
-	if state.grid.surface_type[state.grid.index(e.cell)] != SimMaterials.Surface.OIL:
+	var surface: int = state.grid.surface_type[state.grid.index(e.cell)]
+	if surface != SimMaterials.Surface.OIL and surface != SimMaterials.Surface.VINES:
 		return
 	if e.slowed == 0:
 		state.emit_event(SimEvent.Type.SLOWED, e.cell, e.id)

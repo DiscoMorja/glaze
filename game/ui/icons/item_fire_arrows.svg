@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="38%" r="70%">
+      <stop offset="0" stop-color="#3f4654"/>
+      <stop offset="1" stop-color="#15181e"/>
+    </radialGradient>
+  </defs>
+  <rect x="1" y="1" width="62" height="62" rx="8" fill="url(#bg)"/>
+  <rect x="1.5" y="1.5" width="61" height="61" rx="7.5" fill="none" stroke="#000" stroke-opacity="0.6" stroke-width="1"/>
+
+  <path d="M14 54 L34 14" stroke="#c8a46a" stroke-width="3" stroke-linecap="round"/>
+  <path d="M34 14 l-6 7 l7 2 Z" fill="#ff8a2a" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M14 54 l-3 -5 m3 5 l5 -2" stroke="#e8e0c8" stroke-width="2"/>
+  <path d="M22 54 L42 14" stroke="#c8a46a" stroke-width="3" stroke-linecap="round"/>
+  <path d="M42 14 l-6 7 l7 2 Z" fill="#ff8a2a" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M22 54 l-3 -5 m3 5 l5 -2" stroke="#e8e0c8" stroke-width="2"/>
+  <path d="M30 54 L50 14" stroke="#c8a46a" stroke-width="3" stroke-linecap="round"/>
+  <path d="M50 14 l-6 7 l7 2 Z" fill="#ff8a2a" stroke="#111" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M30 54 l-3 -5 m3 5 l5 -2" stroke="#e8e0c8" stroke-width="2"/>
+</svg>

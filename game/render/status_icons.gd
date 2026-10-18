@@ -83,6 +83,13 @@ func _glyph(id: String, r: Rect2, c: Color) -> void:
 			draw_polyline(PackedVector2Array([
 				p + Vector2(w * 0.6, 0), p + Vector2(w * 0.25, h * 0.5), p + Vector2(w * 0.7, h * 0.5),
 				p + Vector2(w * 0.35, h)]), c, 2.0)
+		"pinned":  # an arrow stuck in the ground
+			draw_line(p + Vector2(w * 0.15, 0), p + Vector2(w * 0.6, h * 0.75), c, 2.0)
+			draw_line(p + Vector2(0, h * 0.85), p + Vector2(w, h * 0.85), c, 2.0)
+		"distracted":  # a question mark
+			draw_arc(p + Vector2(w * 0.5, h * 0.3), w * 0.25, PI, 2.4 * PI, 10, c, 2.0)
+			draw_line(p + Vector2(w * 0.5, h * 0.55), p + Vector2(w * 0.5, h * 0.7), c, 2.0)
+			draw_circle(p + Vector2(w * 0.5, h * 0.9), w * 0.1, c)
 		"suspicious":  # an exclamation mark
 			draw_rect(Rect2(p + Vector2(w * 0.38, 0), Vector2(w * 0.24, h * 0.62)), c)
 			draw_circle(p + Vector2(w * 0.5, h * 0.88), w * 0.13, c)

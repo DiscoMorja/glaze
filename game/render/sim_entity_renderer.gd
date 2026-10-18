@@ -42,6 +42,12 @@ const STATUS_LOOKS := {
 	"slowed": {"label": "Slowed", "color": "c9a061", "turns": true, "effects": [
 		{"emitter": "oil_drip", "scale": 1.0, "height": 0.8},
 	]},
+	"pinned": {"label": "Pinned", "color": "d8c08a", "turns": true, "effects": [
+		{"emitter": "dust", "scale": 0.6, "height": 0.1},
+	]},
+	"distracted": {"label": "Distracted", "color": "b9a8ff", "turns": true, "effects": [
+		{"emitter": "dazed", "scale": 0.8, "height": 1.9},
+	]},
 	"suspicious": {"label": "Suspicious!", "color": "ffa040", "effects": []},
 	"sneaking": {"label": "Sneaking", "color": "a0a8c0", "effects": []},
 	"knocked": {"label": "Knocked down", "color": "e0e0e0", "effects": [
@@ -388,6 +394,8 @@ class _View:
 			"cold": 1 if e.temperature == -1 else 0,
 			"frozen": e.temp_turns if e.is_frozen() else 0,
 			"slowed": e.slowed,
+			"pinned": e.pinned,
+			"distracted": e.distracted,
 			"knocked": 1 if e.knocked_down else 0,
 			"suspicious": 1 if e.suspicious else 0,
 			"sneaking": 1 if e.sneaking else 0,

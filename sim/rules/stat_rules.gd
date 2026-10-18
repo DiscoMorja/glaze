@@ -116,12 +116,15 @@ static func spell_bonus(e: SimEntity) -> int:
 	return e.mind / 2
 
 
-## A weapon hit by `attacker` on `target`: its attack damage, more from behind.
+## A weapon hit by `attacker` on `target`: its attack damage, more from
+## behind, and with a bow or sling +1 per level shot down from.
 @warning_ignore("integer_division")
 static func hit_damage(attacker: SimEntity, target: SimEntity) -> int:
 	var amount := attacker.attack_damage()
 	if attacker.dexterity >= 2 and is_behind(attacker, target):
 		amount += attacker.dexterity / 2
+	if SimItems.has_property(attacker.weapon, "ranged"):
+		amount += maxi(0, attacker.cell.y - target.cell.y)
 	return amount
 
 

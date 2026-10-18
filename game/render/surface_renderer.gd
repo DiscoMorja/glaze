@@ -1,6 +1,7 @@
 class_name SurfaceRenderer
 extends MeshInstance3D
-## Draws ground surfaces (water, oil, ice) as smooth puddles instead of boxes.
+## Draws ground surfaces (water, oil, ice, vines, poison) as smooth puddles
+## instead of boxes.
 ##
 ## Geometry: one quad per surface cell plus a ring of neighbouring floor cells
 ## (so the rounded outline has room on every side), with corners on the ground
@@ -16,15 +17,20 @@ const SHADER := preload("res://game/render/surface.gdshader")
 const LIFT := 0.04
 ## Neighbours further apart than this (a step or ledge) don't share a puddle.
 const MAX_STEP := 0.6
-## Mask channel per surface type.
+## Mask channel per surface type: [mask, channel colour]. Mask 0 holds water,
+## oil and ice (R, G, B), mask 1 vines and poison (R, G).
 const CHANNELS := {
-	SimMaterials.Surface.WATER: Color(1, 0, 0),
-	SimMaterials.Surface.OIL: Color(0, 1, 0),
-	SimMaterials.Surface.ICE: Color(0, 0, 1),
+	SimMaterials.Surface.WATER: [0, Color(1, 0, 0)],
+	SimMaterials.Surface.OIL: [0, Color(0, 1, 0)],
+	SimMaterials.Surface.ICE: [0, Color(0, 0, 1)],
+	SimMaterials.Surface.VINES: [1, Color(1, 0, 0)],
+	SimMaterials.Surface.POISON: [1, Color(0, 1, 0)],
 }
 
 var _image: Image
 var _texture: ImageTexture
+var _image2: Image
+var _texture2: ImageTexture
 var _material: ShaderMaterial
 var _size := Vector2i.ZERO
 ## Column index -> true for every mask texel currently painted.
@@ -64,6 +70,10 @@ func _fit(grid: SimGrid) -> void:
 	_image.fill(Color(0, 0, 0, 0))
 	_texture = ImageTexture.create_from_image(_image)
 	_material.set_shader_parameter("mask", _texture)
+	_image2 = Image.create_empty(size.x, size.y, false, Image.FORMAT_RGBA8)
+	_image2.fill(Color(0, 0, 0, 0))
+	_texture2 = ImageTexture.create_from_image(_image2)
+	_material.set_shader_parameter("mask2", _texture2)
 	_material.set_shader_parameter("grid_size", Vector2(size))
 	_painted.clear()
 	_mesh_cells = PackedInt32Array()
@@ -81,13 +91,21 @@ func _paint_mask(grid: SimGrid, cells: PackedInt32Array) -> void:
 	for column: int in _painted:
 		if not top.has(column):
 			_image.set_pixel(column % _size.x, column / _size.x, Color(0, 0, 0, 0))
+			_image2.set_pixel(column % _size.x, column / _size.x, Color(0, 0, 0, 0))
 	for column: int in top:
 		var i: int = top[column]
-		var color: Color = CHANNELS[grid.surface_type[i]]
-		color.a = clampf(float(grid.surface_amount[i]) / SimMaterials.AMOUNT_FULL, 0.0, 1.0)
-		_image.set_pixel(column % _size.x, column / _size.x, color)
+		var channel: Array = CHANNELS[grid.surface_type[i]]
+		var color: Color = channel[1]
+		# Vines are thin: they read as fuller than their amount.
+		var full := SimMaterials.AMOUNT_FULL / 4 if grid.surface_type[i] == SimMaterials.Surface.VINES else SimMaterials.AMOUNT_FULL
+		color.a = clampf(float(grid.surface_amount[i]) / full, 0.0, 1.0)
+		var x := column % _size.x
+		var y := column / _size.x
+		_image.set_pixel(x, y, color if channel[0] == 0 else Color(0, 0, 0, 0))
+		_image2.set_pixel(x, y, color if channel[0] == 1 else Color(0, 0, 0, 0))
 	_painted = top
 	_texture.update(_image)
+	_texture2.update(_image2)
 
 
 func _build_mesh(grid: SimGrid, cells: PackedInt32Array) -> void:

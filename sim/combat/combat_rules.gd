@@ -203,5 +203,7 @@ static func _begin_side(state: SimState) -> void:
 			if e.in_combat:
 				_join_pack(state, e)
 	for e in fighters(state, combat.side):
-		e.ap = mini(e.ap + e.max_ap, AP_CAP)
+		# Heat is speed: a Hot character starts its turn with an extra AP.
+		var hot := 1 if e.temperature == EntityOps.TEMP_MAX - 1 else 0
+		e.ap = mini(e.ap + e.max_ap + hot, AP_CAP)
 		EntityOps.turn_start(state, e)

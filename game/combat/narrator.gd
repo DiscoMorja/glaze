@@ -3,7 +3,7 @@ extends RefCounted
 ## Turns sim events into combat-log lines (GDD §5.6). Returns "" for events
 ## that would only be noise.
 
-const SURFACE_NAMES := ["nothing", "water", "oil", "ice"]
+const SURFACE_NAMES := ["nothing", "water", "oil", "ice", "vines", "poison"]
 
 
 ## Describes a batch of events in order. Damage from the world (fire, falls,
@@ -123,7 +123,19 @@ static func describe(state: SimState, e: SimEvent) -> String:
 		SimEvent.Type.BURNING:
 			return "%s catches fire!" % who
 		SimEvent.Type.SLOWED:
-			return "%s wades into the oil and slows down." % who
+			return "%s is slowed down." % who
+		SimEvent.Type.EXPLODED:
+			return "The poison cloud explodes!"
+		SimEvent.Type.PINNED:
+			return "%s is pinned in place." % who
+		SimEvent.Type.DISTRACTED:
+			return "%s looks the other way." % who
+		SimEvent.Type.LEARNED:
+			return "%s learns %s." % [who, e.text]
+		SimEvent.Type.GREW:
+			return "Vines burst from the ground."
+		SimEvent.Type.BLIGHTED:
+			return "Rot spreads."
 	return ""
 
 

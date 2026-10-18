@@ -47,6 +47,22 @@ static func description(action: int, actor: SimEntity = null) -> String:
 			return "After combat: bring an adjacent fallen ally back with %d%% of their HP." % SimAbilities.REVIVE_HP_PERCENT
 		SimAbilities.Ability.HELP_UP:
 			return "Help an adjacent knocked-down ally to their feet. On their turn, they can act right away."
+		SimAbilities.Ability.KINDLE:
+			return "Warms someone a level (yourself too). Hot characters get an extra AP at the start of their turn; burning ones keep burning. On a barrel: oil catches fire, water boils into steam."
+		SimAbilities.Ability.OVERGROWTH:
+			return "Vines spring up over bare ground: walking through them slows. They burn fast and frost kills them."
+		SimAbilities.Ability.DRAIN:
+			return "Deals %d death damage and heals you by what it took." % (SimAbilities.DRAIN_DAMAGE + spell + potency)
+		SimAbilities.Ability.BLIGHT:
+			return "Rots an area: water turns to poison (it hurts to stand in), vines wither, and a body bursts into a heavy cloud of poison gas that explodes in fire."
+		SimAbilities.Ability.DISTRACT:
+			return "The target turns its back to you for %d turns (less with a strong Mind). Steal from it, or stab it in the back." % SimAbilities.DISTRACT_TURNS
+		SimAbilities.Ability.BACKSTAB:
+			return "A weapon hit on someone next to you: double damage if you're behind them."
+		SimAbilities.Ability.LOADED_SHOT:
+			return "Shoot your first special arrow (fire, water, oil, frost) with your bow or sling: a hit plus what the arrow carries. Uses the arrow up."
+		SimAbilities.Ability.PINNING_SHOT:
+			return "A bow or sling hit that pins the target: it can't move on its next turn."
 	return ""
 
 
@@ -75,12 +91,15 @@ static func remaining(action: int, actor: SimEntity) -> int:
 	return 0 if action == ATTACK or actor == null else actor.cooldown(action)
 
 
-static func range_of(action: int) -> int:
+## Reach in cells; with an actor, attacks and shots reach as far as its weapon.
+static func range_of(action: int, actor: SimEntity = null) -> int:
+	if actor != null and (action == ATTACK or SimAbilities.SHOTS.has(action)):
+		return AttackCommand.reach(actor) if action == ATTACK else mini(AttackCommand.reach(actor), SimAbilities.RANGE[action])
 	return 1 if action == ATTACK else SimAbilities.RANGE[action]
 
 
 static func tooltip(action: int, actor: SimEntity) -> String:
-	var reach := range_of(action)
+	var reach := range_of(action, actor)
 	var range_text := "adjacent" if reach == 1 else "range %d" % reach
 	var lines: Array[String] = ["%s — %d AP, %s" % [name_of(action), cost(action), range_text]]
 	if action == ATTACK and actor != null:

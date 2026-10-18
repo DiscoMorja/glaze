@@ -11,6 +11,7 @@ extends Node3D
 const GAS_COLORS := {
 	SimMaterials.Gas.STEAM: Color(0.95, 0.95, 1.0),
 	SimMaterials.Gas.SMOKE: Color(0.2, 0.2, 0.2),
+	SimMaterials.Gas.POISON: Color(0.5, 0.75, 0.15),
 }
 
 ## Draw fire as greybox boxes. Scenes with a FireField turn this off.

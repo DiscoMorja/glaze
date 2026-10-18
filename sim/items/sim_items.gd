@@ -21,6 +21,11 @@ extends RefCounted
 ##   "casts": "Ability"  carrying it grants that ability; each use spends one
 ##                       (SimAbilities.FROM_ITEM)
 ##   "lockpick": true    picks locks with Thievery (LootCommand)
+##   "ranged": n         a weapon that hits at range n with sight (AttackCommand)
+##   "ammo": true        what Loaded Shot fires (used up), with "ignite",
+##                       "splash": "water" | "oil", "chill": n
+##   "teaches": "Ability" reading it (UseItemCommand, outside combat) teaches
+##                       that skill if your school rank allows; used up
 
 const DEFAULT := {"value": 0, "weight": 1000, "kind": "misc", "blurb": ""}
 
@@ -41,6 +46,20 @@ const ITEMS := {
 			"blurb": "Lamp oil in a clay flask. Throw it, then light it."},
 	"Lockpick": {"value": 15, "weight": 100, "kind": "key", "lockpick": true,
 			"blurb": "Bent wire and patience. Opens locks with enough Thievery."},
+	# Ammunition for Loaded Shot
+	"Fire arrows": {"value": 4, "weight": 100, "kind": "ammo", "ammo": true, "ignite": true, "blurb": "Pitch-soaked heads. Sets the target alight."},
+	"Water arrows": {"value": 3, "weight": 150, "kind": "ammo", "ammo": true, "splash": "water", "blurb": "A clay bulb of water bursts where it lands."},
+	"Oil arrows": {"value": 4, "weight": 150, "kind": "ammo", "ammo": true, "splash": "oil", "blurb": "A clay bulb of lamp oil bursts where it lands."},
+	"Frost arrows": {"value": 5, "weight": 100, "kind": "ammo", "ammo": true, "chill": 1, "blurb": "Rimed heads that steal the warmth from a wound."},
+	# Skill tomes (one per learnable skill)
+	"Kindle tome": {"value": 30, "weight": 600, "kind": "book", "teaches": "Kindle", "blurb": "Fire 1. Warm a friend into haste, or a barrel into flames."},
+	"Overgrowth tome": {"value": 30, "weight": 600, "kind": "book", "teaches": "Overgrowth", "blurb": "Life 1. Raise a tangle of vines that snares and burns."},
+	"Drain tome": {"value": 30, "weight": 600, "kind": "book", "teaches": "Drain", "blurb": "Death 1. Take a little of someone's life for your own."},
+	"Blight tome": {"value": 50, "weight": 600, "kind": "book", "teaches": "Blight", "blurb": "Death 2. Turn water to poison and the dead to a foul, flammable cloud."},
+	"Distract tome": {"value": 30, "weight": 600, "kind": "book", "teaches": "Distract", "blurb": "Psychic 1. Make someone look the other way."},
+	"Backstab tome": {"value": 50, "weight": 600, "kind": "book", "teaches": "Backstab", "blurb": "Rogue 2. Twice the hurt from behind."},
+	"Loaded Shot tome": {"value": 30, "weight": 600, "kind": "book", "teaches": "Loaded Shot", "blurb": "Ranger 1. Fire special arrows."},
+	"Pinning Shot tome": {"value": 30, "weight": 600, "kind": "book", "teaches": "Pinning Shot", "blurb": "Ranger 1. Nail someone's foot to the ground."},
 	"Bedroll": {"value": 10, "weight": 2000, "kind": "misc", "rest": true,
 			"blurb": "Rest with it when no enemies are near: the whole party heals."},
 	# Main hand (two-handed ones leave no room for the off hand)
@@ -52,6 +71,8 @@ const ITEMS := {
 	"Totem": {"value": 12, "weight": 1500, "kind": "weapon", "slot": "main_hand", "damage": 2, "scales": "mind", "blurb": "Carved and painted."},
 	"Spear": {"value": 15, "weight": 2200, "kind": "weapon", "slot": "main_hand", "two_handed": true, "damage": 4, "scales": "str", "blurb": "Two-handed. Long reach, simple."},
 	"Club": {"value": 3, "weight": 1500, "kind": "weapon", "slot": "main_hand", "damage": 3, "scales": "str", "blurb": "A heavy branch."},
+	"Shortbow": {"value": 25, "weight": 1000, "kind": "weapon", "slot": "main_hand", "two_handed": true, "damage": 3, "ranged": 7, "scales": "dex", "blurb": "Two-handed. Shoots up to 7 cells; better from high ground."},
+	"Sling": {"value": 8, "weight": 200, "kind": "weapon", "slot": "main_hand", "damage": 2, "ranged": 5, "scales": "dex", "blurb": "A strip of leather and a stone. Shoots up to 5 cells."},
 	"Fine sword": {"value": 60, "weight": 1500, "kind": "weapon", "slot": "main_hand", "damage": 6, "scales": "str", "blurb": "Well balanced; leaves a hand free."},
 	# Off hand
 	"Wooden shield": {"value": 14, "weight": 3000, "kind": "armor", "slot": "off_hand", "armor": 1, "blurb": "Round, oak, dented."},
@@ -102,9 +123,14 @@ static func slot_of(item: String) -> String:
 	return info(item).get("slot", "")
 
 
-## Using it does something (heals, warms, cools).
+## Using it does something (heals, warms, cools, teaches).
 static func is_usable(item: String) -> bool:
-	return amount(item, "heal") > 0 or amount(item, "temperature") != 0
+	return amount(item, "heal") > 0 or amount(item, "temperature") != 0 or has_property(item, "teaches")
+
+
+## The ability a tome teaches (-1 = none).
+static func teaches(item: String) -> int:
+	return SimAbilities.NAMES.find(info(item).get("teaches", ""))
 
 
 ## Total value (gold) and weight (grams) of an inventory.

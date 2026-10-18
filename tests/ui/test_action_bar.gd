@@ -32,8 +32,9 @@ func test_default_layout_has_fighting_actions_left_and_potions_right() -> void:
 	var first := HotbarLayout.page(_ari, 0)
 	assert_eq(first[0], HotbarLayout.action_entry(ActionInfo.ATTACK))
 	assert_eq(first[1], HotbarLayout.action_entry(A.FIREBOLT))
-	assert_eq(first[2], HotbarLayout.action_entry(A.OIL_FLASK), "the kit's flasks are a fighting action")
-	assert_eq(first[3], HotbarLayout.EMPTY, "nothing else on the left")
+	assert_eq(first[2], HotbarLayout.action_entry(A.KINDLE))
+	assert_eq(first[3], HotbarLayout.action_entry(A.OIL_FLASK), "the kit's flasks are a fighting action")
+	assert_eq(first[4], HotbarLayout.EMPTY, "nothing else on the left")
 	assert_eq(first[HotbarLayout.SLOTS - 1], HotbarLayout.item_entry("Healing potion"), "the potion at the right end")
 	var second := HotbarLayout.page(_ari, 1)
 	assert_eq(second.slice(0, 3), [HotbarLayout.action_entry(A.HELP_UP), HotbarLayout.action_entry(A.REVIVE),

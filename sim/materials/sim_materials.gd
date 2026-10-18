@@ -3,25 +3,37 @@ extends RefCounted
 ## Material definitions and tuning constants for the simulation.
 ## All values are integers (CLAUDE.md rule 4). Per-type tables are indexed by enum value.
 
-enum Surface { NONE, WATER, OIL, ICE }
-enum Gas { NONE, STEAM, SMOKE }
+## VINES: a tangle grown by Overgrowth: not a liquid, slows like oil, burns
+## fast, frost kills it. POISON: tainted water (Blight): hurts whoever stands
+## in it, flows like water, Rain washes it clean.
+enum Surface { NONE, WATER, OIL, ICE, VINES, POISON }
+## POISON gas is heavy: it creeps along the ground instead of rising, hurts
+## whoever stands in it, and explodes when fire reaches it.
+enum Gas { NONE, STEAM, SMOKE, POISON }
 
 ## Amount of liquid or gas considered one "full" cell.
 const AMOUNT_FULL := 100
 
-# Surfaces:                NONE   WATER  OIL    ICE
-const _SURFACE_FLUID :=     [false, true,  true,  false]
-const _SURFACE_FLAMMABLE := [false, false, true,  false]
+# Surfaces:                NONE   WATER  OIL    ICE    VINES  POISON
+const _SURFACE_FLUID :=     [false, true,  true,  false, false, true]
+const _SURFACE_FLAMMABLE := [false, false, true,  false, true,  false]
 ## Divisor for horizontal spread per tick; higher = thicker liquid.
-const _SURFACE_VISCOSITY := [1,     5,     8,     1]
+const _SURFACE_VISCOSITY := [1,     5,     8,     1,     1,     5]
 ## Below this amount a liquid stops spreading (it stays as a puddle).
-const _SURFACE_MIN_SPREAD := [0,    4,     6,     0]
+const _SURFACE_MIN_SPREAD := [0,    4,     6,     0,     0,     4]
 ## Puddles this deep or shallower stay put instead of creeping onto dry, flat
 ## ground. They still run off ledges, and deeper water (a pond) levels out.
-const _SURFACE_HOLD :=      [0,    20,    24,    0]
+const _SURFACE_HOLD :=      [0,    20,    24,    0,     0,     20]
+## Fuel a burning cell uses up per tick (vines go up fast).
+const _SURFACE_BURN :=      [0,    0,     2,     0,     4,     0]
 
-# Gases:                   NONE  STEAM  SMOKE
-const _GAS_DECAY :=        [0,   2,     3]
+# Gases:                   NONE  STEAM  SMOKE  POISON
+const _GAS_DECAY :=        [0,   2,     3,     2]
+const _GAS_RISES :=        [false, true, true, false]
+## Damage at the start of a turn standing in poison (water or gas), and the
+## fire damage of exploding poison gas to whoever is in or next to it.
+const POISON_DAMAGE := 1
+const EXPLOSION_DAMAGE := 5
 const GAS_SPREAD_DIVISOR := 6
 const GAS_MIN_SPREAD := 6
 
@@ -67,3 +79,11 @@ static func min_spread(surface: int) -> int:
 
 static func gas_decay(gas: int) -> int:
 	return _GAS_DECAY[gas]
+
+
+static func gas_rises(gas: int) -> bool:
+	return _GAS_RISES[gas]
+
+
+static func burn_rate(surface: int) -> int:
+	return _SURFACE_BURN[surface]

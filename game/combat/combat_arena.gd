@@ -1532,7 +1532,7 @@ func _update_range_now() -> void:
 				cells.append(c)
 				colors.append(COLOR_RANGE)
 		else:
-			var reach_cells := ActionInfo.range_of(action)
+			var reach_cells := ActionInfo.range_of(action, actor)
 			if action == SimAbilities.Ability.MEND:
 				cells.append(actor.cell)
 				colors.append(COLOR_RANGE)

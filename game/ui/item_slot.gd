@@ -90,6 +90,16 @@ static func stats_text(item: String) -> String:
 		parts.append("+%d max HP" % SimItems.amount(item, "max_hp"))
 	if SimItems.amount(item, "heal") > 0:
 		parts.append("heals %d" % SimItems.amount(item, "heal"))
+	if SimItems.amount(item, "ranged") > 0:
+		parts.append("range %d" % SimItems.amount(item, "ranged"))
+	var scales: String = SimItems.info(item).get("scales", "")
+	if scales != "":
+		parts.append({"str": "Strength", "dex": "Dexterity", "mind": "Mind"}.get(scales, scales))
+	if SimItems.has_property(item, "ammo"):
+		parts.append("arrow for Loaded Shot")
+	var skill := SimItems.teaches(item)
+	if skill >= 0:
+		parts.append("teaches %s (%s %d)" % [SimAbilities.NAMES[skill], StatRules.SCHOOLS[SimAbilities.SCHOOL[skill]].capitalize(), SimAbilities.RANK[skill]])
 	return "   ·   ".join(parts)
 
 

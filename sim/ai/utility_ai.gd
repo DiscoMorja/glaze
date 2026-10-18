@@ -163,7 +163,7 @@ static func candidates(state: SimState, e: SimEntity, walk: Dictionary = {}) -> 
 	var result: Array[SimCommand] = []
 	var opponents := CombatRules.fighters(state, CombatRules.opponent_of(e.faction))
 	for o in opponents:
-		if SimAbilities.is_adjacent(e.cell, o.cell):
+		if SimAbilities.is_adjacent(e.cell, o.cell) or AttackCommand.in_reach(state, e, o.cell):
 			result.append(AttackCommand.new(e.id, o.id))
 	var allies := CombatRules.fighters(state, e.faction)
 	for ability in SimAbilities.available(e):
@@ -174,7 +174,10 @@ static func candidates(state: SimState, e: SimEntity, walk: Dictionary = {}) -> 
 			SimAbilities.Ability.SHOCKWAVE:
 				for o in opponents:
 					result.append(CastCommand.new(e.id, ability, o.cell))
-			SimAbilities.Ability.SHOVE, SimAbilities.Ability.STEAL, SimAbilities.Ability.CLEAVE, SimAbilities.Ability.LOW_BLOW:
+			SimAbilities.Ability.DRAIN, SimAbilities.Ability.PINNING_SHOT, SimAbilities.Ability.LOADED_SHOT:
+				for o in opponents:
+					result.append(CastCommand.new(e.id, ability, o.cell))
+			SimAbilities.Ability.SHOVE, SimAbilities.Ability.STEAL, SimAbilities.Ability.CLEAVE, SimAbilities.Ability.LOW_BLOW, SimAbilities.Ability.BACKSTAB:
 				for o in opponents:
 					if SimAbilities.is_adjacent(e.cell, o.cell):
 						result.append(CastCommand.new(e.id, ability, o.cell))
@@ -207,6 +210,8 @@ static func candidates(state: SimState, e: SimEntity, walk: Dictionary = {}) -> 
 
 ## Ranged units hang back at PREFERRED_RANGE instead of closing to melee.
 static func is_ranged(e: SimEntity) -> bool:
+	if SimItems.has_property(e.weapon, "ranged"):
+		return true
 	for ability in [SimAbilities.Ability.FIREBOLT, SimAbilities.Ability.TELEPORT, SimAbilities.Ability.MEND]:
 		if e.abilities.has(ability):
 			return true
@@ -234,7 +239,8 @@ static func _follow_up(state: SimState, e: SimEntity) -> void:
 	while e.is_alive() and e.ap >= CombatRules.ATTACK_AP:
 		var target: SimEntity = null
 		for o in CombatRules.fighters(state, CombatRules.opponent_of(e.faction)):
-			if SimAbilities.is_adjacent(e.cell, o.cell) and (target == null or o.hp < target.hp):
+			var reachable := SimAbilities.is_adjacent(e.cell, o.cell) or AttackCommand.in_reach(state, e, o.cell)
+			if reachable and (target == null or o.hp < target.hp):
 				target = o
 		if target != null:
 			if not state.apply_command(AttackCommand.new(e.id, target.id)):

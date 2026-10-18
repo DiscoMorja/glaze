@@ -43,6 +43,15 @@ static func catch_from_fire(state: SimState, cells: Array[Vector3i]) -> void:
 			ignite(state, c)
 
 
+## Poison gas just released onto `cells` explodes at once where it touches fire.
+static func catch_gas_from_fire(state: SimState, cells: Array[Vector3i]) -> void:
+	var grid := state.grid
+	for c in cells:
+		if grid.gas_type[grid.index(c)] == SimMaterials.Gas.POISON and _fire_next_to(grid, c):
+			GasRules.explode(state, c)
+			return
+
+
 static func _fire_next_to(grid: SimGrid, c: Vector3i) -> bool:
 	if grid.fire[grid.index(c)] > 0:
 		return true
@@ -57,6 +66,9 @@ static func _fire_next_to(grid: SimGrid, c: Vector3i) -> bool:
 ## Lights a cell; whoever stands there catches fire right away.
 static func _light(state: SimState, c: Vector3i, burn_occupant: bool = true) -> void:
 	var i := state.grid.index(c)
+	if state.grid.gas_type[i] == SimMaterials.Gas.POISON:
+		GasRules.explode(state, c)  # (which lights this cell again, gas-free)
+		return
 	var was_burning: bool = state.grid.fire[i] > 0
 	if not was_burning:
 		state.emit_event(SimEvent.Type.IGNITED, c)
@@ -110,7 +122,7 @@ static func step(state: SimState) -> void:
 			state.emit_event(SimEvent.Type.EXTINGUISHED, c)
 		elif SimMaterials.is_flammable(t) and amounts[i] > 0:
 			next_fire[i] = SimMaterials.FIRE_MAX
-			var fuel_left: int = amounts[i] - SimMaterials.OIL_BURN_PER_TICK
+			var fuel_left: int = amounts[i] - SimMaterials.burn_rate(t)
 			if fuel_left <= 0:
 				grid.clear_surface(i)
 			else:
@@ -136,11 +148,17 @@ static func step(state: SimState) -> void:
 			grid.set_temperature(i, maxi(grid.temperature[i], SimMaterials.FIRE_TEMPERATURE))
 
 	var lit: Array[int] = []
+	var blasts: Array[int] = []
 	for i: int in next_fire:
 		if fire[i] == 0 and next_fire[i] > 0:
 			lit.append(i)
 		grid.set_fire(i, next_fire[i])
+		if next_fire[i] > 0 and grid.gas_type[i] == SimMaterials.Gas.POISON:
+			blasts.append(i)
 	# Fire spreading under someone sets them alight.
 	lit.sort()
 	for i in lit:
 		_burn_occupant(state, grid.coord(i))
+	blasts.sort()
+	for i in blasts:
+		GasRules.explode(state, grid.coord(i))

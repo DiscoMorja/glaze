@@ -15,6 +15,7 @@ const ELEMENT_LOOK := {
 	EntityOps.Element.PHYSICAL: {"color": Color(1.0, 1.0, 1.0), "burst": "blood"},
 	EntityOps.Element.FIRE: {"color": Color(1.0, 0.55, 0.15), "burst": "fire"},
 	EntityOps.Element.FROST: {"color": Color(0.5, 0.8, 1.0), "burst": "ice"},
+	EntityOps.Element.DEATH: {"color": Color(0.7, 0.45, 0.95), "burst": "arcane"},
 }
 
 signal shake_requested(strength: float)
@@ -25,11 +26,24 @@ const ABILITY_PROJECTILES := {
 	SimAbilities.Ability.FIREBOLT: {"color": Color(1.0, 0.45, 0.1), "fallback": "fire", "cast": "fire_cast", "projectile": "fire_projectile", "impact": ["fire_area"]},
 	SimAbilities.Ability.FROST: {"color": Color(0.6, 0.9, 1.0), "fallback": "ice", "cast": "water_cast", "projectile": "water_projectile", "impact": ["ice_impact", "ice"]},
 	SimAbilities.Ability.OIL_FLASK: {"color": Color(0.35, 0.22, 0.08), "fallback": "oil", "cast": "", "projectile": "", "impact": []},
+	SimAbilities.Ability.KINDLE: {"color": Color(1.0, 0.6, 0.2), "fallback": "spark", "cast": "", "projectile": "", "impact": []},
+	SimAbilities.Ability.DRAIN: {"color": Color(0.6, 0.3, 0.9), "fallback": "arcane", "cast": "", "projectile": "", "impact": []},
+	SimAbilities.Ability.BLIGHT: {"color": Color(0.5, 0.75, 0.2), "fallback": "dust", "cast": "", "projectile": "", "impact": []},
+	SimAbilities.Ability.DISTRACT: {"color": Color(0.75, 0.65, 1.0), "fallback": "arcane", "cast": "", "projectile": "", "impact": []},
+	SimAbilities.Ability.LOADED_SHOT: {"color": Color(0.9, 0.8, 0.55), "fallback": "spark", "cast": "", "projectile": "", "impact": []},
+	SimAbilities.Ability.PINNING_SHOT: {"color": Color(0.9, 0.8, 0.55), "fallback": "dust", "cast": "", "projectile": "", "impact": []},
 }
+## Colour of an arrow or stone from a bow or sling.
+const SHOT_COLOR := Color(0.9, 0.8, 0.55)
+
+
+## Whether this batch's cast was a bow shot (its projectile already flew).
+var _last_cast_was_shot := false
 
 
 func play(state: SimState, events: Array[SimEvent]) -> void:
 	var delay := 0.0
+	_last_cast_was_shot = false
 	var ignites := 0
 	for e in events:
 		match e.type:
@@ -82,7 +96,45 @@ func play(state: SimState, events: Array[SimEvent]) -> void:
 						VfxFactory.burst(self, _body(from), "arcane")
 						VfxFactory.burst(self, _body(to), "arcane"))
 			SimEvent.Type.ATTACKED:
-				_later(delay, func() -> void: VfxFactory.burst(self, _body(e.cell), "slash"))
+				var shooter := state.get_entity(e.other_id)
+				var ranged := shooter != null and not SimAbilities.is_adjacent(shooter.cell, e.cell) and SimItems.has_property(shooter.weapon, "ranged")
+				if ranged and not _last_cast_was_shot:
+					# A bow or sling attack: the arrow flies first (shots fly as their cast).
+					var from := _body(shooter.cell) + Vector3(0, 0.5, 0)
+					var to := _body(e.cell)
+					_later(delay, func() -> void: VfxFactory.projectile(self, from, to, SHOT_COLOR, PROJECTILE_SECONDS, func() -> void: VfxFactory.burst(self, to, "spark")))
+					delay += PROJECTILE_SECONDS
+				else:
+					_later(delay, func() -> void: VfxFactory.burst(self, _body(e.cell), "slash"))
+			SimEvent.Type.EXPLODED:
+				var blast := e.cells.duplicate()
+				_later(delay, func() -> void:
+					for c: Vector3i in blast:
+						VfxFactory.burst(self, _body(c), "fire", 1.8)
+					VfxFactory.flash(self, _body(e.cell), Color(1.0, 0.6, 0.2), 10.0, 0.4)
+					VfxFactory.floating_text(self, _body(e.cell) + Vector3(0, 1.2, 0), "Boom!", Color(1.0, 0.7, 0.3), 80)
+					shake_requested.emit(0.45))
+			SimEvent.Type.GREW:
+				var grown := e.cells.duplicate()
+				_later(delay, func() -> void:
+					for c: Vector3i in grown:
+						VfxFactory.burst(self, _feet(c), "heal", 0.6))
+			SimEvent.Type.BLIGHTED:
+				var rotted := e.cells.duplicate()
+				_later(delay, func() -> void:
+					for c: Vector3i in rotted:
+						VfxFactory.burst(self, _feet(c), "arcane", 0.6))
+			SimEvent.Type.PINNED:
+				_later(delay, func() -> void:
+					VfxFactory.floating_text(self, _body(e.cell) + Vector3(0, 1.0, 0), "Pinned!", Color(0.9, 0.8, 0.55), 60))
+			SimEvent.Type.DISTRACTED:
+				_later(delay, func() -> void:
+					VfxFactory.floating_text(self, _body(e.cell) + Vector3(0, 1.0, 0), "Huh?", Color(0.75, 0.65, 1.0), 60))
+			SimEvent.Type.LEARNED:
+				var skill := e.text
+				_later(delay, func() -> void:
+					VfxFactory.burst(self, _feet(e.cell), "glitter", 1.0)
+					VfxFactory.floating_text(self, _body(e.cell) + Vector3(0, 1.0, 0), "Learned %s" % skill, Color(1.0, 0.88, 0.4), 60))
 			SimEvent.Type.COLLIDED:
 				_later(delay, func() -> void:
 					VfxFactory.burst(self, _body(e.cell), "dust")
@@ -154,6 +206,7 @@ func play(state: SimState, events: Array[SimEvent]) -> void:
 func _cast(state: SimState, e: SimEvent, delay: float) -> float:
 	var caster := state.get_entity(e.entity_id)
 	var ability := e.amount
+	_last_cast_was_shot = SimAbilities.SHOTS.has(ability)
 	var target := e.cell
 	if ABILITY_PROJECTILES.has(ability) and caster != null:
 		var look: Dictionary = ABILITY_PROJECTILES[ability]

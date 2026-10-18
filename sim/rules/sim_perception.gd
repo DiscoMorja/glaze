@@ -71,7 +71,7 @@ static func look_around(state: SimState) -> void:
 	for e in state.entities:
 		if not e.is_alive() or not e.takes_turns() or e.faction == SimEntity.Faction.PLAYERS:
 			continue
-		if not e.travel.is_empty() or e.sight <= 0:
+		if not e.travel.is_empty() or e.sight <= 0 or e.distracted > 0:
 			continue
 		var offset: int = LOOK_PATTERN[(beat + e.id) % LOOK_PATTERN.size()]
 		e.facing = posmod(e.home_facing + offset, FACINGS.size())

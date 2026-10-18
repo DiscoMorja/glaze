@@ -5,22 +5,27 @@ extends RefCounted
 ## comes from SimArchetypes.
 
 ## New abilities go at the end: saves store cooldowns by this order.
-enum Ability { FIREBOLT, RAIN, TELEPORT, SHOVE, STEAL, FROST, OIL_FLASK, MEND, CLEAVE, BLINK, HELP_UP, REVIVE, PICKPOCKET, SHOCKWAVE, LOW_BLOW }
+enum Ability {
+	FIREBOLT, RAIN, TELEPORT, SHOVE, STEAL, FROST, OIL_FLASK, MEND, CLEAVE, BLINK, HELP_UP, REVIVE, PICKPOCKET, SHOCKWAVE, LOW_BLOW,
+	KINDLE, OVERGROWTH, DRAIN, BLIGHT, DISTRACT, BACKSTAB, LOADED_SHOT, PINNING_SHOT,
+}
 
-const NAMES := ["Firebolt", "Rain", "Teleport", "Shove", "Steal", "Frost", "Oil Flask", "Mend", "Cleave", "Blink", "Help up", "Revive", "Pickpocket", "Shockwave", "Low Blow"]
-const AP_COST := [2, 2, 2, 1, 1, 2, 1, 2, 2, 1, 1, 0, 0, 2, 1]
-## Reach in cells. 1 means adjacent only (diagonals count).
-const RANGE := [7, 7, 7, 1, 1, 6, 6, 5, 1, 4, 1, 1, 1, 5, 1]
+const NAMES := ["Firebolt", "Rain", "Teleport", "Shove", "Steal", "Frost", "Oil Flask", "Mend", "Cleave", "Blink", "Help up", "Revive", "Pickpocket", "Shockwave", "Low Blow",
+		"Kindle", "Overgrowth", "Drain", "Blight", "Distract", "Backstab", "Loaded Shot", "Pinning Shot"]
+const AP_COST := [2, 2, 2, 1, 1, 2, 1, 2, 2, 1, 1, 0, 0, 2, 1, 1, 2, 2, 2, 1, 2, 2, 2]
+## Reach in cells. 1 means adjacent only (diagonals count). Shots reach as far
+## as the bow or sling in hand (AttackCommand.reach()), at most this.
+const RANGE := [7, 7, 7, 1, 1, 6, 6, 5, 1, 4, 1, 1, 1, 5, 1, 6, 6, 5, 6, 6, 1, 7, 7]
 ## Turns until an ability can be used again by its user: 1 = once per turn,
 ## 3 = every third turn. In combat they count down at the start of the user's
 ## turn; outside combat every CombatRules.REALTIME_TICKS_PER_TURN ticks.
-const COOLDOWN := [1, 2, 3, 1, 2, 2, 2, 3, 2, 2, 0, 0, 0, 2, 3]
+const COOLDOWN := [1, 2, 3, 1, 2, 2, 2, 3, 2, 2, 0, 0, 0, 2, 3, 3, 2, 2, 3, 2, 2, 1, 2]
 ## The school each ability belongs to (StatRules.School, -1 = everyone's) and
 ## the rank in it needed to use it. Ranks above that add potency.
 ## (StatRules.School order: FIRE 0, ICE 1, LIFE 2, DEATH 3, PSYCHIC 4,
 ## WARRIOR 5, ROGUE 6, RANGER 7.)
-const SCHOOL := [0, 1, 4, 5, 6, 1, -1, 2, 5, 4, -1, -1, -1, 5, 6]
-const RANK := [1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 2, 1]
+const SCHOOL := [0, 1, 4, 5, 6, 1, -1, 2, 5, 4, -1, -1, -1, 5, 6, 0, 2, 3, 3, 4, 6, 7, 7]
+const RANK := [1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 2, 1, 1, 1, 1, 2, 1, 2, 1, 1]
 ## Abilities that come from an item instead of being known: carrying an item
 ## whose "casts" names the ability grants it, and each use spends one.
 const FROM_ITEM := [Ability.OIL_FLASK]
@@ -59,6 +64,30 @@ const SHOCKWAVE_STAGGER := 2
 ## Low Blow: a dirty trip on one adjacent character, enough to knock most
 ## people down by itself.
 const LOW_BLOW_STAGGER := 3
+## Kindle: temperature levels it adds. A Hot character gains an extra AP at
+## the start of its turn (CombatRules); a barrel of oil catches fire, a
+## barrel of water steams.
+const KINDLE_HEAT := 1
+const KINDLE_STEAM := 40
+## Overgrowth: a disc of vines (not a liquid: it stays put).
+const OVERGROWTH_RADIUS := 2
+const VINES_AMOUNT := 12
+## Drain: death damage; the caster heals what it dealt.
+const DRAIN_DAMAGE := 3
+## Blight: water in this radius turns to poison, vines rot away; a corpse in
+## the target cell bursts into poison gas over this radius.
+const BLIGHT_RADIUS := 1
+const BLIGHT_GAS := 30
+## Distract: turns the target keeps its back to the caster (Mind shortens it,
+## never below 1).
+const DISTRACT_TURNS := 2
+## Shots need a weapon with "ranged". Loaded Shot fires the first carried
+## item with "ammo" (used up): "ignite" lights the target cell, "splash"
+## ("water"/"oil") splashes that liquid over SHOT_SPLASH_RADIUS, "chill" cools
+## the target a level.
+const SHOT_SPLASH_RADIUS := 1
+const SHOT_SPLASH_AMOUNT := 20
+const SHOTS := [Ability.LOADED_SHOT, Ability.PINNING_SHOT]
 
 
 ## Potency: the caster's rank in the ability's school above the rank it needs.
@@ -100,6 +129,14 @@ static func lacks(caster: SimEntity, ability: int) -> String:
 	if not has_rank(caster, ability):
 		return "Needs %s %d" % [StatRules.SCHOOLS[SCHOOL[ability]].capitalize(), RANK[ability]]
 	return ""
+
+
+## Index of the first carried ammunition (-1 = none).
+static func ammo_index(e: SimEntity) -> int:
+	for i in e.inventory.size():
+		if SimItems.has_property(e.inventory[i], "ammo"):
+			return i
+	return -1
 
 
 static func all() -> Array[int]:
@@ -197,16 +234,33 @@ static func validate(state: SimState, caster: SimEntity, ability: int, target: V
 		return false
 	if not state.grid.in_bounds(target) or state.grid.is_solid(target):
 		return false
-	var self_target := ability == Ability.MEND and target == caster.cell
+	var self_target := (ability == Ability.MEND or ability == Ability.KINDLE) and target == caster.cell
 	if not self_target and not can_reach(ability, caster.cell, target):
 		return false
 	if needs_line_of_sight(ability) and not SimLos.has_line_of_sight(state.grid, caster.cell, target):
 		return false
+	if SHOTS.has(ability) and not AttackCommand.in_reach(state, caster, target):
+		return false  # needs a bow or sling, and the target within its range
 	var victim := state.entity_at(target)
 	var other_victim := victim != null and victim.id != caster.id
 	match ability:
-		Ability.FIREBOLT, Ability.RAIN, Ability.FROST, Ability.OIL_FLASK:
+		Ability.FIREBOLT, Ability.RAIN, Ability.FROST, Ability.OIL_FLASK, Ability.OVERGROWTH:
 			return true
+		Ability.KINDLE:
+			return victim != null
+		Ability.DRAIN, Ability.DISTRACT, Ability.BACKSTAB, Ability.PINNING_SHOT:
+			return other_victim and victim.takes_turns()
+		Ability.LOADED_SHOT:
+			return ammo_index(caster) >= 0 and not (victim != null and victim.id == caster.id)
+		Ability.BLIGHT:
+			var corpse := state.corpse_at(target)
+			if corpse != null and not corpse.blighted:
+				return true
+			for c in splash_cells(state.grid, target, BLIGHT_RADIUS):
+				var s: int = state.grid.surface_type[state.grid.index(c)]
+				if s == SimMaterials.Surface.WATER or s == SimMaterials.Surface.VINES:
+					return true
+			return false
 		Ability.TELEPORT:
 			return (other_victim
 					and victim.mass <= StatRules.teleport_limit(caster)
@@ -266,6 +320,9 @@ static func execute(state: SimState, caster: SimEntity, ability: int, target: Ve
 					state.grid.clear_surface(i)
 					state.grid.add_gas_at(i, SimMaterials.Gas.STEAM, SimMaterials.STEAM_PER_EXTINGUISH)
 					state.emit_event(SimEvent.Type.EXTINGUISHED, c)
+				if state.grid.surface_type[i] == SimMaterials.Surface.POISON:
+					state.grid.edit_surfaces()
+					state.grid.surface_type[i] = SimMaterials.Surface.WATER  # rain washes poison clean
 				state.grid.add_surface(c, SimMaterials.Surface.WATER, RAIN_AMOUNT)
 				var soaked := state.entity_at(c)
 				if soaked != null:
@@ -309,6 +366,104 @@ static func execute(state: SimState, caster: SimEntity, ability: int, target: Ve
 			EntityOps.revive(state, state.corpse_at(target), caster.id)
 		Ability.PICKPOCKET:
 			_pickpocket(state, caster, victim, maxi(item, 0))
+		Ability.KINDLE:
+			_kindle(state, caster, victim)
+		Ability.OVERGROWTH:
+			var grown: Array[Vector3i] = []
+			for c in splash_cells(state.grid, target, OVERGROWTH_RADIUS):
+				if state.grid.surface_type[state.grid.index(c)] == SimMaterials.Surface.NONE:
+					state.grid.add_surface(c, SimMaterials.Surface.VINES, VINES_AMOUNT)
+					grown.append(c)
+			var event := state.emit_event(SimEvent.Type.GREW, target, caster.id)
+			event.cells.assign(grown)
+			FireRules.catch_from_fire(state, grown)
+			for c in grown:
+				var caught := state.entity_at(c)
+				if caught != null:
+					EntityOps.slow_if_in_oil(state, caught)
+		Ability.DRAIN:
+			var before := victim.hp
+			EntityOps.damage(state, victim, DRAIN_DAMAGE + caster.spell_power() + potency(caster, ability), caster.id, EntityOps.Element.DEATH)
+			EntityOps.heal(state, caster, before - victim.hp, caster.id)
+		Ability.BLIGHT:
+			_blight(state, caster, target)
+		Ability.DISTRACT:
+			victim.distracted = maxi(1, DISTRACT_TURNS - victim.mind / 4)
+			victim.facing = SimPerception.facing_toward(caster.cell, victim.cell, victim.facing)  # its back to the caster
+			state.emit_event(SimEvent.Type.DISTRACTED, victim.cell, victim.id, caster.id, victim.distracted)
+		Ability.BACKSTAB:
+			var behind := StatRules.is_behind(caster, victim)
+			var hit := StatRules.hit_damage(caster, victim)
+			state.emit_event(SimEvent.Type.ATTACKED, victim.cell, victim.id, caster.id)
+			EntityOps.damage(state, victim, hit * 2 if behind else hit, caster.id)
+		Ability.LOADED_SHOT:
+			_loaded_shot(state, caster, target, victim)
+		Ability.PINNING_SHOT:
+			state.emit_event(SimEvent.Type.ATTACKED, victim.cell, victim.id, caster.id)
+			EntityOps.damage(state, victim, StatRules.hit_damage(caster, victim), caster.id)
+			if victim.is_alive():
+				victim.pinned = EntityOps.PIN_TURNS
+				state.emit_event(SimEvent.Type.PINNED, victim.cell, victim.id, caster.id)
+
+
+## Heats the target a level; a barrel's contents react: oil catches fire,
+## water boils off as steam.
+static func _kindle(state: SimState, caster: SimEntity, victim: SimEntity) -> void:
+	if victim.takes_turns():
+		EntityOps.change_temperature(state, victim, KINDLE_HEAT, caster.id)
+	elif victim.contents_surface == SimMaterials.Surface.OIL and victim.contents_amount > 0:
+		FireRules.ignite(state, victim.cell)
+	elif victim.contents_surface == SimMaterials.Surface.WATER and victim.contents_amount > 0:
+		state.grid.add_gas(victim.cell, SimMaterials.Gas.STEAM, KINDLE_STEAM)
+
+
+## Rots what is there: water turns to poison, vines wither, and a corpse
+## bursts into a cloud of poison gas (once).
+static func _blight(state: SimState, caster: SimEntity, target: Vector3i) -> void:
+	var grid := state.grid
+	var cells := splash_cells(grid, target, BLIGHT_RADIUS)
+	var event := state.emit_event(SimEvent.Type.BLIGHTED, target, caster.id)
+	event.cells.assign(cells)
+	for c in cells:
+		var i := grid.index(c)
+		if grid.surface_type[i] == SimMaterials.Surface.WATER:
+			grid.edit_surfaces()
+			grid.surface_type[i] = SimMaterials.Surface.POISON
+		elif grid.surface_type[i] == SimMaterials.Surface.VINES:
+			grid.clear_surface(i)
+	var corpse := state.corpse_at(target)
+	if corpse != null and not corpse.blighted:
+		corpse.blighted = true
+		for c in cells:
+			grid.add_gas(c, SimMaterials.Gas.POISON, BLIGHT_GAS)
+		FireRules.catch_gas_from_fire(state, cells)
+
+
+## A hit with the bow or sling, and whatever the arrow carries.
+static func _loaded_shot(state: SimState, caster: SimEntity, target: Vector3i, victim: SimEntity) -> void:
+	var ammo: String = caster.inventory[ammo_index(caster)]
+	caster.inventory.remove_at(ammo_index(caster))
+	var shot := state.emit_event(SimEvent.Type.ITEM_USED, target, caster.id, caster.id)
+	shot.text = ammo
+	if victim != null:
+		state.emit_event(SimEvent.Type.ATTACKED, victim.cell, victim.id, caster.id)
+		EntityOps.damage(state, victim, StatRules.hit_damage(caster, victim), caster.id)
+	var splash: String = SimItems.info(ammo).get("splash", "")
+	if splash != "":
+		var surface := SimMaterials.Surface.WATER if splash == "water" else SimMaterials.Surface.OIL
+		var cells := splash_cells(state.grid, target, SHOT_SPLASH_RADIUS)
+		for c in cells:
+			state.grid.add_surface(c, surface, SHOT_SPLASH_AMOUNT)
+			var soaked := state.entity_at(c)
+			if soaked != null and surface == SimMaterials.Surface.WATER:
+				EntityOps.cool_with_water(state, soaked, 1, caster.id)
+		FireRules.catch_from_fire(state, cells)
+	if SimItems.amount(ammo, "chill") > 0 and victim != null and victim.is_alive():
+		EntityOps.change_temperature(state, victim, -SimItems.amount(ammo, "chill"), caster.id)
+	if SimItems.has_property(ammo, "ignite"):
+		FireRules.ignite(state, target, victim == null or not victim.is_alive())
+		if victim != null and victim.is_alive():
+			EntityOps.change_temperature(state, victim, FIREBOLT_HEAT, caster.id)
 
 
 ## Pushes the victim up to SHOVE_DISTANCE cells away from the caster. Walls and
@@ -406,6 +561,8 @@ static func _frost(state: SimState, caster: SimEntity, target: Vector3i) -> void
 			grid.edit_surfaces()
 			grid.surface_type[i] = SimMaterials.Surface.ICE
 			state.emit_event(SimEvent.Type.FROZE, c)
+		elif grid.surface_type[i] == SimMaterials.Surface.VINES:
+			grid.clear_surface(i)  # frost kills the vines
 		var occupant := state.entity_at(c)
 		if occupant != null:
 			EntityOps.damage(state, occupant, FROST_DAMAGE + caster.spell_power() + potency(caster, Ability.FROST), caster.id, EntityOps.Element.FROST)
