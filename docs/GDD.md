@@ -219,6 +219,18 @@ A combat/event log and barks built from simulation events — e.g. *"Gerald was 
 - **Inventory** (I): a grid of 1-item slots per character, always with a free row (no limit). Items come from the catalog `sim/items/sim_items.gd` (value in gold, weight in grams, kind, blurb); drag an item onto another slot to move it (onto an empty slot: to the end; free, any time), or onto a party member's card to give it (outside combat); hover a slot for details, or click it to select and use the give buttons (stolen tags travel with it). The footer shows the count, total value and weight. Partners can pickpocket each other's characters (no crime).
 - Start area: a small village (Merchant at a stall, Villager, Farmer, Guard) between the party and the pond.
 
+### 5.8 Loot, items, trade and progression (M4)
+
+All of these are commands on properties, never on item names (rule 9): items in `sim/items/sim_items.gd` carry `heal`, `temperature`, `slot`/`damage`/`armor`, `money`, `rest`.
+
+- **Containers** (`LevelContainer` markers, `LootCommand`): anything with items that isn't a living character or a party member — chests, broken crates, enemy corpses. Click to open (walk over first); take one or all, outside combat. `key` locks it until someone carries that item; destroying it (bashing, fire) breaks it open with its contents. Containers under a neutral group's node are theirs: taking is theft (stolen tags, witnesses). Fallen enemies drop what they wore.
+- **Consumables** (`UseItemCommand`): on yourself or an adjacent ally; 1 AP in combat. Healing potion, Bread, Cooling salve (puts out Burning), Warming draught (thaws).
+- **Rest** (`RestCommand`): with a Bedroll in the party, outside combat, no enemies within 12 cells: the standing party heals fully and clears statuses and cooldowns. The fallen need Revive first.
+- **Trade** (`TradeCommand`): characters carry `gold`. Traders (`LevelSpawn.trades`) offer it in dialogue (`~ trade`); one deal = buy and sell lists. Buying costs value (×1.5 when suspicious), selling fetches half (money at full value). A trader won't buy back its own group's stolen goods; other stolen goods get fenced.
+- **Equipment** (`EquipCommand`, outside combat): weapon slot sets damage, armour slot takes its value off each physical hit (at least 1 gets through; fire/frost ignore it).
+- **Progression** (`ProgressionRules`): shared XP (everyone in the party gets all of it) from defeated enemies (4 × max HP) and quest outcomes (`xp:` line in .quest files). Level n+1 at 50·n·(n+1) XP: +2 max HP and a point for Vitality (+4 HP), Power (+1 damage, spells too) or Resolve (+1 stagger). Shown in the inventory's character sheet.
+- Quests only end once known: clearing the camp before hearing of it ends the quest the moment you do.
+
 ## 6. Quests & Events — Outcomes, Not Methods
 
 - Quests are **predicates over world facts**, never step-by-step scripts.
@@ -385,4 +397,5 @@ Levels are built freely in Godot and baked into the sim (`GameLevel.bake()`, run
 | 2026-10-18 | M4 dialogue & quests: own ink-like text format run inside the sim (talk/choose are commands), facts as integers (stored + derived from the world), quests as outcome predicates with journal text; first quest "The bandit problem". Co-op: one talks, both see. Dialogue tool question closed (no addon). |
 | 2026-10-18 | Save system: save anywhere (combat too), host owns co-op saves, quick + rotating auto + named slots; saves are versioned sim snapshots with default-tolerant loading, migrations and per-version fixtures. |
 | 2026-10-18 | Readability: world text kept to a minimum. Statuses are icons with turns left (spelled out on hover); names only on the hovered/selected character (Alt shows all); AP lives in the party bar; the HUD shows state and the current preview, with controls behind H and perf behind `. |
+| 2026-10-18 | M4 slice systems: containers with keys (bash-open, theft from neutrals), consumables, bedroll rest, trading with gold, weapon/armour slots, shared XP with level points. All property-driven commands; quests end only once known. |
 | 2026-10-17 | Scope: Prologue (1 hub + 1 zone, 2–3 h co-op) targeted at 12–18 months, 6–8 h/week, Claude Code writes the code. |

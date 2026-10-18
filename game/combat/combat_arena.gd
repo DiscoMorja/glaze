@@ -22,6 +22,8 @@ extends Node3D
 ## use. Actions that would hurt your own party need a second click to confirm.
 ## Teleport takes two clicks: the target, then where to put it.
 ## Enter: end turn (asks first if anyone has AP left)   Esc: cancel   R: restart
+## Left-click a chest or a body (outside combat) to open it, walking over
+## first if needed; the loot window takes items (Space: all, Esc: close).
 ## H: show the controls   `: show the perf readout
 ## Esc with nothing aimed: menu (save, load, quit). F5 quicksave, F9 quickload
 ## (host only); the host also autosaves (see _autosave_due()).
@@ -144,6 +146,10 @@ var _inventory: InventoryPanel
 var _dialogue: DialoguePanel
 var _journal: JournalPanel
 var _save_menu: SaveMenu
+var _loot: LootPanel
+var _trade: TradePanel
+## A container to open once the selected character has walked up to it (-1 = none).
+var _pending_loot := -1
 ## The HUD's controls help (H) and perf readout (`), off by default.
 var _show_help := false
 var _show_perf := false
@@ -247,6 +253,8 @@ func _update_hover() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouse:
 		_mouse_pos = event.position
+	if state == null:
+		return  # still loading the level
 	if _save_menu.visible:
 		if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 			_save_menu.close()
@@ -255,6 +263,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 	if event is InputEventKey and event.pressed and not event.echo:
 		if _dialogue.handle_key(event.keycode):
+			return
+		if _loot.handle_key(event.keycode):
+			return
+		if _trade.handle_key(event.keycode):
 			return
 		if _confirming_end_turn:
 			match event.keycode:
@@ -432,6 +444,24 @@ func _toggle_sneak() -> void:
 	Net.submit(SneakCommand.new(e.id, not e.sneaking))
 
 
+## Opens a container's loot window, or walks over to it first (it opens on
+## arrival), or says why not (locked, mid-fight).
+func _open_container(container: SimEntity) -> void:
+	var actor := state.get_entity(_selected_id)
+	var reason := LootCommand.blocker(state, actor, container)
+	_pending_loot = -1
+	if reason == "":
+		_loot.open(container.id)
+		_refresh()
+	elif reason == "Too far":
+		var spot: Variant = _formation_cell(container.cell, {container.cell: true}, _selected_id)
+		if spot != null:
+			_travel_party(spot)
+			_pending_loot = container.id
+	else:
+		_show_banner(reason)
+
+
 ## An NPC this player could start talking to (outside combat, not hostile).
 func _talkable(e: SimEntity) -> bool:
 	return (e != null and e.is_alive() and e.dialogue != "" and SimDialogue.knots.has(e.dialogue)
@@ -467,6 +497,11 @@ func _apply_tick() -> void:
 		_update_preview()
 	elif was_walking and state.get_entity(_selected_id).travel.is_empty():
 		_update_preview()  # arrived: what the cursor offers may have changed (e.g. talk)
+		var pending := state.get_entity(_pending_loot)
+		_pending_loot = -1
+		if pending != null and LootCommand.blocker(state, state.get_entity(_selected_id), pending) == "":
+			_loot.open(pending.id)
+			_refresh()
 
 
 ## Walks the selected character to `dest`; the rest of this player's party
@@ -513,6 +548,10 @@ func _left_click() -> void:
 		_select(clicked.id, false)  # the partner's too, to look at
 		return
 	if not _can_order():
+		return
+	var thing := state.thing_at(cell)
+	if _action == ActionInfo.NONE and LootCommand.is_container(thing):
+		_open_container(thing)
 		return
 	if _action == ActionInfo.NONE and _talkable(clicked):
 		var talk := TalkCommand.new(_selected_id, clicked.id)
@@ -589,6 +628,14 @@ func _apply_or_resync(command: SimCommand) -> bool:
 	push_warning("A command from the host doesn't apply here; resyncing: %s" % command.to_dict())
 	Net.request_snapshot()
 	return false
+
+
+## Sends a command if it is valid now, else shows why not.
+func _submit_or_say(command: SimCommand, reason: String) -> void:
+	if command.validate(state):
+		Net.submit(command)
+	elif reason != "":
+		_show_banner(reason)
 
 
 # --- Saving --------------------------------------------------------------------
@@ -1031,6 +1078,15 @@ func _present(s: SimState, events: Array[SimEvent]) -> void:
 			_autosave_reason = "quest ended"
 		elif e.type == SimEvent.Type.COMBAT_STARTED:
 			_autosave_reason = "fight"
+		elif e.type == SimEvent.Type.TRADE_OFFERED and Net.may_control(Net.local_slot, s.get_entity(e.other_id)) and s == state:
+			_trade.open(e.other_id, e.entity_id)
+			Net.submit(ChooseCommand.new(e.other_id, -1))  # the talk is done: on to the deal
+		elif e.type == SimEvent.Type.LEVELED_UP and s == state:
+			var who := s.get_entity(e.entity_id)
+			if who != null and Net.may_control(Net.local_slot, who):
+				_show_banner("%s reached level %d — I: spend the point" % [who.name, e.amount])
+		elif e.type == SimEvent.Type.RESTED:
+			_show_banner("Rested")
 	_entity_renderer.walk_seconds = 1.0 / EXPLORE_TICKS_PER_SECOND if not s.combat.active else 0.0
 	_grid_renderer.render(s.grid)
 	_fire_field.sync(s.grid)
@@ -1400,7 +1456,19 @@ func _update_preview_now() -> void:
 		cells.append(_teleport_target)
 		colors.append(COLOR_TARGET)
 
-	if _can_order() and _hover != null and actor != null and _action == ActionInfo.NONE and _talkable(hovered):
+	var thing := state.thing_at(_hover) if _hover != null else null
+	if _can_order() and _hover != null and actor != null and _action == ActionInfo.NONE and LootCommand.is_container(thing):
+		cells.append(_hover)
+		colors.append(COLOR_CURSOR)
+		var verb := "Loot" if thing.takes_turns() else "Open"
+		var reason := LootCommand.blocker(state, actor, thing)
+		if reason == "":
+			_preview_text = "%s %s" % [verb, thing.name]
+		elif reason == "Too far":
+			_preview_text = "Walk over to %s %s" % [verb.to_lower(), thing.name]
+		else:
+			_preview_text = "%s: %s" % [thing.name, reason]
+	elif _can_order() and _hover != null and actor != null and _action == ActionInfo.NONE and _talkable(hovered):
 		cells.append(_hover)
 		colors.append(COLOR_CURSOR)
 		var talk := TalkCommand.new(_selected_id, hovered.id)
@@ -1564,6 +1632,20 @@ func _build_scene() -> void:
 			Net.submit(ChooseCommand.new(state.conversation.talker, index)))
 	_journal = JournalPanel.new()
 	canvas.add_child(_journal)
+	_loot = LootPanel.new()
+	canvas.add_child(_loot)
+	_loot.take_requested.connect(func(index: int) -> void:
+		var take := LootCommand.new(_selected_id, _loot.container_id, index)
+		if take.validate(state):
+			Net.submit(take))
+	_trade = TradePanel.new()
+	_trade.z_index = 5
+	canvas.add_child(_trade)
+	_trade.deal_requested.connect(func(buy: Array[int], sell: Array[int]) -> void:
+		var deal := TradeCommand.new(_trade.buyer_id, _trade.trader_id, buy, sell)
+		if deal.validate(state):
+			Net.submit(deal)
+			_trade.dealt())
 	_save_menu = SaveMenu.new()
 	_save_menu.z_index = 10  # above the other panels
 	canvas.add_child(_save_menu)
@@ -1581,6 +1663,15 @@ func _build_scene() -> void:
 		Net.submit(GiveCommand.new(from_id, to_id, index)))
 	_inventory.sort_requested.connect(func(entity_id: int, from_index: int, to_index: int) -> void:
 		Net.submit(SortItemCommand.new(entity_id, from_index, to_index)))
+	_inventory.use_requested.connect(func(entity_id: int, index: int) -> void:
+		_submit_or_say(UseItemCommand.new(entity_id, index), "Can't use that now"))
+	_inventory.equip_requested.connect(func(entity_id: int, index: int, slot: String) -> void:
+		_submit_or_say(EquipCommand.new(entity_id, index, slot), "Only outside combat"))
+	_inventory.spend_requested.connect(func(entity_id: int, stat: String) -> void:
+		_submit_or_say(SpendPointCommand.new(entity_id, stat), ""))
+	_inventory.rest_requested.connect(func(entity_id: int) -> void:
+		var reason := RestCommand.blocker(state, state.get_entity(entity_id))
+		_submit_or_say(RestCommand.new(entity_id), reason))
 
 	_action_bar = ActionBar.new()
 	canvas.add_child(_action_bar)
@@ -1608,6 +1699,10 @@ func _build_scene() -> void:
 	_dialog.add_child(_dialog_label)
 	_dialog.visible = false
 	canvas.add_child(_dialog)
+	# Windows over the bars: last in the canvas so they also get the clicks
+	# (z_index only changes drawing, not which control is picked).
+	for window: Control in [_loot, _trade, _save_menu]:
+		canvas.move_child(window, -1)
 
 
 ## A label spanning the top of the screen, text centred.
@@ -1677,6 +1772,10 @@ func _refresh() -> void:
 	var talker := state.get_entity(state.conversation.get("talker", -1)) if not state.conversation.is_empty() else null
 	_dialogue.show_conversation(state, talker != null and Net.may_control(Net.local_slot, talker))
 	_journal.show_journal(state)
+	if _loot.visible and LootCommand.blocker(state, actor, state.get_entity(_loot.container_id)) != "":
+		_loot.close()  # walked away, a fight started, or someone else is selected
+	_loot.show_contents(state)
+	_trade.show_trade(state)
 	_inventory.show_for(actor, party, _selected_is_mine() and not state.combat.active, _selected_is_mine())
 	var note := "" if actor == null or _selected_is_mine() else "%s is controlled by your partner" % actor.name
 	_action_bar.show_actions(actor if actor != null and actor.is_alive() else null, _action, _can_order(), state.combat.active, note)

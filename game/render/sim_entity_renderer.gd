@@ -13,6 +13,7 @@ const ENEMY_COLOR := Color(0.9, 0.25, 0.2)
 const NEUTRAL_COLOR := Color(0.85, 0.75, 0.45)
 const OUTLINE_NEUTRAL := Color(1.0, 0.85, 0.3)
 const PROP_COLOR := Color(0.55, 0.38, 0.2)
+const CHEST_COLOR := Color(0.45, 0.28, 0.14)
 const MOVE_SECONDS_PER_CELL := 0.1
 const TARGETABLE_GLOW := Color(1.0, 0.8, 0.15)
 ## How long a bar stays up after the entity's HP changes.
@@ -108,8 +109,9 @@ func render(state: SimState, events: Array[SimEvent] = []) -> void:
 			add_child(view)
 			_views[e.id] = view
 			view.position = cell_position(e.cell)
-		# Characters stay as corpses (they can be revived); props just vanish.
-		view.visible = e.is_alive() or e.takes_turns()
+		# Characters stay as corpses (they can be revived), broken containers
+		# while they still hold something; other props just vanish.
+		view.visible = e.is_alive() or e.takes_turns() or not e.inventory.is_empty()
 		view.set_dead(not e.is_alive())
 		view.set_side(e.faction)
 		if view.set_stats(e):
@@ -198,6 +200,13 @@ class _View:
 			_body.position.y = 0.75
 			_base_color = PLAYER_COLOR if e.faction == SimEntity.Faction.PLAYERS else ENEMY_COLOR
 			top = 1.75
+		elif e.model == "chest":
+			var box := BoxMesh.new()
+			box.size = Vector3(0.9, 0.6, 0.6)
+			_body.mesh = box
+			_body.position.y = 0.3
+			_base_color = CHEST_COLOR
+			top = 0.95
 		else:
 			var cylinder := CylinderMesh.new()
 			cylinder.top_radius = 0.32

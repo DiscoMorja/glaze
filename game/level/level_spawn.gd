@@ -29,6 +29,10 @@ enum Team { PLAYERS, ENEMIES, NEUTRAL }
 ## Dialogue knot (game/data/dialogue/*.dlg) talking to this character starts
 ## at; empty = nothing to say.
 @export var dialogue := ""
+## Gold pieces carried.
+@export var gold := 0
+## Townsfolk who buy and sell (offer it in their dialogue with "~ trade").
+@export var trades := false
 
 
 func _ready() -> void:

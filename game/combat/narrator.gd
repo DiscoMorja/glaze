@@ -12,7 +12,14 @@ const SURFACE_NAMES := ["nothing", "water", "oil", "ice"]
 static func describe_all(state: SimState, events: Array[SimEvent]) -> Array[String]:
 	var lines: Array[String] = []
 	var world_damage := {}  # [entity id, element] -> total
+	var xp := 0  # the party shares XP: one line, not one per member
 	for e in events:
+		if e.type == SimEvent.Type.XP_GAINED and xp == 0:
+			xp = e.amount
+			lines.append("The party gains %d XP." % xp)
+		elif e.type == SimEvent.Type.XP_GAINED and e.amount != xp:
+			xp = e.amount
+			lines.append("The party gains %d XP." % xp)
 		if e.type == SimEvent.Type.DAMAGED and e.other_id < 0:
 			var key := [e.entity_id, e.element]
 			world_damage[key] = world_damage.get(key, 0) + e.amount
@@ -81,6 +88,22 @@ static func describe(state: SimState, e: SimEvent) -> String:
 			return "%s recognizes the stolen goods on %s!" % [who, other]
 		SimEvent.Type.PICKPOCKETED:
 			return "%s lifts %s from %s." % [other, e.text, who]
+		SimEvent.Type.ITEM_USED:
+			return "%s uses %s." % [other, e.text] if e.other_id == e.entity_id else "%s gives %s %s." % [other, who, e.text]
+		SimEvent.Type.RESTED:
+			return "The party rests and recovers."
+		SimEvent.Type.TRADED:
+			return "%s trades with %s (%s)." % [other, who, ("pays %d gold" % e.amount) if e.amount > 0 else ("gets %d gold" % -e.amount) if e.amount < 0 else "even"]
+		SimEvent.Type.EQUIPPED:
+			return "%s equips %s." % [who, e.text] if e.text != "" else ""
+		SimEvent.Type.LEVELED_UP:
+			return "%s reaches level %d!" % [who, e.amount]
+		SimEvent.Type.XP_GAINED:
+			return ""  # summed into one line by describe_all()
+		SimEvent.Type.LOOTED:
+			return "%s takes %s from %s." % [other, e.text, who]
+		SimEvent.Type.UNLOCKED:
+			return "%s unlocks %s with the %s." % [other, who, e.text]
 		SimEvent.Type.GIVEN:
 			return "%s gives %s to %s." % [other, e.text, who]
 		SimEvent.Type.REVIVED:

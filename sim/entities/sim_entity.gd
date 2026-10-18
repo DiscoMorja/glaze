@@ -28,6 +28,20 @@ var weapon: String = ""
 var can_be_disarmed := true
 var weapon_damage: int = 0
 var unarmed_damage: int = 1
+## Worn armour (an item name, "" = none) and how much it takes off each
+## physical hit (EntityOps.damage(); at least 1 still gets through).
+var armor_item := ""
+var armor := 0
+## Gold pieces carried (TradeCommand).
+var gold := 0
+## Townsfolk who buy and sell (TradeCommand).
+var trader := false
+## Progression (ProgressionRules): experience, level, unspent level-up
+## points, and bonus damage bought with them.
+var xp := 0
+var level := 1
+var points := 0
+var power := 0
 var inventory: Array[String] = []
 ## SimAbilities.Ability values this entity can use.
 var abilities: Array[int] = []
@@ -69,6 +83,11 @@ var stolen: Array[String] = []
 var group := ""
 ## The dialogue knot talking to it starts at ("" = nothing to say).
 var dialogue := ""
+## Containers: the item that unlocks it ("" = not locked). See LootCommand.
+var lock := ""
+## What it looks like ("chest", or "" for the default capsule/cylinder);
+## presentation only, rules never read it.
+var model := ""
 ## Player slot that controls this entity in co-op (0 = host, 1 = guest), or -1
 ## for entities no player controls.
 var owner := -1
@@ -123,7 +142,7 @@ func takes_turns() -> bool:
 
 
 func attack_damage() -> int:
-	return weapon_damage if weapon != "" else unarmed_damage
+	return (weapon_damage if weapon != "" else unarmed_damage) + power
 
 
 func to_dict() -> Dictionary:
@@ -132,6 +151,8 @@ func to_dict() -> Dictionary:
 		"hp": hp, "max_hp": max_hp, "ap": ap, "max_ap": max_ap, "mass": mass,
 		"contents_surface": contents_surface, "contents_amount": contents_amount,
 		"weapon": weapon, "can_be_disarmed": can_be_disarmed, "weapon_damage": weapon_damage, "unarmed_damage": unarmed_damage,
+		"armor_item": armor_item, "armor": armor, "gold": gold, "trader": trader,
+		"xp": xp, "level": level, "points": points, "power": power,
 		"inventory": inventory.duplicate(),
 		"abilities": abilities.duplicate(),
 		"cooldowns": cooldowns.duplicate(),
@@ -144,6 +165,8 @@ func to_dict() -> Dictionary:
 		"stolen": stolen.duplicate(),
 		"group": group,
 		"dialogue": dialogue,
+		"lock": lock,
+		"model": model,
 		"slowed": slowed,
 		"temperature": temperature,
 		"temp_turns": temp_turns,
@@ -175,6 +198,14 @@ static func from_dict(data: Dictionary) -> SimEntity:
 	e.can_be_disarmed = data.get("can_be_disarmed", e.can_be_disarmed)
 	e.weapon_damage = data.get("weapon_damage", e.weapon_damage)
 	e.unarmed_damage = data.get("unarmed_damage", e.unarmed_damage)
+	e.armor_item = data.get("armor_item", e.armor_item)
+	e.armor = data.get("armor", e.armor)
+	e.gold = data.get("gold", e.gold)
+	e.trader = data.get("trader", e.trader)
+	e.xp = data.get("xp", e.xp)
+	e.level = data.get("level", e.level)
+	e.points = data.get("points", e.points)
+	e.power = data.get("power", e.power)
 	e.inventory.assign(data.get("inventory", []))
 	e.abilities.assign(data.get("abilities", []))
 	e.cooldowns = PackedInt32Array(data.get("cooldowns", e.cooldowns))
@@ -187,6 +218,8 @@ static func from_dict(data: Dictionary) -> SimEntity:
 	e.stolen.assign(data.get("stolen", []))
 	e.group = data.get("group", e.group)
 	e.dialogue = data.get("dialogue", e.dialogue)
+	e.lock = data.get("lock", e.lock)
+	e.model = data.get("model", e.model)
 	e.slowed = data.get("slowed", e.slowed)
 	e.temperature = data.get("temperature", e.temperature)
 	e.temp_turns = data.get("temp_turns", e.temp_turns)
@@ -224,6 +257,20 @@ static func character(
 
 
 ## A breakable container that spills its contents when destroyed.
+## A sturdy chest (or crate, box...) holding items, maybe locked.
+static func container(p_name: String, p_cell: Vector3i, p_items: Array[String], p_lock: String = "", p_hp: int = 8) -> SimEntity:
+	var e := SimEntity.new()
+	e.name = p_name
+	e.cell = p_cell
+	e.hp = p_hp
+	e.max_hp = p_hp
+	e.mass = 80
+	e.inventory.assign(p_items)
+	e.lock = p_lock
+	e.model = "chest"
+	return e
+
+
 static func barrel(p_name: String, p_cell: Vector3i, p_surface: int, p_amount: int) -> SimEntity:
 	var e := SimEntity.new()
 	e.name = p_name

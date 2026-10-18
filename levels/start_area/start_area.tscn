@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://b1s04vjjxlqhb" path="res://game/level/level_spawn.gd" id="2_spawn"]
 [ext_resource type="Script" uid="uid://cwscxvmty4wp4" path="res://game/level/level_barrel.gd" id="3_barrel"]
 [ext_resource type="Script" uid="uid://bhvgb2j3dl2fx" path="res://game/level/level_surface.gd" id="4_surface"]
+[ext_resource type="Script" path="res://game/level/level_container.gd" id="9_container"]
 [ext_resource type="Terrain3DAssets" uid="uid://dsxit8ugnhe2f" path="res://levels/start_area/terrain_assets.tres" id="5_assets"]
 [ext_resource type="Terrain3DMaterial" uid="uid://cvnntnyterxjy" path="res://levels/start_area/terrain_material.tres" id="6_material"]
 
@@ -112,7 +113,8 @@ script = ExtResource("2_spawn")
 role = "vanguard"
 entity_name = "Ari"
 team = 0
-inventory = Array[String](["Gold"])
+inventory = Array[String](["Healing potion", "Bread", "Bedroll"])
+gold = 15
 
 [node name="Bram" type="Marker3D" parent="Party" unique_id=1124453819]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10.5, 1.5, 52.5)
@@ -120,7 +122,8 @@ script = ExtResource("2_spawn")
 role = "pyromancer"
 entity_name = "Bram"
 team = 0
-inventory = Array[String](["Gold"])
+inventory = Array[String](["Healing potion", "Bread"])
+gold = 15
 
 [node name="Cel" type="Marker3D" parent="Party" unique_id=706996317]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.5, 1.5, 53.5)
@@ -129,7 +132,8 @@ role = "trickster"
 entity_name = "Cel"
 player = 1
 team = 0
-inventory = Array[String](["Gold"])
+inventory = Array[String](["Healing potion", "Bread"])
+gold = 15
 
 [node name="Dov" type="Marker3D" parent="Party" unique_id=666803984]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.5, 1.5, 49.5)
@@ -138,7 +142,8 @@ role = "tidecaller"
 entity_name = "Dov"
 player = 1
 team = 0
-inventory = Array[String](["Gold"])
+inventory = Array[String](["Healing potion", "Bread"])
+gold = 15
 
 [node name="Bandits" type="Node3D" parent="." unique_id=1193246565]
 
@@ -178,6 +183,13 @@ transform = Transform3D(-0.70710677, 0, 0.70710677, 0, 1, 0, -0.70710677, 0, -0.
 script = ExtResource("2_spawn")
 role = "pikeman"
 entity_name = "Pikeman"
+
+[node name="ChiefsChest" type="Marker3D" parent="Bandits"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 47.5, 0, 10.5)
+script = ExtResource("9_container")
+display_name = "Chief's chest"
+items = Array[String](["Gold", "Gold", "Coins", "Chain shirt", "Healing potion"])
+key = "Camp key"
 
 [node name="Props" type="Node3D" parent="." unique_id=376735782]
 
@@ -222,7 +234,9 @@ role = "merchant"
 entity_name = "Merchant"
 team = 2
 dialogue = "merchant"
-inventory = Array[String](["Coins", "Silver ring", "Map"])
+inventory = Array[String](["Coins", "Silver ring", "Map", "Healing potion", "Healing potion", "Healing potion", "Cooling salve", "Warming draught", "Bedroll", "Leather armour", "Fine sword"])
+gold = 120
+trades = true
 
 [node name="Villager" type="Marker3D" parent="Village"]
 transform = Transform3D(0, 0, -1, 0, 1, 0, 1, 0, 0, 17.5, 2, 45.5)
@@ -250,3 +264,10 @@ entity_name = "Guard"
 team = 2
 dialogue = "guard"
 inventory = Array[String](["Key"])
+
+[node name="Strongbox" type="Marker3D" parent="Village"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21.5, 2, 44.5)
+script = ExtResource("9_container")
+display_name = "Strongbox"
+items = Array[String](["Gold", "Gold", "Coins"])
+key = "Key"

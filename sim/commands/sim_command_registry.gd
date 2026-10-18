@@ -36,5 +36,17 @@ static func from_dict(data: Dictionary) -> SimCommand:
 			return TalkCommand.from_dict(data)
 		ChooseCommand.TYPE:
 			return ChooseCommand.from_dict(data)
+		LootCommand.TYPE:
+			return LootCommand.from_dict(data)
+		UseItemCommand.TYPE:
+			return UseItemCommand.from_dict(data)
+		RestCommand.TYPE:
+			return RestCommand.from_dict(data)
+		TradeCommand.TYPE:
+			return TradeCommand.from_dict(data)
+		EquipCommand.TYPE:
+			return EquipCommand.from_dict(data)
+		SpendPointCommand.TYPE:
+			return SpendPointCommand.from_dict(data)
 	push_error("Unknown sim command type: %s" % data.get("type"))
 	return null

@@ -88,6 +88,19 @@ func corpse_at(c: Vector3i) -> SimEntity:
 	return null
 
 
+## Whatever is at a cell: the living occupant, else remains lying there (a
+## corpse, a broken chest), or null.
+func thing_at(c: Vector3i) -> SimEntity:
+	var remains: SimEntity = null
+	for e in entities:
+		if e.cell == c:
+			if e.is_alive():
+				return e
+			if remains == null:
+				remains = e
+	return remains
+
+
 ## The living entity occupying a cell, or null.
 func entity_at(c: Vector3i) -> SimEntity:
 	for e in entities:

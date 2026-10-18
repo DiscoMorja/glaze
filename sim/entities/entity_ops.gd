@@ -36,6 +36,8 @@ static func is_free(state: SimState, c: Vector3i) -> bool:
 static func damage(state: SimState, e: SimEntity, amount: int, source_id: int = -1, element: Element = Element.PHYSICAL) -> void:
 	if not e.is_alive() or amount <= 0:
 		return
+	if element == Element.PHYSICAL and e.armor > 0:
+		amount = maxi(amount - e.armor, 1)  # armour softens blows, never stops them
 	e.hp = maxi(e.hp - amount, 0)
 	var event := state.emit_event(SimEvent.Type.DAMAGED, e.cell, e.id, source_id, amount)
 	event.element = element
@@ -312,6 +314,15 @@ static func settle(state: SimState, e: SimEntity) -> void:
 static func _die(state: SimState, e: SimEntity) -> void:
 	e.ap = 0
 	state.emit_event(SimEvent.Type.DIED, e.cell, e.id)
+	ProgressionRules.on_death(state, e)
+	if e.faction != SimEntity.Faction.PLAYERS and e.takes_turns():
+		# What it wore falls with it, for whoever loots the body.
+		for worn: String in [e.weapon, e.armor_item]:
+			if worn != "":
+				e.inventory.append(worn)
+		e.weapon = ""
+		e.armor_item = ""
+		e.armor = 0
 	if e.contents_surface == SimMaterials.Surface.NONE or e.contents_amount <= 0:
 		return
 	var cells := state.grid.disc_cells(e.cell, 1)

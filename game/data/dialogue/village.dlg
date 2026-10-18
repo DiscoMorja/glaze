@@ -10,6 +10,7 @@
 {bandits_known} Merchant: Any news about the camp on the hill?
 * {not bandits_known} [Lucky how?] -> merchant_bandits
 * {bandits_known} [Tell me about the bandits again.] -> merchant_bandits
+* [Let's trade.] -> merchant_trade
 * [What do you sell?] -> merchant_goods
 * [Goodbye.] -> END
 
@@ -34,6 +35,12 @@ Merchant: No. No, I suppose it isn't.
 {self.has.Map} Merchant: Bread, rope, and a map of these roads, if you've coin. Nobody has coin, with the road shut.
 {not self.has.Map} Merchant: I had a map of the roads... it's gone. Funny, that.
 -> merchant
+
+=== merchant_trade
+{self.suspicious} Merchant: Coin first. I've learned that much.
+{not self.suspicious} Merchant: Have a look. Prices are fair, mostly.
+~ trade
+-> END
 
 === merchant_reward
 Merchant: You did it? The camp is empty? Then here, as I promised.

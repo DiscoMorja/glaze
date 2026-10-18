@@ -9,3 +9,4 @@ outcome turned: hostile.Village
     We gave the village good reason to hate us. Nobody there will thank us for anything now.
 outcome cleared: alive.Bandits == 0
     The camp on the hill is empty. The merchant will want to hear about it.
+    xp: 250

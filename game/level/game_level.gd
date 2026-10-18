@@ -1,7 +1,7 @@
 class_name GameLevel
 extends Node3D
 ## A handcrafted level: Terrain3D ground, structures with collision, and
-## marker nodes for characters, barrels and surfaces. Everything is edited in
+## marker nodes for characters, barrels, containers and surfaces. Everything is edited in
 ## the scene; nothing about the world is built in code. Each level also owns
 ## its WorldEnvironment and lights. bake() turns it into the
 ## sim's world: a SimGrid plus entities.
@@ -182,12 +182,30 @@ func _place_markers(state: SimState) -> void:
 		e.home_facing = e.facing
 		e.group = spawn.group_name()
 		e.dialogue = spawn.dialogue
+		e.gold = spawn.gold
+		e.trader = spawn.trades
 		var pack_name := spawn.pack_name()
 		if pack_name != "":
 			if not packs.has(pack_name):
 				packs[pack_name] = packs.size() + 1
 			e.pack = packs[pack_name]
 		state.add_entity(e)
+	for node in find_children("*", "LevelContainer", true, false):
+		var box := node as LevelContainer
+		var cell: Variant = _floor_cell(state, box.global_position)
+		if cell == null:
+			push_warning("Container %s is outside the level or has no floor" % box.name)
+			continue
+		var items: Array[String] = []
+		items.assign(box.items)
+		var chest := SimEntity.container(box.display_name, cell, items, box.key, box.hp)
+		chest.group = box.group_name()
+		var pack_name := box.pack_name()
+		if pack_name != "":
+			if not packs.has(pack_name):
+				packs[pack_name] = packs.size() + 1
+			chest.pack = packs[pack_name]
+		state.add_entity(chest)
 	for node in find_children("*", "LevelBarrel", true, false):
 		var barrel := node as LevelBarrel
 		var cell: Variant = _floor_cell(state, barrel.global_position)

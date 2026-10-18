@@ -166,12 +166,21 @@ func test_any_route_to_an_outcome_counts() -> void:
 	assert_eq(SimFacts.value(state, "quest.test_q.friends"), 1)
 
 
-func test_outcomes_are_checked_in_order_and_end_once() -> void:
+func test_outcomes_wait_until_the_quest_is_known() -> void:
 	var state := _talk_state()
 	CrimeRules.turn_hostile(state, state.get_entity(2))
 	state.step()
-	assert_eq(SimFacts.value(state, "quest.test_q.angry"), 1)
+	assert_eq(SimFacts.value(state, "quest.test_q.angry"), 0, "not known yet")
+	state.facts["met"] = 1
+	state.step()
+	assert_eq(SimFacts.value(state, "quest.test_q.angry"), 1, "ends as soon as it is known")
+
+
+func test_outcomes_are_checked_in_order_and_end_once() -> void:
+	var state := _talk_state()
 	state.facts["met"] = 1
 	CrimeRules.move_item(state.get_entity(2), Fixtures.hero(state), 0)
+	CrimeRules.turn_hostile(state, state.get_entity(2))
 	state.step()
-	assert_eq(SimFacts.value(state, "quest.test_q.friends"), 0, "already ended")
+	assert_eq(SimFacts.value(state, "quest.test_q.friends"), 1, "both hold: the first listed wins")
+	assert_eq(SimFacts.value(state, "quest.test_q.angry"), 0, "and it ends only once")

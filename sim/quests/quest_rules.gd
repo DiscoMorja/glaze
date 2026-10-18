@@ -13,7 +13,10 @@ extends RefCounted
 ##   outcome turned: hostile.Village
 ##     The village turned on us.
 ##
-## Indented lines after an outcome are its journal text. Progress lives in
+##     xp: 200
+##
+## Indented lines after an outcome are its journal text; an indented "xp: N"
+## line instead gives the party N experience when the quest ends that way. Progress lives in
 ## state.quests: id -> {"known": bool, "outcome": name or ""}.
 
 ## Quest id -> {id, title, known (expr), active (text), outcomes: [{name, when, text}]}.
@@ -46,6 +49,8 @@ static func register(text: String, source: String = "") -> void:
 		if raw.begins_with(" ") or raw.begins_with("\t"):
 			if outcome.is_empty():
 				errors.append("%s:%d: indented text outside an outcome" % [source, number])
+			elif line.begins_with("xp:") and line.substr(3).strip_edges().is_valid_int():
+				outcome.xp = int(line.substr(3))
 			else:
 				outcome.text = (outcome.text + " " + line).strip_edges()
 			continue
@@ -55,7 +60,7 @@ static func register(text: String, source: String = "") -> void:
 			if when == null:
 				errors.append("%s:%d: bad outcome (%s)" % [source, number, SimExpr.last_error])
 				continue
-			outcome = {"name": line.substr(8, colon - 8).strip_edges(), "when": when, "text": ""}
+			outcome = {"name": line.substr(8, colon - 8).strip_edges(), "when": when, "text": "", "xp": 0}
 			quest.outcomes.append(outcome)
 			continue
 		var key := line.get_slice(":", 0).strip_edges()
@@ -80,7 +85,9 @@ static func clear() -> void:
 
 
 ## After every command and tick: quests become known, and end when an
-## outcome holds.
+## outcome holds. Outcomes only count once the quest is known: a level
+## without bandits doesn't "clear" the bandit quest, and clearing the camp
+## before hearing of it ends the quest the moment the party learns of it.
 static func step(state: SimState) -> void:
 	for id in order:
 		var quest: Dictionary = quests[id]
@@ -93,6 +100,8 @@ static func step(state: SimState) -> void:
 			changed = true
 			var event := state.emit_event(SimEvent.Type.QUEST_STARTED)
 			event.text = id
+		if not progress.known:
+			continue
 		for outcome: Dictionary in quest.outcomes:
 			if SimExpr.holds(state, outcome.when):
 				progress.outcome = outcome.name
@@ -100,6 +109,7 @@ static func step(state: SimState) -> void:
 				changed = true
 				var event := state.emit_event(SimEvent.Type.QUEST_ENDED)
 				event.text = id
+				ProgressionRules.award(state, outcome.xp)
 				break
 		if changed:
 			state.quests[id] = progress

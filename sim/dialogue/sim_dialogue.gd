@@ -10,6 +10,8 @@ extends RefCounted
 ##   ~ bandits_known = 1                  an effect: name = / += / -= expression
 ##   ~ give Silver ring                   the NPC hands the talker an item it has
 ##   ~ take Gold                          the talker hands the NPC an item
+##   ~ trade                              offer to trade (the UI opens the
+##                                        trade window once the talk ends)
 ##   * [Tell me about them.] -> knot      a choice; a block of them ends a page
 ##   * {cond} [Only sometimes.] -> knot
 ##   -> knot                              jump; -> END ends the conversation
@@ -83,6 +85,8 @@ static func _parse_line(line: String) -> Variant:
 		return {"kind": "goto", "cond": cond, "target": line.trim_prefix("->").strip_edges()}
 	if line.begins_with("~"):
 		var effect := line.trim_prefix("~").strip_edges()
+		if effect == "trade":
+			return {"kind": "trade", "cond": cond}
 		for verb in ["give", "take"]:
 			if effect.begins_with(verb + " "):
 				return {"kind": verb, "cond": cond, "item": effect.substr(verb.length() + 1).strip_edges()}
@@ -167,6 +171,9 @@ static func _run(state: SimState, knot: String) -> void:
 				_hand_over(state, state.get_entity(convo.npc), state.get_entity(convo.talker), s.item)
 			"take":
 				_hand_over(state, state.get_entity(convo.talker), state.get_entity(convo.npc), s.item)
+			"trade":
+				var offer := state.emit_event(SimEvent.Type.TRADE_OFFERED, Vector3i.ZERO, convo.npc, convo.talker)
+				offer.cell = state.get_entity(convo.npc).cell
 	convo.choices = choices
 	state.emit_event(SimEvent.Type.TALK_PAGE, Vector3i.ZERO, convo.npc, convo.talker)
 	QuestRules.step(state)

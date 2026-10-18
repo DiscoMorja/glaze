@@ -5,11 +5,17 @@ extends PanelContainer
 ## Drag an item onto another slot to move it there (onto an empty slot: to the
 ## end), or onto a party member's card to give it to them (outside combat).
 ## Hover a slot for its details; click it to select it and use the give
-## buttons. Stolen items have a red border. Footer: item count, total value
-## and weight.
+## buttons, or Use / Equip it. Stolen items have a red border. Above the bag:
+## the character sheet (level, XP, gold, what they wear, points to spend, and
+## Rest). Footer: item count, total value and weight.
 
 signal give_requested(from_id: int, to_id: int, index: int)
 signal sort_requested(entity_id: int, from_index: int, to_index: int)
+signal use_requested(entity_id: int, index: int)
+## index EquipCommand.UNEQUIP takes off what is worn in `slot`.
+signal equip_requested(entity_id: int, index: int, slot: String)
+signal spend_requested(entity_id: int, stat: String)
+signal rest_requested(entity_id: int)
 
 ## What a dragged item carries (PartyBar cards accept it too).
 const DRAG_KIND := "glaze_item"
@@ -17,18 +23,24 @@ const DRAG_KIND := "glaze_item"
 const COLUMNS := 6
 const SLOT_SIZE := 54
 ## Rows shown before the grid scrolls.
-const VISIBLE_ROWS := 3
+const VISIBLE_ROWS := 2
 const KIND_COLORS := {
 	"valuable": Color(0.55, 0.45, 0.15),
 	"food": Color(0.42, 0.3, 0.18),
 	"key": Color(0.35, 0.38, 0.45),
 	"document": Color(0.45, 0.42, 0.32),
 	"misc": Color(0.3, 0.3, 0.33),
+	"potion": Color(0.45, 0.2, 0.3),
+	"weapon": Color(0.38, 0.4, 0.45),
+	"armor": Color(0.3, 0.38, 0.32),
 }
 const STOLEN_BORDER := Color(1.0, 0.35, 0.3)
 const SELECTED_BORDER := Color(1.0, 0.85, 0.3)
 
 var _title: Label
+var _sheet: Label
+var _worn_row: HBoxContainer
+var _points_row: HBoxContainer
 var _grid: GridContainer
 var _details: Label
 var _give_row: HBoxContainer
@@ -51,7 +63,7 @@ func _ready() -> void:
 	# Top right, under the log's first lines, clear of the bars at the bottom.
 	anchor_top = 0.0
 	anchor_bottom = 0.0
-	offset_top = 120
+	offset_top = 64
 	offset_right = -12
 	grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	grow_vertical = Control.GROW_DIRECTION_END
@@ -68,6 +80,14 @@ func _ready() -> void:
 	_title = Label.new()
 	_title.add_theme_font_size_override("font_size", 16)
 	box.add_child(_title)
+	_sheet = Label.new()
+	_sheet.add_theme_font_size_override("font_size", 13)
+	_sheet.add_theme_color_override("font_color", Color(0.8, 0.82, 0.86))
+	box.add_child(_sheet)
+	_worn_row = HBoxContainer.new()
+	box.add_child(_worn_row)
+	_points_row = HBoxContainer.new()
+	box.add_child(_points_row)
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.custom_minimum_size = Vector2(COLUMNS * (SLOT_SIZE + 4), VISIBLE_ROWS * (SLOT_SIZE + 4))
@@ -78,7 +98,7 @@ func _ready() -> void:
 	_grid.add_theme_constant_override("v_separation", 4)
 	scroll.add_child(_grid)
 	_details = Label.new()
-	_details.custom_minimum_size = Vector2(COLUMNS * (SLOT_SIZE + 4), 54)
+	_details.custom_minimum_size = Vector2(COLUMNS * (SLOT_SIZE + 4), 40)
 	_details.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_details.add_theme_font_size_override("font_size", 13)
 	box.add_child(_details)
@@ -99,7 +119,8 @@ func show_for(owner: SimEntity, party: Array[SimEntity], can_give: bool, can_sor
 	var names: Array[String] = []
 	for p in party:
 		names.append(p.name)
-	var key := [owner.id, owner.inventory.duplicate(), owner.stolen.duplicate(), names, can_give, can_sort]
+	var key := [owner.id, owner.inventory.duplicate(), owner.stolen.duplicate(), names, can_give, can_sort,
+			owner.gold, owner.xp, owner.level, owner.points, owner.weapon, owner.armor_item, owner.hp, owner.max_hp]
 	if key == _shown_key:
 		return
 	if _owner == null or owner.id != _owner.id or owner.inventory.size() <= _selected:
@@ -120,6 +141,7 @@ func toggle() -> void:
 
 func _rebuild() -> void:
 	_title.text = "%s's inventory" % _owner.name
+	_show_sheet()
 	for child in _grid.get_children():
 		child.queue_free()
 	var items := _owner.inventory
@@ -223,16 +245,72 @@ func _show_details() -> void:
 		_details.text = "\n".join(lines)
 
 
-## Give buttons for the selected slot (rebuilt when the selection changes).
+## Level, XP, gold; what they wear (take off); points to spend; Rest.
+func _show_sheet() -> void:
+	var e := _owner
+	var next := ProgressionRules.xp_for_level(e.level + 1)
+	_sheet.text = "Level %d   ·   %d / %d XP   ·   %d gold   ·   HP %d/%d   ·   %d damage%s" % [
+		e.level, e.xp, next, e.gold, e.hp, e.max_hp, e.attack_damage(),
+		"   ·   armour %d" % e.armor if e.armor > 0 else ""]
+	for row: HBoxContainer in [_worn_row, _points_row]:
+		for child in row.get_children():
+			child.queue_free()
+	for slot: String in ["weapon", "armor"]:
+		var worn := EquipCommand.worn(e, slot)
+		var label := Label.new()
+		label.text = "%s: %s" % ["Weapon" if slot == "weapon" else "Armour", worn if worn != "" else "—"]
+		label.add_theme_font_size_override("font_size", 13)
+		_worn_row.add_child(label)
+		if worn != "" and _can_give:
+			_worn_row.add_child(_button("Take off", func() -> void: equip_requested.emit(e.id, EquipCommand.UNEQUIP, slot)))
+		var gap := Control.new()
+		gap.custom_minimum_size = Vector2(12, 0)
+		_worn_row.add_child(gap)
+	if _can_give:
+		var push := Control.new()
+		push.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_worn_row.add_child(push)
+		_worn_row.add_child(_button("Rest", func() -> void: rest_requested.emit(e.id), "Heal the party with a bedroll (no enemies near)"))
+	if e.points > 0 and _can_sort:
+		var label := Label.new()
+		label.text = "%d point%s:" % [e.points, "s" if e.points > 1 else ""]
+		label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+		_points_row.add_child(label)
+		for stat: String in ProgressionRules.STATS:
+			_points_row.add_child(_button(stat.capitalize(), func() -> void: spend_requested.emit(e.id, stat), ProgressionRules.STATS[stat]))
+
+
+func _button(text: String, on_press: Callable, tooltip: String = "") -> Button:
+	var button := Button.new()
+	button.text = text
+	button.tooltip_text = tooltip
+	button.focus_mode = Control.FOCUS_NONE
+	button.pressed.connect(on_press)
+	return button
+
+
+## Use / Equip and give buttons for the selected slot (rebuilt when the
+## selection changes).
 func _show_give_buttons() -> void:
 	var items := _owner.inventory
 	for child in _give_row.get_children():
 		child.queue_free()
 	if _selected < 0 or _selected >= items.size():
 		return
+	var item := items[_selected]
+	var index := _selected
+	var owner_id := _owner.id
+	if _can_sort and SimItems.is_usable(item):
+		_give_row.add_child(_button("Use", func() -> void:
+			_selected = -1
+			use_requested.emit(owner_id, index)))
+	if _can_give and SimItems.slot_of(item) != "":
+		_give_row.add_child(_button("Equip", func() -> void:
+			_selected = -1
+			equip_requested.emit(owner_id, index, SimItems.slot_of(item))))
 	if not _can_give:
 		var note := Label.new()
-		note.text = "Items can be passed around outside combat."
+		note.text = "Items are passed around and worn outside combat."
 		note.add_theme_font_size_override("font_size", 12)
 		_give_row.add_child(note)
 		return

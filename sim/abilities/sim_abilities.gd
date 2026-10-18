@@ -162,7 +162,7 @@ static func execute(state: SimState, caster: SimEntity, ability: int, target: Ve
 	match ability:
 		Ability.FIREBOLT:
 			if victim != null:
-				EntityOps.damage(state, victim, FIREBOLT_DAMAGE, caster.id, EntityOps.Element.FIRE)
+				EntityOps.damage(state, victim, FIREBOLT_DAMAGE + caster.power, caster.id, EntityOps.Element.FIRE)
 				EntityOps.change_temperature(state, victim, FIREBOLT_HEAT, caster.id)
 			FireRules.ignite(state, target, false)  # the bolt already heated the victim
 		Ability.RAIN:
@@ -304,7 +304,7 @@ static func _frost(state: SimState, caster: SimEntity, target: Vector3i) -> void
 			state.emit_event(SimEvent.Type.FROZE, c)
 		var occupant := state.entity_at(c)
 		if occupant != null:
-			EntityOps.damage(state, occupant, FROST_DAMAGE, caster.id, EntityOps.Element.FROST)
+			EntityOps.damage(state, occupant, FROST_DAMAGE + caster.power, caster.id, EntityOps.Element.FROST)
 			EntityOps.change_temperature(state, occupant, -FROST_CHILL, caster.id)
 
 
