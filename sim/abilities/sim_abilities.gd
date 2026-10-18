@@ -38,7 +38,7 @@ const MEND_HEAL := 6
 const REVIVE_HP_PERCENT := 25
 ## Temperature levels the elements move a target by.
 const FIREBOLT_HEAT := 2
-const FROST_CHILL := 2
+const FROST_CHILL := 1
 const RAIN_CHILL := 2
 ## Stagger from being shoved, and extra for slamming into something or being
 ## shoved off a ledge.

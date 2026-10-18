@@ -78,6 +78,8 @@ var _selected_id := -1
 var fire_field: FireField
 
 var _views := {}  # entity id -> _View
+## Bodies this player has opened (no more glitter on them).
+var _searched := {}
 var _hovered_id := -1
 var _preview := {}  # entity id -> [now_hp, later_hp]
 
@@ -127,6 +129,8 @@ func render(state: SimState, events: Array[SimEvent] = []) -> void:
 		view.set_side(e.faction)
 		if view.set_stats(e):
 			view.recent_until = now + RECENT_SECONDS
+		# Fallen characters with something on them glitter until opened.
+		view.set_glitter(not e.is_alive() and e.takes_turns() and LootCommand.is_container(e) 				and not e.inventory.is_empty() and not _searched.has(e.id))
 		# Slowed characters take twice as long per cell.
 		var pace := 2.0 if e.slowed > 0 else 1.0
 		view.move_to(cell_position(e.cell), paths.get(e.id, []), walk_seconds * pace, pace)
@@ -153,6 +157,55 @@ func _animate_events(events: Array[SimEvent]) -> void:
 				var user: _View = _views.get(e.other_id)
 				if user != null:
 					user.act("drink", Vector3.INF)
+
+
+## Gold sparkles, a soft pulsing light and a ring on the ground: "something
+## to loot here, click inside the ring" (the body may lie across cells).
+static func make_glitter() -> Node3D:
+	var glitter := Node3D.new()
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.38
+	torus.outer_radius = 0.46
+	torus.rings = 24
+	torus.ring_segments = 6
+	ring.mesh = torus
+	ring.scale = Vector3(1, 0.08, 1)
+	ring.position = Vector3(0, 0.04, 0)
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var ring_material := StandardMaterial3D.new()
+	ring_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	ring_material.albedo_color = Color(1.0, 0.82, 0.3, 0.85)
+	ring_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	ring_material.no_depth_test = true
+	ring_material.render_priority = 1
+	ring.material_override = ring_material
+	glitter.add_child(ring)
+	var sparks := VfxFactory.emitter("glitter", 1.0)
+	sparks.position = Vector3(0, 0.25, 0)
+	glitter.add_child(sparks)
+	var light := OmniLight3D.new()
+	light.light_color = Color(1.0, 0.85, 0.4)
+	light.light_energy = 0.6
+	light.omni_range = 1.6
+	light.position = Vector3(0, 0.5, 0)
+	glitter.add_child(light)
+	glitter.ready.connect(func() -> void:
+		var breathe := ring.create_tween().set_loops()
+		breathe.tween_property(ring_material, "albedo_color:a", 0.45, 0.7).set_trans(Tween.TRANS_SINE)
+		breathe.tween_property(ring_material, "albedo_color:a", 0.9, 0.7).set_trans(Tween.TRANS_SINE)
+		var pulse := light.create_tween().set_loops()
+		pulse.tween_property(light, "light_energy", 1.1, 0.7).set_trans(Tween.TRANS_SINE)
+		pulse.tween_property(light, "light_energy", 0.4, 0.7).set_trans(Tween.TRANS_SINE))
+	return glitter
+
+
+## This player opened a body: its glitter goes.
+func mark_searched(id: int) -> void:
+	_searched[id] = true
+	var view: _View = _views.get(id)
+	if view != null:
+		view.set_glitter(false)
 
 
 ## The view node for an entity (e.g. for the camera to follow), or null.
@@ -228,6 +281,7 @@ class _View:
 	var _dead := false
 	var _outline := Color.TRANSPARENT
 	var _outlined := false
+	var _glitter: Node3D
 	var _side := -1
 	var _sneaking := false
 	## The body's height when standing.
@@ -446,6 +500,17 @@ class _View:
 		if _model == null:
 			_material_bases.assign([_base_color])
 		_update_look()
+
+	## Gold sparkles over a body worth looting.
+	func set_glitter(on: bool) -> void:
+		if on == (_glitter != null):
+			return
+		if on:
+			_glitter = SimEntityRenderer.make_glitter()
+			add_child(_glitter)
+		else:
+			_glitter.queue_free()
+			_glitter = null
 
 	## Shows or hides the side outline (it keeps writing the stencil, so
 	## ground markers still don't draw over the character).

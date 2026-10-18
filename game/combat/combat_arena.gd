@@ -22,10 +22,10 @@ extends Node3D
 ## use. Actions that would hurt your own party need a second click to confirm.
 ## Teleport takes two clicks: the target, then where to put it.
 ## Enter: end turn (asks first if anyone has AP left)   Esc: cancel   R: restart
-## Left-click a chest or a body (outside combat) to open it, walking over
+## Left- or right-click a chest or a body (outside combat) to open it, walking over
 ## first if needed; the loot window takes items (Space: all, Esc: close).
 ## H: show the controls   `: show the perf readout
-## Esc with nothing aimed: menu (save, load, quit). F5 quicksave, F9 quickload
+## Esc closes the open window (one per press); with nothing open, the menu (save, load, quit). F5 quicksave, F9 quickload
 ## (host only); the host also autosaves (see _autosave_due()).
 ## Enemy turns are paced so you can follow them; hold Space to fast-forward.
 ## Hold Alt to show every health bar. Actions against a target swing the camera
@@ -265,6 +265,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			return
 	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_ESCAPE and _close_top_window():
+			return
 		if _dialogue.handle_key(event.keycode):
 			return
 		if _loot.handle_key(event.keycode):
@@ -284,10 +286,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_BRACKETLEFT: _action_bar.turn_page(-1)
 			KEY_BRACKETRIGHT: _action_bar.turn_page(1)
 			KEY_ESCAPE:
-				if _action == ActionInfo.NONE and _teleport_target == null:
-					_save_menu.open(Net.is_host(), _save_blocker())
-				else:
-					_aim(ActionInfo.NONE)
+				_save_menu.open(Net.is_host(), _save_blocker())  # nothing else was open
 			KEY_H:
 				_show_help = not _show_help
 				_refresh()
@@ -449,6 +448,33 @@ func _toggle_sneak() -> void:
 	Net.submit(SneakCommand.new(e.id, not e.sneaking))
 
 
+## Esc: closes the topmost open window (trade, loot, conversation,
+## inventory, journal, the controls help, an end-turn question, an aimed
+## action), one per press. Returns false when nothing was open, and Esc
+## then opens the game menu.
+func _close_top_window() -> bool:
+	if _trade.visible:
+		_trade.close()
+	elif _loot.visible:
+		_loot.close()
+	elif _dialogue.visible and _dialogue.handle_key(KEY_ESCAPE):
+		pass
+	elif _inventory.visible:
+		_inventory.toggle()
+	elif _journal.visible:
+		_journal.toggle()
+	elif _confirming_end_turn:
+		_cancel_end_turn()
+	elif _action != ActionInfo.NONE or _teleport_target != null:
+		_aim(ActionInfo.NONE)
+	elif _show_help:
+		_show_help = false
+	else:
+		return false
+	_refresh()
+	return true
+
+
 ## Opens a container's loot window, or walks over to it first (it opens on
 ## arrival), or says why not (locked, mid-fight).
 func _open_container(container: SimEntity) -> void:
@@ -457,6 +483,7 @@ func _open_container(container: SimEntity) -> void:
 	_pending_loot = -1
 	if reason == "":
 		_loot.open(container.id)
+		_entity_renderer.mark_searched(container.id)
 		_refresh()
 	elif reason == "Too far":
 		var spot: Variant = _formation_cell(container.cell, {container.cell: true}, _selected_id)
@@ -506,6 +533,7 @@ func _apply_tick() -> void:
 		_pending_loot = -1
 		if pending != null and LootCommand.blocker(state, state.get_entity(_selected_id), pending) == "":
 			_loot.open(pending.id)
+			_entity_renderer.mark_searched(pending.id)
 			_refresh()
 
 
@@ -817,13 +845,18 @@ static func _body_point(c: Vector3i) -> Vector3:
 	return WorldSpace.cell_to_world(c) + Vector3(0, 0.8, 0)
 
 
-## Right-click always moves the selected character (and drops any aim).
+## Right-click moves the selected character (and drops any aim), or opens a
+## chest or body under the cursor.
 func _right_click() -> void:
 	if not _can_order():
 		return
 	if _action != ActionInfo.NONE:
 		_aim(ActionInfo.NONE)
 	if _hover == null:
+		return
+	var thing := state.thing_at(_hover)
+	if LootCommand.is_container(thing):
+		_open_container(thing)
 		return
 	if _exploring():
 		_travel_party(_hover)

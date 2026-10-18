@@ -24,6 +24,7 @@ const PRESETS := {
 	"heat": {"color": Color(1.0, 0.6, 0.25, 0.8), "amount": 10, "lifetime": 0.7, "speed": Vector2(0.3, 0.8), "spread": 15.0, "gravity": 1.0, "size": 0.12, "radius": 0.42, "ring": 1.2, "additive": true},
 	"frost": {"color": Color(0.75, 0.9, 1.0, 0.9), "amount": 12, "lifetime": 1.0, "speed": Vector2(0.05, 0.25), "spread": 30.0, "gravity": -1.0, "size": 0.12, "radius": 0.42, "ring": 1.2, "additive": true},
 	"frozen_shell": {"color": Color(0.6, 0.85, 1.0, 0.9), "amount": 40, "lifetime": 1.2, "speed": Vector2(0.0, 0.1), "spread": 180.0, "gravity": 0.0, "size": 0.22, "radius": 0.45, "ring": 1.4, "additive": true},
+	"glitter": {"color": Color(1.0, 0.88, 0.4), "amount": 28, "lifetime": 1.6, "speed": Vector2(0.1, 0.35), "spread": 70.0, "gravity": 0.3, "size": 0.11, "radius": 0.55, "ring": 0.4, "additive": true},
 	"dazed": {"color": Color(1.0, 0.95, 0.6), "amount": 8, "lifetime": 0.8, "speed": Vector2(0.4, 0.8), "spread": 70.0, "gravity": 0.5, "size": 0.14, "radius": 0.35, "ring": 0.2, "additive": true},
 	"oil_drip": {"color": Color(0.2, 0.13, 0.05), "amount": 16, "lifetime": 0.8, "speed": Vector2(0.1, 0.4), "spread": 20.0, "gravity": -5.0, "size": 0.15, "radius": 0.4, "ring": 1.0, "additive": false},
 	"slash": {"color": Color(1.0, 1.0, 1.0), "amount": 20, "lifetime": 0.25, "speed": Vector2(3.0, 5.0), "spread": 180.0, "gravity": 0.0, "size": 0.1, "radius": 0.2, "additive": true},

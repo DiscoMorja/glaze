@@ -21,7 +21,7 @@ static func description(action: int) -> String:
 		SimAbilities.Ability.STEAL:
 			return "Takes an enemy's weapon, or an item if it has none."
 		SimAbilities.Ability.FROST:
-			return "Chills an area two levels (puts out Burning, freezes the Cold solid), freezes water into ice, puts out fire, %d damage." % SimAbilities.FROST_DAMAGE
+			return "Chills an area one level (Burning to Hot, Normal to Cold; the Cold, e.g. soaked by Rain, freeze solid), freezes water into ice, puts out fire, %d damage." % SimAbilities.FROST_DAMAGE
 		SimAbilities.Ability.OIL_FLASK:
 			return "Splashes oil over an area. Burns well."
 		SimAbilities.Ability.MEND:

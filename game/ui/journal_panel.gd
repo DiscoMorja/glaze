@@ -3,7 +3,7 @@ extends PanelContainer
 ## Known quests (J toggles it): title, where things stand, and how they ended.
 
 var _text: RichTextLabel
-var _shown := {}
+var _shown: Variant = null  # what it last drew (null: draw next time)
 
 
 func _ready() -> void:
@@ -12,8 +12,8 @@ func _ready() -> void:
 	anchor_right = 0.0
 	anchor_top = 0.0
 	anchor_bottom = 0.0
-	offset_left = 12
-	offset_top = 180
+	offset_left = 290  # right of the party frames
+	offset_top = 64
 	custom_minimum_size = Vector2(380, 0)
 	add_theme_stylebox_override("panel", UiStyle.window_style(true))
 	_text = RichTextLabel.new()
@@ -26,11 +26,11 @@ func _ready() -> void:
 
 func toggle() -> void:
 	visible = not visible
-	_shown = {}
+	_shown = null
 
 
 func show_journal(state: SimState) -> void:
-	if not visible or state.quests == _shown:
+	if not visible or (_shown != null and state.quests == _shown):
 		return
 	_shown = state.quests.duplicate(true)
 	var text := "[font_size=%d]Journal[/font_size]   [color=#%s](J to close)[/color]\n\n" % [UiStyle.TITLE, UiStyle.TEXT_DIM.to_html(false)]

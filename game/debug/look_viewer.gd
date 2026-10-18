@@ -110,10 +110,14 @@ func _show() -> void:
 	_label.text = "%s   (Left/Right)   %d looks   weapon axis %s (X, zero = each rig's own)   shield %s (Z)   roll %+d (R)  tilt %+d (T, shift: back)" % [state, _models.size(), CharacterModel.weapon_axis_override, CharacterModel.shield_axis_override, CharacterModel.weapon_roll_tune, CharacterModel.weapon_tilt_tune]
 	for model in _models:
 		model.revive()
+		for child in model.get_children():
+			if child is Node3D and child.get_child_count() == 3 and child.get_child(1) is GPUParticles3D:
+				child.queue_free()  # the death state's glitter
 		if state in ["idle", "combat_idle", "run"]:
 			model.set_looping(state)
 		elif state == "death":
 			model.die()
+			model.add_child(SimEntityRenderer.make_glitter())  # what a lootable body shows
 		else:
 			model.set_looping("combat_idle")
 			model.play_once(state)

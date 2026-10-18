@@ -102,10 +102,12 @@ func test_no_stagger_outside_combat() -> void:
 
 # --- Temperature ---------------------------------------------------------------
 
-func test_frost_freezes_and_ends_the_turn() -> void:
+func test_one_frost_only_chills_a_second_freezes_and_ends_the_turn() -> void:
 	var state := _melee()
 	var bandit := Fixtures.bandit(state)
 	state.apply_command(CastCommand.new(1, A.FROST, bandit.cell))
+	assert_eq(bandit.temperature, -1, "one bolt: Cold, not frozen")
+	EntityOps.change_temperature(state, bandit, -SimAbilities.FROST_CHILL)  # a second chill (rain + frost, two casters)
 	assert_true(bandit.is_frozen())
 	state.apply_command(EndTurnCommand.new(PLAYERS))
 	assert_eq(bandit.ap, 0, "a frozen character skips its turn")
@@ -127,13 +129,13 @@ func test_fire_on_a_frozen_character_brings_it_back_to_normal() -> void:
 	assert_eq(hero.ap, hero.max_ap, "thawed on its own turn: it can act again")
 
 
-func test_frost_on_a_burning_character_brings_it_back_to_normal() -> void:
+func test_frost_on_a_burning_character_puts_the_fire_out() -> void:
 	var state := _melee()
 	var bandit := Fixtures.bandit(state)
 	EntityOps.change_temperature(state, bandit, 2)
 	assert_true(bandit.is_burning())
 	state.apply_command(CastCommand.new(1, A.FROST, bandit.cell))
-	assert_eq(bandit.temperature, 0)
+	assert_eq(bandit.temperature, 1, "Burning to Hot")
 
 
 func test_cold_slows_like_oil() -> void:
