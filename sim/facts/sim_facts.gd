@@ -5,9 +5,13 @@ extends RefCounted
 ## that dialogue effects set (state.facts, integers, 0 when never set).
 ##
 ## Worked out:
-##   alive.<Group>        living members of a group (LevelSpawn pack / parent)
+##   alive.<Group>        living members of a group (LevelSpawn pack / parent),
+##                        in every level
 ##   dead.<Group>         fallen members
 ##   hostile.<Group>      1 if any living member is hostile (an enemy)
+##   intact.<Group>       unbroken things of a group (barrels, sacks, crates:
+##                        anything that doesn't take turns)
+##   burning.<Group>      members or things of a group on fire right now
 ##   has.<Item>           how many the party carries (_ for spaces: has.Silver_ring)
 ##   combat               1 during a fight
 ##   quest.<id>.known     1 once the quest is known
@@ -37,6 +41,11 @@ static func value(state: SimState, name: String, context: Dictionary = {}) -> in
 		"hostile":
 			return 1 if _count(state, rest, func(e: SimEntity) -> bool:
 				return e.is_alive() and e.faction == SimEntity.Faction.ENEMIES) > 0 else 0
+		"intact":
+			return _count_all(state, rest, func(e: SimEntity) -> bool: return e.is_alive() and not e.takes_turns())
+		"burning":
+			return _count_all(state, rest, func(e: SimEntity) -> bool:
+				return e.is_alive() and (e.is_burning() or state.grid.fire[state.grid.index(e.cell)] > 0))
 		"has":
 			var item := rest.replace("_", " ")
 			var total := 0
@@ -55,11 +64,24 @@ static func set_fact(state: SimState, name: String, value: int) -> void:
 	state.facts[name] = value
 
 
-static func _count(state: SimState, group: String, test: Callable) -> int:
+## Anything of a group passing `test` (characters and things), in this level
+## only: fire and breakage are about what's here.
+static func _count_all(state: SimState, group: String, test: Callable) -> int:
 	var n := 0
 	for e in state.entities:
-		if e.group == group and e.takes_turns() and test.call(e):
+		if e.group == group and test.call(e):
 			n += 1
+	return n
+
+
+## Members of a group passing `test`, in this level and the ones the party
+## left (LevelTravel), so the camp stays uncleared while you're in a mine.
+static func _count(state: SimState, group: String, test: Callable) -> int:
+	var n := 0
+	for level: SimState in [state] + state.away.values():
+		for e in level.entities:
+			if e.group == group and e.takes_turns() and test.call(e):
+				n += 1
 	return n
 
 

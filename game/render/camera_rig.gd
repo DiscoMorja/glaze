@@ -45,6 +45,8 @@ func _process(delta: float) -> void:
 	if Input.is_key_pressed(KEY_D): pan.x += 1
 	if Input.is_key_pressed(KEY_Q): yaw += ROTATE_SPEED * delta
 	if Input.is_key_pressed(KEY_E): yaw -= ROTATE_SPEED * delta
+	if pan != Vector3.ZERO:
+		_follow = null  # the player takes the camera back
 	if _follow != null and is_instance_valid(_follow) and Time.get_ticks_msec() / 1000.0 < _follow_until:
 		var target := _follow.global_position
 		position = position.lerp(Vector3(target.x, position.y, target.z), minf(1.0, delta * FOLLOW_RATE))
@@ -100,8 +102,9 @@ func restore(at: Vector3, seconds: float = 0.54) -> void:
 	_glide(at, _saved_yaw, _saved_zoom, seconds)
 
 
-## Keeps the pivot on a moving node for `seconds`.
-func follow(node: Node3D, seconds: float) -> void:
+## Keeps the pivot on a moving node for `seconds` (by default until the
+## player pans with WASD, or the camera glides somewhere else).
+func follow(node: Node3D, seconds: float = INF) -> void:
 	if _move_tween != null:
 		_move_tween.kill()
 	_follow = node

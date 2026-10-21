@@ -140,6 +140,10 @@ var _autoready := OS.get_cmdline_user_args().has("--autoready")
 
 var _grid_renderer: SimGridRenderer
 var _snares: SnareMarkers
+var _exits: ExitMarkers
+## An exit the party is walking to: it goes through once the selected
+## character gets there (another order cancels it).
+var _pending_exit: Variant = null
 var _retro: RetroLook
 var _fire_field: FireField
 var _vfx: VfxPlayer
@@ -234,6 +238,7 @@ func _process(delta: float) -> void:
 	_update_fog()
 	_update_hover()
 	_advance_walks()
+	_check_pending_exit()
 	if _preview_due_msec > 0 and Time.get_ticks_msec() >= _preview_due_msec:
 		_preview_due_msec = 0
 		_update_preview()
@@ -403,6 +408,33 @@ func _restart() -> void:
 	_start_from(baked)
 
 
+## Host: the party went through an exit (UseExitCommand). Loads the level
+## beyond for its scenery, wakes it from the world's `away` levels if the
+## party was there before (else plays the fresh bake), hands the party over
+## (LevelTravel) and plays on there; a connected guest is sent the result.
+func _change_level() -> void:
+	var from := Net.authority
+	var trip := from.pending_travel if from != null else {}
+	if trip.is_empty():
+		return
+	if not ResourceLoader.exists(trip.level):
+		push_error("Exit leads to a missing level: %s" % trip.level)
+		from.pending_travel = {}
+		return
+	level_scene = load(trip.level)
+	var session := await _load_level(from.next_entity_id())
+	if session != _session:
+		return
+	var arriving: SimState = from.away.get(trip.level, _baked)
+	_baked = null
+	var world := LevelTravel.arrive(from, arriving)
+	Net.level_path = trip.level
+	Net.set_authority(world)
+	_start_from(world)
+	_show_banner(trip.level.get_file().get_basename().capitalize())
+	_autosave_reason = "travel"
+
+
 ## Guest: the host's state (joining, catching up after a desync, or the host
 ## restarted). Loads the host's level first if it is a different one.
 func _on_snapshot(snapshot: SimState, path: String) -> void:
@@ -417,7 +449,8 @@ func _on_snapshot(snapshot: SimState, path: String) -> void:
 
 ## Instantiates and bakes level_scene (the bake also sets up WorldSpace for
 ## drawing). The baked state is left in _baked. Returns the restart counter.
-func _load_level() -> int:
+## `first_id`: see GameLevel.bake() (travelling into a level).
+func _load_level(first_id: int = 1) -> int:
 	_session += 1
 	var session := _session
 	state = null
@@ -432,7 +465,7 @@ func _load_level() -> int:
 	_level = level_scene.instantiate() as GameLevel
 	add_child(_level)
 	var bake_start := Time.get_ticks_usec()
-	_baked = await _level.bake(randi_range(1, 0x7FFFFFFF))  # a new world: its own loot rolls
+	_baked = await _level.bake(randi_range(1, 0x7FFFFFFF), first_id)  # a new world: its own loot rolls
 	_note_perf("bake", bake_start)
 	_cutaway.setup(_level)
 	return session
@@ -600,6 +633,7 @@ func _apply_tick() -> void:
 ## each frame (_advance_walks) and each walk goes out once its route is found,
 ## with the route, so the host and the replay only check it.
 func _travel_party(dest: Vector3i) -> void:
+	_pending_exit = null
 	var leader := state.get_entity(_selected_id)
 	if leader == null or not TravelCommand.new(leader.id, dest).may_walk(state):
 		return
@@ -698,6 +732,9 @@ func _left_click() -> void:
 	if _action == ActionInfo.NONE and LootCommand.is_container(thing):
 		_open_container(thing)
 		return
+	if _action == ActionInfo.NONE and state.exits.has(cell) and _exploring():
+		_use_exit(cell)
+		return
 	if _action == ActionInfo.NONE and _talkable(clicked):
 		var talk := TalkCommand.new(_selected_id, clicked.id)
 		if talk.validate(state):
@@ -734,6 +771,31 @@ func _left_click() -> void:
 	Net.submit(command)
 
 
+## Takes the party through the exit at `cell`, walking over to it first.
+func _use_exit(cell: Vector3i) -> void:
+	var reason := UseExitCommand.blocker(state, state.get_entity(_selected_id), cell)
+	if reason == "":
+		_pending_exit = null
+		Net.submit(UseExitCommand.new(_selected_id, cell))
+	elif reason == "Too far":
+		_travel_party(cell)
+		_pending_exit = cell
+	else:
+		_show_banner(reason)
+
+
+## Goes through the exit the party walked to, once the selected character
+## is there.
+func _check_pending_exit() -> void:
+	if _pending_exit == null or state == null or not _exploring() or _busy or not _can_order():
+		return
+	var reason := UseExitCommand.blocker(state, state.get_entity(_selected_id), _pending_exit)
+	if reason == "":
+		_use_exit(_pending_exit)
+	elif reason != "Too far":
+		_pending_exit = null
+
+
 ## Plays a player command from the op stream. Actions against a target first
 ## swing the camera to frame caster and target, play out, then swing back
 ## (only for this player's own characters; the partner's camera is theirs).
@@ -746,7 +808,7 @@ func _play_action(command: SimCommand) -> void:
 		_apply_or_resync(command)
 		_after_action()
 		if own and command is TravelCommand and actor.id == _selected_id:
-			_rig.follow(_entity_renderer.view_of(actor.id), actor.travel.size() / EXPLORE_TICKS_PER_SECOND + 0.5)
+			_rig.follow(_entity_renderer.view_of(actor.id))  # until the player pans
 		return
 	_busy = true
 	_update_range()
@@ -976,6 +1038,9 @@ func _right_click() -> void:
 	if LootCommand.is_container(thing):
 		_open_container(thing)
 		return
+	if state.exits.has(_hover) and _exploring():
+		_use_exit(_hover)
+		return
 	if _exploring():
 		_travel_party(_hover)
 		return
@@ -1164,6 +1229,8 @@ func _think_on_worker() -> SimCommand:
 func _actor_of(command: SimCommand) -> SimEntity:
 	if command is MoveCommand:
 		return state.get_entity((command as MoveCommand).entity_id)
+	if command is TravelCommand:
+		return state.get_entity((command as TravelCommand).entity_id)
 	if command is AttackCommand:
 		return state.get_entity((command as AttackCommand).attacker_id)
 	if command is CastCommand:
@@ -1248,9 +1315,14 @@ func _present(s: SimState, events: Array[SimEvent]) -> void:
 				_show_banner("%s reached level %d — I: spend the point" % [who.name, e.amount])
 		elif e.type == SimEvent.Type.RESTED:
 			_show_banner("Rested")
+		elif e.type == SimEvent.Type.LEVEL_EXIT and s == state:
+			_show_banner("%s..." % e.text if e.text != "" else "Travelling...")
+			if Net.is_host():
+				_change_level.call_deferred()
 	_entity_renderer.walk_seconds = 1.0 / EXPLORE_TICKS_PER_SECOND if not s.combat.active else 0.0
 	_grid_renderer.render(s.grid)
 	_snares.render(s)
+	_exits.render(s)
 	_fire_field.sync(s.grid)
 	_entity_renderer.render(s, events)
 	_vfx.play(s, events)
@@ -1680,6 +1752,17 @@ func _update_preview_now() -> void:
 			_preview_text = "Walk over to %s %s" % [verb.to_lower(), thing.name]
 		else:
 			_preview_text = "%s: %s" % [thing.name, reason]
+	elif _can_order() and _hover != null and actor != null and _action == ActionInfo.NONE and state.exits.has(_hover):
+		cells.append(_hover)
+		colors.append(COLOR_CURSOR)
+		var exit_name: String = state.exits[_hover].get("name", "")
+		var reason := UseExitCommand.blocker(state, actor, _hover)
+		if reason == "":
+			_preview_text = "Go into %s (the whole party)" % exit_name
+		elif reason == "Too far":
+			_preview_text = "Go into %s (walks there first)" % exit_name
+		else:
+			_preview_text = "%s: %s" % [exit_name, reason]
 	elif _can_order() and _hover != null and actor != null and _action == ActionInfo.NONE and _talkable(hovered):
 		cells.append(_hover)
 		colors.append(COLOR_CURSOR)
@@ -1807,6 +1890,8 @@ func _build_scene() -> void:
 	add_child(_grid_renderer)
 	_snares = SnareMarkers.new()
 	add_child(_snares)
+	_exits = ExitMarkers.new()
+	add_child(_exits)
 	_fire_field = FireField.new()
 	add_child(_fire_field)
 	_vfx = VfxPlayer.new()
@@ -2062,7 +2147,7 @@ func _refresh() -> void:
 		lines.append("RMB move   LMB use / select   1-0 action bar ([ ] switch bars)   Esc cancel / menu   F1-F4 / Tab select   Enter end turn   Space (hold) fast-forward")
 		lines.append("Ctrl+G or drag a party frame away: unchain (walks alone); drag a frame onto another: chain them")
 		lines.append("C sneak   I inventory   J journal   Alt (hold) names + health   F5 / F9 quicksave / load   R restart")
-		lines.append("WASD pan   Q/E or middle-drag rotate   wheel zoom   P look: %s   ` perf   H hide" % _retro.style_name())
+		lines.append("WASD pan (walking re-follows)   Q/E or middle-drag rotate   wheel zoom   P look: %s   ` perf   H hide" % _retro.style_name())
 	else:
 		lines.append("H: controls")
 	if _show_perf or log_perf:

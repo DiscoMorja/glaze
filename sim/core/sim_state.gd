@@ -23,6 +23,19 @@ var explored := PackedByteArray()
 var snares := {}
 ## Entity id -> the cell it last revealed from (derived: not saved or hashed).
 var seen_from := {}
+## The level this state is (its scene path), and the way out of it and in:
+## exits: cell -> {"level": scene path, "entry": entry name, "name": what it
+## is called}; entries: entry name -> cell. Set when the level is baked.
+var level := ""
+var exits := {}
+var entries := {}
+## The other levels the party has been to, as they were left: scene path ->
+## SimState without the party (LevelTravel). Frozen until the party returns;
+## copies of this state share them. Facts count their people too.
+var away := {}
+## A trip the party has started (UseExitCommand): {"level", "entry"}, or
+## empty. The host bakes or wakes that level and hands over (LevelTravel).
+var pending_travel := {}
 
 var _next_entity_id := 1
 var _events: Array[SimEvent] = []
@@ -79,6 +92,16 @@ func add_entity(e: SimEntity) -> SimEntity:
 	entities.append(e)
 	EntityOps.settle(self, e)
 	return e
+
+
+## The id the next entity gets. Ids are unique across every level of the
+## world, so a level baked later starts after this (reserve_ids()).
+func next_entity_id() -> int:
+	return _next_entity_id
+
+
+func reserve_ids(first: int) -> void:
+	_next_entity_id = maxi(_next_entity_id, first)
 
 
 func get_entity(id: int) -> SimEntity:
@@ -149,6 +172,11 @@ func duplicate_state() -> SimState:
 	copy.explored = explored.duplicate()  # packed arrays are shared, not copied
 	copy.seen_from = seen_from.duplicate()
 	copy.snares = snares.duplicate()
+	copy.level = level
+	copy.exits = exits
+	copy.entries = entries
+	copy.away = away  # frozen while the party is elsewhere: shared, not copied
+	copy.pending_travel = pending_travel.duplicate()
 	copy._next_entity_id = _next_entity_id
 	return copy
 
@@ -172,8 +200,13 @@ func to_snapshot() -> PackedByteArray:
 		"rng": rng.state, "tick": tick, "provoked": provoked, "next_entity_id": _next_entity_id,
 		"facts": facts, "quests": quests, "conversation": conversation,
 		"explored": explored, "snares": snares,
+		"level": level, "exits": exits, "entries": entries, "pending_travel": pending_travel,
 		"version": SNAPSHOT_VERSION,
 	}
+	var away_data := {}
+	for path: String in away:
+		away_data[path] = (away[path] as SimState).to_snapshot()
+	data.away = away_data
 	var raw := var_to_bytes(data)
 	return var_to_bytes([raw.size(), raw.compress(FileAccess.COMPRESSION_ZSTD)])
 
@@ -200,6 +233,15 @@ static func from_snapshot(bytes: PackedByteArray) -> SimState:
 	state.conversation = data.get("conversation", {})
 	state.explored = data.get("explored", PackedByteArray())
 	state.snares = data.get("snares", {})
+	state.level = data.get("level", "")
+	state.exits = data.get("exits", {})
+	state.entries = data.get("entries", {})
+	state.pending_travel = data.get("pending_travel", {})
+	var away_data: Dictionary = data.get("away", {})
+	for path: String in away_data:
+		var other := from_snapshot(away_data[path])
+		if other != null:
+			state.away[path] = other
 	state._next_entity_id = data.next_entity_id
 	return state
 
@@ -256,7 +298,7 @@ func checksum(with_grid: bool = true) -> String:
 	for e in entities:
 		ctx.update(var_to_bytes(e.to_dict()))
 	ctx.update(var_to_bytes(combat.to_dict()))
-	ctx.update(var_to_bytes([facts, quests, conversation, snares]))
+	ctx.update(var_to_bytes([facts, quests, conversation, snares, level, pending_travel, away.keys()]))
 	if not explored.is_empty():
 		ctx.update(explored)
 	ctx.update(PackedInt64Array([tick, rng.state, _next_entity_id, 1 if provoked else 0]).to_byte_array())

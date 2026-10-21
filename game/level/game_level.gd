@@ -47,13 +47,17 @@ static func _sample_offsets() -> Array[Vector2]:
 const LIQUID_SETTLE_STEPS := 400
 
 
-func bake(seed_value: int = 1) -> SimState:
+## `first_id`: the id the level's first entity gets (a level baked when the
+## party travels to it starts after the world's ids, LevelTravel).
+func bake(seed_value: int = 1, first_id: int = 1) -> SimState:
 	await get_tree().physics_frame
 	await get_tree().physics_frame
 	var grid := SimGrid.new(grid_size)
 	_bake_terrain(grid)
 	_bake_structures(grid)
 	var state := SimState.new(grid, seed_value)
+	state.level = scene_file_path
+	state.reserve_ids(first_id)
 	_place_markers(state)
 	# Ponds and puddles placed by markers flow into place now, so the world
 	# starts calm instead of spending its first ticks spreading them.
@@ -238,11 +242,31 @@ func _place_markers(state: SimState) -> void:
 				packs[pack_name] = packs.size() + 1
 			chest.pack = packs[pack_name]
 		state.add_entity(chest)
+	for node in find_children("*", "LevelExit", true, false):
+		var exit := node as LevelExit
+		var cell: Variant = _floor_cell(state, exit.global_position)
+		if cell == null or exit.target_level == "":
+			push_warning("Exit %s has no floor or no target level" % exit.name)
+			continue
+		var target := exit.target_level
+		if target.begins_with("uid://"):
+			target = ResourceUID.get_id_path(ResourceUID.text_to_id(target))  # levels are known by path (SimState.level)
+		state.exits[cell] = {"level": target, "entry": exit.target_entry, "name": exit.display_name}
+	for node in find_children("*", "LevelEntry", true, false):
+		var entry := node as LevelEntry
+		var cell: Variant = _floor_cell(state, entry.global_position)
+		if cell == null:
+			push_warning("Entry %s has no floor" % entry.name)
+			continue
+		state.entries[entry.entry_name] = cell
 	for node in find_children("*", "LevelBarrel", true, false):
 		var barrel := node as LevelBarrel
 		var cell: Variant = _floor_cell(state, barrel.global_position)
 		if cell != null:
-			state.add_entity(SimEntity.barrel(barrel.display_name(), cell, barrel.surface(), barrel.amount))
+			var keg := SimEntity.barrel(barrel.display_name(), cell, barrel.surface(), barrel.amount)
+			var parent := barrel.get_parent()
+			keg.group = "" if parent == null or parent is GameLevel else String(parent.name)  # intact.<Group>
+			state.add_entity(keg)
 
 
 ## A marker's random loot (LootTables), rolled with the state's seeded RNG.

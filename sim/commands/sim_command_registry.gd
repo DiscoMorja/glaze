@@ -48,5 +48,7 @@ static func from_dict(data: Dictionary) -> SimCommand:
 			return EquipCommand.from_dict(data)
 		SpendPointCommand.TYPE:
 			return SpendPointCommand.from_dict(data)
+		UseExitCommand.TYPE:
+			return UseExitCommand.from_dict(data)
 	push_error("Unknown sim command type: %s" % data.get("type"))
 	return null

@@ -82,6 +82,17 @@ const ROLES := {
 		"abilities": [A.SHOVE],
 		"attributes": {"strength": 3, "vitality": 2},
 	},
+	# A first fight: slow to spot you, weak, no tricks. Two of them teach
+	# the turn flow before the camp does anything clever.
+	"ruffian": {
+		"title": "Ruffian", "hp": 7, "weapon": "Club", "damage": 2, "mass": 70, "sight": 4,
+		"abilities": [],
+	},
+	# A ruffian with a spark: Kindle sets oil barrels off (UtilityAI).
+	"firebug": {
+		"title": "Firebug", "hp": 7, "weapon": "Club", "damage": 2, "mass": 65, "sight": 4,
+		"abilities": [A.KINDLE],
+	},
 	# --- Townsfolk (Faction.NEUTRAL until a crime turns them) ---
 	"villager": {
 		"title": "Villager", "hp": 10, "weapon": "", "damage": 1, "mass": 65,

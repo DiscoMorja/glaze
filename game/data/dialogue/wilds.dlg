@@ -1,0 +1,93 @@
+# Out past the village: the old shore, the forest, the southern hills and the
+# bandit camp. See sim/dialogue/sim_dialogue.gd for the format.
+
+=== smuggler
+{self.suspicious} Smuggler: Close enough. That's close enough.
+{quest.smuggler.done} Smuggler: Tide's turning. So am I.
+{quest.smuggler.done} -> END
+~ smuggler_known = 1
+{package_taken} Smuggler: The Lantern. Marta. Before it starts to leak.
+{package_taken} -> END
+Smuggler: Nobody comes down to this beach. Nobody honest, anyway. Which are you?
+* [Who's asking?] -> smuggler_job
+* {talker.thievery >= 1} [(Thievery) Whatever's in those crates, we're not the law.] -> smuggler_job
+* [We'll leave you to it.] -> END
+
+=== smuggler_job
+Smuggler: Somebody who needs a package carried to the village. The tavern. Quietly.
+Smuggler: The guard knows my face. Yours, he doesn't. Marta pays on delivery.
+* [Give it here.] -> smuggler_give
+* [What's in it?] -> smuggler_contents
+* [Not a chance.] -> END
+
+=== smuggler_contents
+Smuggler: Wine. Mostly. Does it matter?
+-> smuggler_job
+
+=== smuggler_give
+{self.has.Sealed_package} ~ give Sealed package
+~ package_taken = 1
+Smuggler: Don't open it. Don't drop it. Don't get caught with it.
+-> END
+
+=== hermit
+{self.suspicious} Wenna: The forest saw what you did. So did I.
+{not hermit_met} Wenna: Visitors. The trees told me, but I didn't believe them.
+{hermit_met} Wenna: Back again. The kettle's cold, but the books are dry.
+~ hermit_met = 1
+* [Who are you?] -> hermit_who
+* [You have books?] -> hermit_books
+* {talker.historian >= 1 and not hermit_lore} [(Historian) That mine in the north. What was it?] -> hermit_lore
+* [Goodbye.] -> END
+
+=== hermit_who
+Wenna: A woman who prefers trees to people. The trees don't steal.
+-> hermit
+
+=== hermit_books
+Wenna: Old learning. Fire, water, things that grow, things that rot. None of it free.
+~ trade
+-> END
+
+=== hermit_lore
+~ hermit_lore = 1
+Wenna: Silver, once. The miners left in a hurry when the roof came down, and left things behind.
+Wenna: The foreman hid his satchel up high, where thieves wouldn't look. Thieves never look up.
+Wenna: And the side gallery they sealed with timbers. They said it was flooded. It wasn't.
+-> END
+
+=== shepherd
+{quest.shepherd.rescued and not hob_thanked} -> shepherd_thanks
+{quest.shepherd.rescued} Hob: My sheep found their own way home, they tell me. Clever beasts. Cleverer than me.
+{quest.shepherd.rescued} -> END
+Hob: Shh! They're right there! They'll hear you!
+-> END
+
+=== shepherd_thanks
+~ hob_thanked = 1
+~ shepherd_known = 1
+Hob: You came for me? For an old shepherd? Gods. Here, take this. It was my wife's. She'd want it used.
+{self.has.Amber_pendant} ~ give Amber pendant
+Hob: I'll walk down to the village slowly. Very slowly.
+-> END
+
+=== prisoner
+{joss_freed} Joss: Go on. I'll keep my head down till it's over.
+{joss_freed} -> END
+Joss: Psst. You're not one of them. Cut me loose, would you? Please?
+* [Who are you?] -> prisoner_who
+* [Hold still.] -> prisoner_free
+* [Later.] -> END
+
+=== prisoner_who
+Joss: Joss. I drove the salt cart, before these louts took it. They keep me to haul and fetch.
+-> prisoner
+
+=== prisoner_free
+~ joss_freed = 1
+Joss: Bless you. Listen: the chief keeps lamp oil by the fire, right next to where he sleeps. One spark.
+Joss: And the lookout on the tower can't see straight down behind it. Come round the back.
+{self.has.Oil_flask} ~ give Oil flask
+{self.has.Oil_flask} ~ give Oil flask
+Joss: I stole those for the road. Use them better than I would.
+-> END

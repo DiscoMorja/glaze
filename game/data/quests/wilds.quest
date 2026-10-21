@@ -1,0 +1,46 @@
+# Quests around the village and the wilds. Outcomes, not steps: each ends the
+# first time a predicate holds, however the world got there.
+# See sim/quests/quest_rules.gd.
+
+=== quest granary
+title: Fire in the granary
+known: granary_warned or burning.Granary > 0
+active: Ruffians squat by the farmer's barn on the west road and threaten to burn it, lamp oil and all.
+outcome burned: intact.Granary <= 1
+    The barn burned, and the winter's grain with it.
+outcome saved: alive.Ruffians == 0 and burning.Granary == 0 and intact.Granary >= 2
+    The ruffians are gone and the barn still stands. The farmer will sleep tonight.
+    xp: 120
+
+=== quest hammer
+title: The smith's hammer
+known: hammer_known or has.Forge_hammer > 0
+active: A thief stole the smith's forge hammer and ran west towards the bandit camp.
+outcome returned: hammer_returned
+    The smith has his hammer back, and his forge rings again.
+    xp: 100
+outcome turned: hostile.Village
+    The village turned on us. The smith won't be asking for help now.
+
+=== quest smuggler
+title: Wine by the back door
+known: smuggler_known
+active: A smuggler on the north-west shore keeps the tavern in wine while the road is shut. He wants a package carried to the village.
+outcome delivered: package_delivered
+    Marta took the package and paid for our silence.
+    xp: 80
+outcome reported: smuggler_reported
+    We told the guard about the smuggler on the old shore.
+    xp: 80
+outcome robbed: dead.Smugglers > 0
+    The smuggler won't be landing any more cargo.
+
+=== quest shepherd
+title: The missing shepherd
+known: shepherd_known
+active: Old Hob the shepherd never came back from the southern hills. Ruffians roam up there.
+outcome lost: dead.Shepherd > 0
+    We found Old Hob too late.
+outcome rescued: alive.HillRuffians == 0 and alive.Shepherd > 0
+    The ruffians in the southern hills are gone and Old Hob is safe.
+    xp: 150

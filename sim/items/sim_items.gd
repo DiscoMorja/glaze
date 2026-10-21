@@ -68,6 +68,10 @@ const ITEMS := {
 	"Brace tome": {"value": 50, "weight": 600, "kind": "book", "teaches": "Brace", "blurb": "Warrior 2. Plant your shield: harder to hurt, impossible to push."},
 	"Smoke Bomb tome": {"value": 30, "weight": 600, "kind": "book", "teaches": "Smoke Bomb", "blurb": "Rogue 1. A cloud of thick smoke to vanish into."},
 	"Snare tome": {"value": 50, "weight": 600, "kind": "book", "teaches": "Snare", "blurb": "Ranger 2. A hidden trap that trips whoever steps in it."},
+	# Quest things
+	"Forge hammer": {"value": 20, "weight": 1800, "kind": "weapon", "slot": "main_hand", "damage": 3, "scales": "str",
+			"blurb": "A forge hammer with the smith's mark on the haft. Hits like one, too."},
+	"Sealed package": {"value": 40, "weight": 900, "kind": "document", "blurb": "Oilcloth, twine and a wax seal. It sloshes a little."},
 	"Bedroll": {"value": 10, "weight": 2000, "kind": "misc", "rest": true,
 			"blurb": "Rest with it when no enemies are near: the whole party heals."},
 	# Main hand (two-handed ones leave no room for the off hand)

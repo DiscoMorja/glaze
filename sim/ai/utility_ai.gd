@@ -178,6 +178,9 @@ static func candidates(state: SimState, e: SimEntity, walk: Dictionary = {}) -> 
 					SimAbilities.Ability.COMBUST, SimAbilities.Ability.GLACIER:
 				for o in opponents:
 					result.append(CastCommand.new(e.id, ability, o.cell))
+			SimAbilities.Ability.KINDLE:
+				for c in _oil_barrels_near(state, opponents):
+					result.append(CastCommand.new(e.id, ability, c))
 			SimAbilities.Ability.WELLSPRING:
 				for a in allies:
 					if a.hp < a.max_hp:
@@ -211,6 +214,19 @@ static func candidates(state: SimState, e: SimEntity, walk: Dictionary = {}) -> 
 	for c in _move_targets(state, e, opponents, walk):
 		result.append(MoveCommand.new(e.id, c))
 	return result
+
+
+## Cells of oil barrels with an opponent close by (Kindle sets them off).
+static func _oil_barrels_near(state: SimState, opponents: Array[SimEntity]) -> Array[Vector3i]:
+	var cells: Array[Vector3i] = []
+	for e in state.entities:
+		if not e.is_alive() or e.takes_turns() or e.contents_surface != SimMaterials.Surface.OIL or e.contents_amount <= 0:
+			continue
+		for o in opponents:
+			if SimAbilities.in_range(e.cell, o.cell, 3):
+				cells.append(e.cell)
+				break
+	return cells
 
 
 ## Ranged units hang back at PREFERRED_RANGE instead of closing to melee.

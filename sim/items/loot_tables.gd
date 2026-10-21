@@ -9,6 +9,10 @@ extends RefCounted
 ## An entry is an item name (SimItems), "" for nothing, or "@table" to roll
 ## once on another table. Tables are read in their written order, so the
 ## same seed always gives the same loot.
+##
+## Pacing (GDD §5.8): a new skill about once an hour of play. Tomes are rare
+## in random loot (a hidden cache now and then); the levels place the rest
+## (a tome-roll in a cache near the start, the Hexer's book).
 
 const NOTHING := ""
 
@@ -26,17 +30,18 @@ const TABLES := {
 	# A household's odds and ends (townsfolk crates, baskets, pots).
 	"household": {
 		NOTHING: 6, "Bread": 4, "Coins": 4, "Healing potion": 1, "Cooling salve": 1,
-		"Warming draught": 1, "Oil flask": 1, "@tomes_rank1": 1,
+		"Warming draught": 1, "Oil flask": 1,
 	},
 	# Bandits' pockets and the camp's crates.
 	"bandit": {
 		NOTHING: 5, "Coins": 4, "Gold": 1, "Healing potion": 2, "Oil flask": 2,
-		"Fire arrows": 1, "Lockpick": 1, "@tomes": 1,
+		"Fire arrows": 1, "Lockpick": 1,
 	},
-	# Hidden chests out in the wilds: worth the search.
+	# Hidden chests out in the wilds: worth the search (a tome in about one
+	# roll in 20).
 	"cache": {
-		"Gold": 3, "Healing potion": 3, "Warming draught": 1, "Cooling salve": 1,
-		"Silver ring": 1, "Amber pendant": 1, "@tomes": 4,
+		"Gold": 6, "Healing potion": 6, "Warming draught": 2, "Cooling salve": 2,
+		"Silver ring": 2, "Amber pendant": 2, "@tomes": 1,
 	},
 }
 

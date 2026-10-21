@@ -1,0 +1,256 @@
+[gd_scene load_steps=14 format=3]
+
+[ext_resource type="Script" path="res://game/level/game_level.gd" id="1_level"]
+[ext_resource type="Script" path="res://game/level/level_spawn.gd" id="2_spawn"]
+[ext_resource type="Script" path="res://game/level/level_barrel.gd" id="3_barrel"]
+[ext_resource type="Script" path="res://game/level/level_surface.gd" id="4_surface"]
+[ext_resource type="Script" path="res://game/level/level_container.gd" id="5_container"]
+[ext_resource type="Script" path="res://game/level/level_exit.gd" id="6_exit"]
+[ext_resource type="Script" path="res://game/level/level_entry.gd" id="7_entry"]
+[ext_resource type="PackedScene" path="res://game/props/torch.tscn" id="8_torch"]
+
+[sub_resource type="Environment" id="Env_mine"]
+background_mode = 1
+background_color = Color(0.02, 0.02, 0.03, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.32, 0.3, 0.36, 1)
+ambient_light_energy = 0.8
+
+[sub_resource type="StandardMaterial3D" id="Mat_rock"]
+albedo_color = Color(0.3, 0.28, 0.27, 1)
+roughness = 1.0
+
+[sub_resource type="StandardMaterial3D" id="Mat_floor"]
+albedo_color = Color(0.36, 0.3, 0.24, 1)
+roughness = 1.0
+
+[sub_resource type="StandardMaterial3D" id="Mat_timber"]
+albedo_color = Color(0.4, 0.28, 0.17, 1)
+
+[sub_resource type="StandardMaterial3D" id="Mat_glow"]
+albedo_color = Color(1, 0.75, 0.4, 1)
+emission_enabled = true
+emission = Color(1, 0.65, 0.3, 1)
+emission_energy_multiplier = 2.0
+
+[node name="OldMine" type="Node3D"]
+script = ExtResource("1_level")
+grid_size = Vector3i(48, 6, 40)
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Env_mine")
+
+[node name="Moonshaft" type="DirectionalLight3D" parent="."]
+rotation = Vector3(-1.1, -0.6, 0)
+light_color = Color(0.6, 0.65, 0.8, 1)
+light_energy = 0.35
+shadow_enabled = true
+
+[node name="Structures" type="Node3D" parent="."]
+
+[node name="Floor" type="CSGBox3D" parent="Structures"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 1, 20)
+use_collision = true
+size = Vector3(48, 2, 40)
+material = SubResource("Mat_floor")
+
+[node name="Rock" type="CSGBox3D" parent="Structures"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 24, 4, 20)
+use_collision = true
+size = Vector3(48, 4, 40)
+material = SubResource("Mat_rock")
+
+[node name="EntranceHall" type="CSGBox3D" parent="Structures/Rock"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17, 0, 1)
+operation = 2
+size = Vector3(10, 4.6, 10)
+
+[node name="Drift" type="CSGBox3D" parent="Structures/Rock"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3, 0, 0.5)
+operation = 2
+size = Vector3(19, 4.6, 3)
+
+[node name="Hall" type="CSGBox3D" parent="Structures/Rock"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 0, 1)
+operation = 2
+size = Vector3(12, 4.6, 14)
+
+[node name="Shaft" type="CSGBox3D" parent="Structures/Rock"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.5, 0, -9.5)
+operation = 2
+size = Vector3(3, 4.6, 8)
+
+[node name="FloodedGallery" type="CSGBox3D" parent="Structures/Rock"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11, 0, -15)
+operation = 2
+size = Vector3(18, 4.6, 6)
+
+[node name="SealedChamber" type="CSGBox3D" parent="Structures/Rock"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4, 0, -14)
+operation = 2
+size = Vector3(8, 4.6, 8)
+
+[node name="SealedGap" type="CSGBox3D" parent="Structures/Rock"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, -15)
+operation = 2
+size = Vector3(3, 4.6, 2)
+
+[node name="Ledge" type="CSGBox3D" parent="Structures/Rock"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16.5, 1.6, -5.5)
+operation = 2
+size = Vector3(3, 1.2, 3)
+
+[node name="Dressing" type="Node3D" parent="."]
+
+[node name="Ladder" type="Node3D" parent="Dressing"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.6, 2, 21.5)
+
+[node name="RailL" type="CSGBox3D" parent="Dressing/Ladder"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, -0.45)
+size = Vector3(0.1, 4, 0.1)
+material = SubResource("Mat_timber")
+
+[node name="RailR" type="CSGBox3D" parent="Dressing/Ladder"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0.45)
+size = Vector3(0.1, 4, 0.1)
+material = SubResource("Mat_timber")
+
+[node name="Rung1" type="CSGBox3D" parent="Dressing/Ladder"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+size = Vector3(0.08, 0.08, 0.9)
+material = SubResource("Mat_timber")
+
+[node name="Rung2" type="CSGBox3D" parent="Dressing/Ladder"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.3, 0)
+size = Vector3(0.08, 0.08, 0.9)
+material = SubResource("Mat_timber")
+
+[node name="Rung3" type="CSGBox3D" parent="Dressing/Ladder"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.0, 0)
+size = Vector3(0.08, 0.08, 0.9)
+material = SubResource("Mat_timber")
+
+[node name="Rung4" type="CSGBox3D" parent="Dressing/Ladder"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.7, 0)
+size = Vector3(0.08, 0.08, 0.9)
+material = SubResource("Mat_timber")
+
+[node name="Daylight" type="OmniLight3D" parent="Dressing/Ladder"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.8, 3.5, 0)
+light_color = Color(0.75, 0.82, 1, 1)
+light_energy = 1.6
+omni_range = 6.0
+
+[node name="Torch1" parent="Dressing" instance=ExtResource("8_torch")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 11.5, 2, 16.5)
+
+[node name="Torch2" parent="Dressing" instance=ExtResource("8_torch")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 30.5, 2, 14.5)
+
+[node name="Torch3" parent="Dressing" instance=ExtResource("8_torch")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.5, 2, 27.5)
+
+[node name="Torch4" parent="Dressing" instance=ExtResource("8_torch")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26.5, 2, 2.5)
+
+[node name="Glowworms" type="OmniLight3D" parent="Dressing"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 3.5, 6)
+light_color = Color(0.45, 0.9, 0.75, 1)
+light_energy = 1.2
+omni_range = 7.0
+
+[node name="LedgeGlint" type="OmniLight3D" parent="Dressing"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.5, 6, 14.5)
+light_color = Color(1, 0.85, 0.5, 1)
+light_energy = 0.9
+omni_range = 3.0
+
+[node name="Up" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, 2.5, 21.5)
+script = ExtResource("6_exit")
+display_name = "The way up"
+target_level = "res://levels/vertical_slice/vertical_slice.tscn"
+target_entry = "mine"
+
+[node name="Start" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.5, 2.5, 21.5)
+script = ExtResource("7_entry")
+entry_name = "start"
+
+[node name="MineThugs" type="Node3D" parent="."]
+
+[node name="Foreman" type="Marker3D" parent="MineThugs"]
+transform = Transform3D(-0.00000004371139, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, -0.00000004371139, 38.5, 2.5, 19.5)
+script = ExtResource("2_spawn")
+loot = "bandit"
+role = "thug"
+entity_name = "Foreman"
+team = 1
+
+[node name="Digger" type="Marker3D" parent="MineThugs"]
+transform = Transform3D(-0.00000004371139, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, -0.00000004371139, 36.5, 2.5, 24.5)
+script = ExtResource("2_spawn")
+loot = "bandit"
+role = "ruffian"
+entity_name = "Digger"
+team = 1
+
+[node name="Digger2" type="Marker3D" parent="MineThugs"]
+transform = Transform3D(-0.00000004371139, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, -0.00000004371139, 40.5, 2.5, 23.5)
+script = ExtResource("2_spawn")
+loot = "bandit"
+role = "ruffian"
+entity_name = "Digger"
+team = 1
+
+[node name="LampOil" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 34.5, 2.5, 20.5)
+script = ExtResource("3_barrel")
+
+[node name="LampOil2" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 33.5, 2.5, 25.5)
+script = ExtResource("3_barrel")
+
+[node name="Floodwater" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 38.5, 2.5, 4.5)
+script = ExtResource("4_surface")
+amount = 40
+radius = 3
+
+[node name="Strongbox" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.5, 2.5, 15.5)
+script = ExtResource("5_container")
+display_name = "Miners' strongbox"
+items = Array[String](["Coins"])
+loot = "bandit"
+loot_rolls = 2
+
+[node name="Timbers" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25.5, 2.5, 4.5)
+script = ExtResource("5_container")
+display_name = "Fallen timbers"
+look = "crate_large"
+hp = 6
+
+[node name="Timbers2" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25.5, 2.5, 5.5)
+script = ExtResource("5_container")
+display_name = "Fallen timbers"
+look = "crate_large"
+hp = 6
+
+[node name="ForgottenCache" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 19.5, 2.5, 4.5)
+script = ExtResource("5_container")
+display_name = "Forgotten cache"
+items = Array[String](["Gold", "Healing potion"])
+loot = "cache"
+loot_rolls = 2
+
+[node name="LedgeSatchel" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.5, 5.8, 14.5)
+script = ExtResource("5_container")
+display_name = "Dusty satchel"
+look = "basket"
+items = Array[String](["Coins"])
+loot = "tomes"

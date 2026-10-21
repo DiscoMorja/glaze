@@ -65,6 +65,7 @@ Guard: Move along. And stay off the west road unless you want a knife in you.
 * [Why don't you deal with the bandits?] -> guard_bandits
 * {self.suspicious and not guard_calmed and talker.charisma >= 2} [(Charisma) You've the wrong people, guard.] -> guard_calm
 * {talker.historian >= 1 and not guard_lore} [(Historian) That camp was a toll post once, wasn't it?] -> guard_lore
+* {smuggler_known and not smuggler_reported and not quest.smuggler.done} [There's a smuggler on the north-west shore.] -> guard_smuggler
 * [Fine.] -> END
 
 === guard_calm
@@ -85,6 +86,14 @@ Guard: Their chief keeps the camp key on him. Whatever they've taken is in his c
 ~ bandits_known = 1
 -> END
 
+=== guard_smuggler
+~ smuggler_reported = 1
+Guard: On the old shore? I wondered how the tavern always has wine with the road shut.
+{talker.has.Sealed_package} Guard: And that's his, is it? I'll take it. Evidence.
+{talker.has.Sealed_package} ~ take Sealed package
+Guard: I'll see to him. There's a reward for honest folk, when the captain remembers to pay it.
+-> END
+
 === villager
 {quest.bandits.cleared} Villager: They say the camp is empty! Is it true?
 {quest.bandits.cleared} -> END
@@ -93,5 +102,81 @@ Villager: Don't go up the hill. Please.
 
 === farmer
 {self.suspicious} Farmer: You again. Watch yourself.
-Farmer: Bandits took two of my goats. Two! If you're going up there, bring them back. Or don't. They're probably eaten.
+{quest.granary.saved} Farmer: The barn stands. I keep walking out to look at it. Thank you.
+{quest.granary.saved} -> END
+{quest.granary.burned} Farmer: All of it. The whole winter's grain. Don't talk to me.
+{quest.granary.burned} -> END
+Farmer: Ruffians are squatting by my barn on the west road. They said if I come back they'll burn it, with the lamp oil I keep there.
+~ granary_warned = 1
+* [We'll run them off.] -> farmer_promise
+* [Anything else wrong around here?] -> farmer_shepherd
+* [Not our business.] -> END
+
+=== farmer_promise
+Farmer: Mind the oil barrel by the door. One spark and the barn goes up, and the grain with it.
+-> END
+
+=== farmer_shepherd
+Farmer: Old Hob took his flock up into the southern hills a week ago. The flock came back without him.
+~ shepherd_known = 1
+Farmer: More of those ruffians up there, I'd wager.
+-> END
+
+=== smith
+{self.suspicious} Smith: I've nothing for thieves.
+{quest.hammer.returned} Smith: Listen to that ring. Best sound in the world. Thank you again.
+{quest.hammer.returned} -> END
+{talker.has.Forge_hammer} -> smith_return
+Smith: Can't work. Some quick-fingered bandit lifted my forge hammer off the bench in broad daylight.
+~ hammer_known = 1
+Smith: Thin fellow, ran west towards the camp. Bring it back and you'll not leave empty-handed.
+* [We'll keep an eye out.] -> END
+* [What will you give us?] -> smith_reward_ask
+
+=== smith_reward_ask
+Smith: A helm I finished last month. Good iron. Better on your head than on my shelf.
+-> END
+
+=== smith_return
+Smith: That's it! That's my hammer! Where did you...? Never mind. Never mind!
+~ take Forge hammer
+~ hammer_returned = 1
+{self.has.Iron_helm} ~ give Iron helm
+{self.has.Iron_helm} Smith: Here. You've earned it.
+{not self.has.Iron_helm} Smith: I'd have given you the helm... it's gone from the shelf. Strange days.
+-> END
+
+=== tavern
+{self.suspicious} Marta: Drink up and go.
+Marta: Welcome to the Drowned Lantern. Nothing's coming up the road, so it's cider or nothing.
+* [Heard anything interesting?] -> tavern_gossip
+* {talker.has.Sealed_package} [A man on the north-west shore sent this.] -> tavern_package
+* [Let's trade.] -> tavern_trade
+* [Goodbye.] -> END
+
+=== tavern_gossip
+{not hammer_known} Marta: The smith's in a black mood. Someone took his hammer.
+{not shepherd_known} Marta: Old Hob the shepherd never came down from the southern hills.
+{not shepherd_known} ~ shepherd_known = 1
+Marta: There's an old mine in the northern hills, below the cliffs. Shut since the roof fell in. Children say there's treasure. Children say a lot.
+Marta: And someone's hidden a chest out past the pond, west of here. Every drunk in this village has looked for it.
+* {talker.charisma >= 1} [(Charisma) You know everyone. Who brings your wine, with the road shut?] -> tavern_wine
+* [Thanks.] -> END
+
+=== tavern_wine
+Marta: ...A friend. On the old shore, north-west, where the wrecks wash up. Don't go bothering him.
+~ smuggler_known = 1
+-> END
+
+=== tavern_package
+Marta: Not here! ...Give it. Quickly.
+~ take Sealed package
+~ package_delivered = 1
+{self.has.Gold} ~ give Gold
+Marta: That's for your trouble. And you never saw me take it.
+-> END
+
+=== tavern_trade
+Marta: Cider, bread, and whatever's left.
+~ trade
 -> END
