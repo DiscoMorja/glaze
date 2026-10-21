@@ -51,12 +51,11 @@ func render(grid: SimGrid) -> void:
 	var fire := grid.fire
 	var full := float(SimMaterials.AMOUNT_FULL)
 
-	# Only cells holding something, found with native searches, so a big
+	# Only cells holding something (the grid's sparse sets), so a big
 	# mostly-empty world costs little to draw.
 	var cells := {}
-	if grid.has_any(SimGrid.FIELD_GASES):
-		for i in SimGrid.indices_of(gas_types, GAS_COLORS.keys()):
-			cells[i] = true
+	for i in grid.gas_indices(GAS_COLORS.keys()):
+		cells[i] = true
 	if show_fire:
 		for i in grid.burning_cells():
 			cells[i] = true

@@ -96,11 +96,12 @@ static func step(state: SimState) -> void:
 		return
 	var fire := grid.fire
 	var burning := grid.burning_cells()
-	# Snapshot of the surfaces: keep the current arrays and make the grid write
-	# to fresh copies (copy-on-write) from here on.
+	# Everyone reads the surfaces as they were at the start of the tick: fuel
+	# used up is written after the loop (sparse, instead of copying the whole
+	# surface arrays every tick on a big level).
 	var types := grid.surface_type
 	var amounts := grid.surface_amount
-	grid.detach_surfaces()
+	var fuel_after := {}
 	# Fire for next tick, sparse: cells absent here keep their current fire.
 	var next_fire := {}
 	grid.edit_heat()
@@ -112,22 +113,12 @@ static func step(state: SimState) -> void:
 
 		if t == SimMaterials.Surface.WATER:
 			next_fire[i] = 0
-			var left: int = amounts[i] - SimMaterials.WATER_PER_EXTINGUISH
-			if left <= 0:
-				grid.clear_surface(i)
-			else:
-				grid.edit_surfaces()
-				grid.surface_amount[i] = left
+			fuel_after[i] = maxi(amounts[i] - SimMaterials.WATER_PER_EXTINGUISH, 0)
 			grid.add_gas_at(i, SimMaterials.Gas.STEAM, SimMaterials.STEAM_PER_EXTINGUISH)
 			state.emit_event(SimEvent.Type.EXTINGUISHED, c)
 		elif SimMaterials.is_flammable(t) and amounts[i] > 0:
 			next_fire[i] = SimMaterials.FIRE_MAX
-			var fuel_left: int = amounts[i] - SimMaterials.burn_rate(t)
-			if fuel_left <= 0:
-				grid.clear_surface(i)
-			else:
-				grid.edit_surfaces()
-				grid.surface_amount[i] = fuel_left
+			fuel_after[i] = maxi(amounts[i] - SimMaterials.burn_rate(t), 0)
 			grid.add_gas_at(i, SimMaterials.Gas.SMOKE, SimMaterials.SMOKE_PER_BURN_TICK)
 			for n: Vector3i in SimGrid.NEIGHBORS_6:
 				var nc := c + n
@@ -146,6 +137,15 @@ static func step(state: SimState) -> void:
 
 		if next_fire.get(i, fire[i]) > 0:
 			grid.set_temperature(i, maxi(grid.temperature[i], SimMaterials.FIRE_TEMPERATURE))
+
+	var spent: Array = fuel_after.keys()
+	spent.sort()
+	for i: int in spent:
+		if fuel_after[i] <= 0:
+			grid.clear_surface(i)
+		else:
+			grid.edit_surfaces()
+			grid.surface_amount[i] = fuel_after[i]
 
 	var lit: Array[int] = []
 	var blasts: Array[int] = []

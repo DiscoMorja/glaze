@@ -58,6 +58,9 @@ const COLOR_SUSPICIOUS := Color(1.0, 0.55, 0.1, 0.18)
 const DANGER_SHOW_RADIUS := 40
 ## Exploring: the walk preview waits this long after the hovered cell changes.
 const EXPLORE_PREVIEW_DELAY_MSEC := 60
+## In combat the preview forecasts the turn's end (a few sim ticks on a copy),
+## so it also waits for the cursor to rest instead of running per cell crossed.
+const COMBAT_PREVIEW_DELAY_MSEC := 70
 ## Time each frame may spend on walk route searches.
 const ROUTE_BUDGET_USEC := 2500
 ## A frame longer than this is logged while the perf readout is up.
@@ -85,8 +88,9 @@ const COLOR_ENEMY_TARGET := Color(1.0, 0.55, 0.1, 0.6)
 @export var level_scene: PackedScene
 ## Prints the perf readout to the output every 2 s (stress-test levels).
 @export var log_perf := false
-## Retro presentation style to start with (P cycles them).
-@export var retro_style := RetroLook.Style.OFF
+## Retro presentation style to start with (P cycles them; the choice then
+## stays through level changes).
+@export var retro_style := RetroLook.Style.EARLY_2000S
 
 var state: SimState
 var _level: GameLevel
@@ -147,6 +151,10 @@ var _pending_exit: Variant = null
 var _retro: RetroLook
 var _fire_field: FireField
 var _vfx: VfxPlayer
+var _sounds: EventSounds
+var _music: MusicDirector
+## Whether the start style was applied (later levels keep the player's pick).
+var _retro_started := false
 var _entity_renderer: SimEntityRenderer
 var _markers: CellMarkers
 var _range_markers: CellMarkers
@@ -236,6 +244,8 @@ func _process(delta: float) -> void:
 		_refresh()
 	_update_cutaway()
 	_update_fog()
+	_music.request(MusicDirector.mood_for(state, _level, state.get_entity(_selected_id)))
+	_sounds.sfx.update_fire(state.grid, _rig.position)
 	_update_hover()
 	_advance_walks()
 	_check_pending_exit()
@@ -296,9 +306,10 @@ func _update_hover() -> void:
 	_note_perf("pick", t_pick)
 	if typeof(hover) != typeof(_hover) or hover != _hover:
 		_hover = hover
-		if _exploring() and not forced:
-			# Route searches can take a few ms each: wait for the cursor to settle.
-			_preview_due_msec = Time.get_ticks_msec() + EXPLORE_PREVIEW_DELAY_MSEC
+		if not forced and (_exploring() or state.combat.active):
+			# Route searches and turn-end forecasts take a few ms each: wait for
+			# the cursor to settle.
+			_preview_due_msec = Time.get_ticks_msec() + (EXPLORE_PREVIEW_DELAY_MSEC if _exploring() else COMBAT_PREVIEW_DELAY_MSEC)
 		else:
 			_preview_due_msec = 0
 			_update_preview()
@@ -475,7 +486,8 @@ func _start_from(start: SimState) -> void:
 	state = start
 	_fog.setup(_rig.camera, _level, state)
 	_danger_cache.clear()
-	if _retro.style == RetroLook.Style.OFF and retro_style != RetroLook.Style.OFF:
+	if not _retro_started:
+		_retro_started = true
 		_retro.set_style(retro_style, _level)
 	else:
 		_retro.apply(_level)
@@ -574,6 +586,7 @@ func _open_container(container: SimEntity) -> void:
 	_pending_loot = -1
 	if reason == "":
 		_loot.open(container.id)
+		_sounds.sfx.play_ui("chest_open")
 		_entity_renderer.mark_searched(container.id)
 		_refresh()
 	elif reason == "Too far":
@@ -1298,6 +1311,8 @@ func _present(s: SimState, events: Array[SimEvent]) -> void:
 	for e in events:
 		if e.type == SimEvent.Type.COMBAT_ENDED:
 			_show_banner("Victory!" if e.amount == SimEntity.Faction.PLAYERS else "Defeat")
+			if e.amount == SimEntity.Faction.PLAYERS:
+				_music.victory()
 		elif e.type == SimEvent.Type.QUEST_STARTED and QuestRules.quests.has(e.text):
 			_show_banner("New quest: %s   (J: journal)" % QuestRules.quests[e.text].title)
 			_autosave_reason = "new quest"
@@ -1326,6 +1341,7 @@ func _present(s: SimState, events: Array[SimEvent]) -> void:
 	_fire_field.sync(s.grid)
 	_entity_renderer.render(s, events)
 	_vfx.play(s, events)
+	_sounds.play(s, events)
 	_refresh()
 
 
@@ -1824,12 +1840,19 @@ func _preview_outcome(command: SimCommand, actor: SimEntity, cells: Array[Vector
 		cells.append(c)
 		colors.append(COLOR_PATH)
 
-	# Turn-end forecast (fire spreading, burning) only matters in combat; in real
-	# time there is no turn end to forecast.
-	var forecast := after
-	if state.combat.active:
-		forecast = after.duplicate_state()
-		forecast.step_ticks(CombatRules.TICKS_PER_SIDE_TURN)
+	# What the action does at once, read before the forecast runs on the same copy.
+	var now_hp := {}
+	for e in after.entities:
+		now_hp[e.id] = e.hp
+	var ap_after := after.get_entity(actor.id).ap
+	var surface_changed: Array[int] = []
+	if after.grid.surface_type != state.grid.surface_type:
+		var kinds := [SimMaterials.Surface.WATER, SimMaterials.Surface.OIL, SimMaterials.Surface.ICE]
+		var candidates: PackedInt32Array = after.grid.surface_indices(kinds)
+		candidates.append_array(state.grid.surface_indices(kinds))
+		for i in candidates:
+			if after.grid.surface_type[i] != state.grid.surface_type[i] and not surface_changed.has(i):
+				surface_changed.append(i)
 	if command is CastCommand and (command as CastCommand).ability == SimAbilities.Ability.SHOCKWAVE:
 		for c in SimAbilities.line_cells(state.grid, actor.cell, (command as CastCommand).target):
 			cells.append(c)
@@ -1838,6 +1861,12 @@ func _preview_outcome(command: SimCommand, actor: SimEntity, cells: Array[Vector
 		var moved := after.get_entity(state.entity_at((command as CastCommand).target).id)
 		cells.append(moved.cell)
 		colors.append(COLOR_TARGET)
+
+	# Turn-end forecast (fire spreading, burning) only matters in combat; in real
+	# time there is no turn end to forecast. It runs on `after` itself.
+	var forecast := after
+	if state.combat.active:
+		forecast.step_ticks(CombatRules.TICKS_PER_SIDE_TURN)
 
 	# New fire and changed surfaces, found with native array compares and
 	# searches so the cost depends on what changed, not on the grid size.
@@ -1849,28 +1878,24 @@ func _preview_outcome(command: SimCommand, actor: SimEntity, cells: Array[Vector
 				marked[i] = true
 				cells.append(grid.coord(i))
 				colors.append(COLOR_FIRE)
-	if after.grid.surface_type != grid.surface_type:
-		var kinds := [SimMaterials.Surface.WATER, SimMaterials.Surface.OIL, SimMaterials.Surface.ICE]
-		var candidates := SimGrid.indices_of(after.grid.surface_type, kinds)
-		candidates.append_array(SimGrid.indices_of(grid.surface_type, kinds))
-		for i in candidates:
-			if not marked.has(i) and after.grid.surface_type[i] != grid.surface_type[i]:
-				marked[i] = true
-				cells.append(grid.coord(i))
-				colors.append(COLOR_SURFACE)
+	for i in surface_changed:
+		if not marked.has(i):
+			marked[i] = true
+			cells.append(grid.coord(i))
+			colors.append(COLOR_SURFACE)
 
 	for e in state.entities:
 		if not e.is_alive():
 			continue
-		var now_hp := after.get_entity(e.id).hp
+		var hp_now: int = now_hp.get(e.id, e.hp)
 		var later_hp := forecast.get_entity(e.id).hp
-		if now_hp == e.hp and later_hp == e.hp:
+		if hp_now == e.hp and later_hp == e.hp:
 			continue
-		if e.faction == SimEntity.Faction.PLAYERS and now_hp < e.hp:
+		if e.faction == SimEntity.Faction.PLAYERS and hp_now < e.hp:
 			_preview_hurts_allies.append(e.name)
-		texts[e.id] = [now_hp, later_hp]
+		texts[e.id] = [hp_now, later_hp]
 
-	_preview_cost = actor.ap - after.get_entity(actor.id).ap
+	_preview_cost = actor.ap - ap_after
 	if state.combat.active:
 		_preview_text = "%s: %d AP" % [_mode_name(), _preview_cost]
 	else:
@@ -1896,6 +1921,10 @@ func _build_scene() -> void:
 	add_child(_fire_field)
 	_vfx = VfxPlayer.new()
 	add_child(_vfx)
+	_sounds = EventSounds.new()
+	add_child(_sounds)
+	_music = MusicDirector.new()
+	add_child(_music)
 	_entity_renderer = SimEntityRenderer.new()
 	_entity_renderer.fire_field = _fire_field
 	add_child(_entity_renderer)

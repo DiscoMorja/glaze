@@ -10,11 +10,9 @@ const GASES := [SimMaterials.Gas.STEAM, SimMaterials.Gas.SMOKE, SimMaterials.Gas
 @warning_ignore("integer_division")
 static func step(state: SimState) -> void:
 	var grid := state.grid
-	if not grid.has_any(SimGrid.FIELD_GASES):
-		return
 	var types := grid.gas_type
 	var amounts := grid.gas_amount
-	var active := SimGrid.indices_of(types, GASES)
+	var active := grid.gas_indices(GASES)
 	if active.is_empty():
 		return
 	# Sparse: only cells that hold or receive something get entries.
@@ -68,6 +66,7 @@ static func step(state: SimState) -> void:
 		else:
 			amounts[i] = a
 			types[i] = t
+			grid.note_gas(i)
 
 
 ## Fire reaching poison gas sets off the whole connected cloud at once:

@@ -46,6 +46,14 @@ var terrain_height_cm := PackedInt32Array()
 var heat_cells := {}
 ## Burning cells (index -> true), so fire is processed per burning cell.
 var fire_cells := {}
+## Cells that may hold a surface / a gas (index -> true): a superset kept by
+## every write that can put one where there was none (add_surface(),
+## add_gas_at(), and the liquid and gas flows through note_surface() /
+## note_gas()). Rules visit these (surface_indices(), gas_indices()) instead
+## of scanning the whole grid; empty ones are dropped as they are found.
+## Derived: rebuilt when a grid is loaded, not saved or hashed.
+var surface_cells := {}
+var gas_cells := {}
 
 var _layer: int
 ## Fields whose arrays this grid owns (FIELD_* bits); the rest are shared.
@@ -276,6 +284,7 @@ func add_surface(c: Vector3i, type: int, amount: int) -> bool:
 	edit_surfaces()
 	surface_type[i] = type
 	surface_amount[i] += amount
+	surface_cells[i] = true
 	return true
 
 
@@ -291,7 +300,69 @@ func add_gas_at(i: int, type: int, amount: int) -> bool:
 	edit_gases()
 	gas_type[i] = type
 	gas_amount[i] += amount
+	gas_cells[i] = true
 	return true
+
+
+## A surface was written straight into cell i (a liquid flowing in).
+func note_surface(i: int) -> void:
+	surface_cells[i] = true
+
+
+## A gas was written straight into cell i (a cloud spreading or rising).
+func note_gas(i: int) -> void:
+	gas_cells[i] = true
+
+
+## Ascending indices of cells whose surface is one of `kinds`, from
+## surface_cells (so the cost follows the surfaces, not the grid size).
+func surface_indices(kinds: Array) -> PackedInt32Array:
+	return _indices_in(surface_cells, surface_type, kinds)
+
+
+## Ascending indices of cells whose gas is one of `kinds` (from gas_cells).
+func gas_indices(kinds: Array) -> PackedInt32Array:
+	return _indices_in(gas_cells, gas_type, kinds)
+
+
+static func _indices_in(cells: Dictionary, values: PackedByteArray, kinds: Array) -> PackedInt32Array:
+	var result := PackedInt32Array()
+	var empty: Array[int] = []
+	for i: int in cells:
+		var value: int = values[i]
+		if value == 0:
+			empty.append(i)
+		elif kinds.has(value):
+			result.append(i)
+	for i in empty:
+		cells.erase(i)
+	result.sort()
+	return result
+
+
+## Fills surface_cells and gas_cells from the arrays (a grid loaded from a
+## snapshot). Scans the whole grid once.
+func rebuild_cells() -> void:
+	surface_cells.clear()
+	gas_cells.clear()
+	for i in indices_in_range_bytes(surface_type):
+		surface_cells[i] = true
+	for i in indices_in_range_bytes(gas_type):
+		gas_cells[i] = true
+
+
+## Ascending indices of the non-zero cells of a byte array.
+static func indices_in_range_bytes(values: PackedByteArray) -> PackedInt32Array:
+	var result := PackedInt32Array()
+	if values.count(0) == values.size():
+		return result
+	for kind in range(1, 256):
+		var i := values.find(kind)
+		while i != -1:
+			result.append(i)
+			i = values.find(kind, i + 1)
+	result.sort()
+	return result
 
 
 func clear_surface(i: int) -> void:
@@ -365,6 +436,8 @@ func duplicate_grid() -> SimGrid:
 	copy.terrain_height_cm = terrain_height_cm
 	copy.heat_cells = heat_cells.duplicate()
 	copy.fire_cells = fire_cells.duplicate()
+	copy.surface_cells = surface_cells.duplicate()
+	copy.gas_cells = gas_cells.duplicate()
 	copy._maybe = _maybe
 	copy.surface_version = surface_version
 	copy.solid_version = solid_version
@@ -400,6 +473,7 @@ static func from_dict(data: Dictionary) -> SimGrid:
 		grid.heat_cells[i] = true
 	for i: int in data.fire_cells:
 		grid.fire_cells[i] = true
+	grid.rebuild_cells()
 	return grid
 
 

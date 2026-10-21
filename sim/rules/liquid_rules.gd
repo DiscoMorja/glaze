@@ -15,11 +15,9 @@ static func step(state: SimState) -> void:
 	var now := [grid.surface_version, grid.solid_version]
 	if now == grid.liquids_still_at:
 		return  # settled (a calm sea), and nothing has changed since
-	if not grid.has_any(SimGrid.FIELD_SURFACES):
-		return
 	var types := grid.surface_type
 	var amounts := grid.surface_amount
-	var active := SimGrid.indices_of(types, FLUIDS)
+	var active := grid.surface_indices(FLUIDS)
 	if active.is_empty():
 		grid.liquids_still_at = now
 		return
@@ -84,6 +82,7 @@ static func step(state: SimState) -> void:
 		else:
 			amounts[i] = a
 			types[i] = next_types.get(i, types[i])
+			grid.note_surface(i)
 
 
 ## Runs liquid steps (nothing else) until liquids stop moving, at most

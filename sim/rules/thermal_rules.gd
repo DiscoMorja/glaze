@@ -30,8 +30,8 @@ static func step(state: SimState) -> void:
 				grid.surface_type[i] = SimMaterials.Surface.WATER
 				state.emit_event(SimEvent.Type.MELTED, grid.coord(i))
 
-	if ambient > SimMaterials.FREEZE_TEMPERATURE and grid.no_ice_at != grid.surface_version and grid.has_any(SimGrid.FIELD_SURFACES):
-		var ice := SimGrid.indices_of(grid.surface_type, [SimMaterials.Surface.ICE])
+	if ambient > SimMaterials.FREEZE_TEMPERATURE and grid.no_ice_at != grid.surface_version:
+		var ice := grid.surface_indices([SimMaterials.Surface.ICE])
 		if ice.is_empty():
 			grid.no_ice_at = grid.surface_version  # ice only comes with a surface edit
 		for i in ice:

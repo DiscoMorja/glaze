@@ -22,6 +22,9 @@ const GUEST_SCENE := "res://game/world/world.tscn"
 
 
 func _ready() -> void:
+	var music := MusicDirector.new()
+	add_child(music)
+	music.request("menu")
 	for key: String in LEVELS:
 		_level.add_item(LEVELS[key].label)
 		_level.set_item_metadata(_level.item_count - 1, key)

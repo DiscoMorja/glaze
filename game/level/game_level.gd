@@ -22,6 +22,12 @@ extends Node3D
 @export_flags_3d_physics var structure_layers := 1
 ## Start the level in turn-based combat (an arena) instead of exploring.
 @export var start_in_combat := false
+## Music while exploring (MusicDirector): wilds, dungeon or hub. With a
+## hub_group, wilds turn into the hub music within hub_radius cells of that
+## group's people (the village).
+@export_enum("wilds", "dungeon", "hub") var music := "wilds"
+@export var hub_group := ""
+@export var hub_radius := 40
 
 ## Where the vertical sample lines run inside each 1 m column: a 5 x 5 grid
 ## 0.2 m apart, so a wall at least 0.2 m thick always crosses a line (two

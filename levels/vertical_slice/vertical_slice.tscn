@@ -37,12 +37,13 @@
 [ext_resource type="Script" path="res://game/level/level_entry.gd" id="47_entry"]
 
 [sub_resource type="ProceduralSkyMaterial" id="Sky_mat"]
-sky_top_color = Color(0.56, 0.66, 0.78, 1)
-sky_horizon_color = Color(0.9, 0.86, 0.8, 1)
-sky_curve = 0.12
-ground_bottom_color = Color(0.42, 0.45, 0.47, 1)
-ground_horizon_color = Color(0.9, 0.86, 0.8, 1)
-sun_angle_max = 20.0
+sky_top_color = Color(0.4, 0.48, 0.64, 1)
+sky_horizon_color = Color(1, 0.74, 0.52, 1)
+sky_curve = 0.18
+ground_bottom_color = Color(0.3, 0.27, 0.28, 1)
+ground_horizon_color = Color(0.98, 0.72, 0.5, 1)
+sun_angle_max = 30.0
+sun_curve = 0.08
 
 [sub_resource type="Sky" id="Sky_day"]
 sky_material = SubResource("Sky_mat")
@@ -51,42 +52,45 @@ sky_material = SubResource("Sky_mat")
 background_mode = 2
 sky = SubResource("Sky_day")
 ambient_light_source = 3
-ambient_light_color = Color(0.78, 0.82, 0.88, 1)
-ambient_light_sky_contribution = 0.7
-ambient_light_energy = 0.75
+ambient_light_color = Color(0.74, 0.66, 0.64, 1)
+ambient_light_sky_contribution = 0.55
+ambient_light_energy = 0.48
 tonemap_mode = 2
-tonemap_white = 1.2
+tonemap_white = 1.4
 ssao_enabled = true
 ssao_radius = 1.4
-ssao_intensity = 1.4
+ssao_intensity = 1.6
 glow_enabled = true
-glow_intensity = 0.5
-glow_bloom = 0.04
+glow_intensity = 0.75
+glow_bloom = 0.07
+glow_hdr_threshold = 0.9
 fog_enabled = true
-fog_light_color = Color(0.82, 0.84, 0.86, 1)
-fog_density = 0.002
-fog_sky_affect = 0.5
+fog_light_color = Color(0.88, 0.74, 0.62, 1)
+fog_sun_scatter = 0.3
+fog_density = 0.0025
+fog_sky_affect = 0.6
 fog_height = 5.0
-fog_height_density = 0.05
+fog_height_density = 0.06
 volumetric_fog_enabled = true
-volumetric_fog_density = 0.004
-volumetric_fog_albedo = Color(0.92, 0.93, 0.95, 1)
-volumetric_fog_anisotropy = 0.45
+volumetric_fog_density = 0.006
+volumetric_fog_albedo = Color(0.98, 0.9, 0.82, 1)
+volumetric_fog_anisotropy = 0.5
 volumetric_fog_length = 90.0
-volumetric_fog_ambient_inject = 0.15
-volumetric_fog_sky_affect = 0.25
+volumetric_fog_ambient_inject = 0.25
+volumetric_fog_sky_affect = 0.35
 adjustment_enabled = true
-adjustment_saturation = 1.08
+adjustment_contrast = 1.04
+adjustment_saturation = 1.12
 
 [sub_resource type="FogMaterial" id="Mist_ground"]
 density = 0.02
-albedo = Color(0.93, 0.94, 0.96, 1)
+albedo = Color(0.98, 0.92, 0.86, 1)
 height_falloff = 0.6
 edge_fade = 0.4
 
 [sub_resource type="FogMaterial" id="Mist_water"]
-density = 0.035
-albedo = Color(0.9, 0.92, 0.95, 1)
+density = 0.012
+albedo = Color(0.86, 0.84, 0.86, 1)
 height_falloff = 0.9
 edge_fade = 0.3
 
@@ -216,7 +220,7 @@ albedo_color = Color(1, 0.8, 0.5, 1)
 roughness = 1.0
 emission_enabled = true
 emission = Color(1, 0.62, 0.3, 1)
-emission_energy_multiplier = 2.2
+emission_energy_multiplier = 3.2
 
 [sub_resource type="StandardMaterial3D" id="Mat_window_forge"]
 albedo_color = Color(1, 0.6, 0.3, 1)
@@ -273,16 +277,18 @@ rings = 3
 [node name="VerticalSlice" type="Node3D"]
 script = ExtResource("1_level")
 grid_size = Vector3i(320, 40, 256)
+hub_group = "Village"
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Env_day")
 
 [node name="Sun" type="DirectionalLight3D" parent="."]
-transform = Transform3D(0.343582, -0.357967, 0.868223, 0.000000, 0.924504, 0.381171, -0.939123, -0.130963, 0.317643, 0, 0, 0)
-light_color = Color(1, 0.88, 0.74, 1)
-light_energy = 1.05
-light_volumetric_fog_energy = 1.2
+transform = Transform3D(-0.258819, 0.000000, 0.965926, 0.282409, 0.956305, 0.075671, -0.923719, 0.292372, -0.247510, 0, 0, 0)
+light_color = Color(1, 0.74, 0.5, 1)
+light_energy = 0.85
+light_volumetric_fog_energy = 2.2
 shadow_enabled = true
+shadow_blur = 1.5
 directional_shadow_max_distance = 80.0
 
 [node name="Mist" type="Node3D" parent="."]
@@ -14095,6 +14101,56 @@ entity_name = "Joss"
 team = 2
 dialogue = "prisoner"
 inventory = Array[String](["Oil flask", "Oil flask"])
+
+[node name="Lanterns" type="Node3D" parent="."]
+
+[node name="QuayLantern" type="OmniLight3D" parent="Lanterns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 293.5, 7.0, 155.5)
+light_color = Color(1, 0.66, 0.36, 1)
+light_energy = 1.4
+light_volumetric_fog_energy = 2.5
+omni_range = 9.0
+omni_attenuation = 1.3
+
+[node name="QuayLantern2" type="OmniLight3D" parent="Lanterns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 293.5, 7.0, 161.5)
+light_color = Color(1, 0.66, 0.36, 1)
+light_energy = 1.4
+light_volumetric_fog_energy = 2.5
+omni_range = 9.0
+omni_attenuation = 1.3
+
+[node name="TavernDoor" type="OmniLight3D" parent="Lanterns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 288.0, 6.5, 161.0)
+light_color = Color(1, 0.66, 0.36, 1)
+light_energy = 1.4
+light_volumetric_fog_energy = 2.5
+omni_range = 9.0
+omni_attenuation = 1.3
+
+[node name="Square" type="OmniLight3D" parent="Lanterns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 268.0, 7.5, 153.0)
+light_color = Color(1, 0.66, 0.36, 1)
+light_energy = 1.4
+light_volumetric_fog_energy = 2.5
+omni_range = 9.0
+omni_attenuation = 1.3
+
+[node name="Market" type="OmniLight3D" parent="Lanterns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 258.0, 7.5, 119.0)
+light_color = Color(1, 0.66, 0.36, 1)
+light_energy = 1.4
+light_volumetric_fog_energy = 2.5
+omni_range = 9.0
+omni_attenuation = 1.3
+
+[node name="Forge" type="OmniLight3D" parent="Lanterns"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 271.0, 6.5, 139.0)
+light_color = Color(1, 0.66, 0.36, 1)
+light_energy = 1.4
+light_volumetric_fog_energy = 2.5
+omni_range = 9.0
+omni_attenuation = 1.3
 
 [node name="Party" type="Node3D" parent="."]
 

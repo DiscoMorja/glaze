@@ -36,6 +36,7 @@ emission_energy_multiplier = 2.0
 [node name="OldMine" type="Node3D"]
 script = ExtResource("1_level")
 grid_size = Vector3i(48, 6, 40)
+music = "dungeon"
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Env_mine")

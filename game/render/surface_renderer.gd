@@ -52,9 +52,7 @@ func render(grid: SimGrid) -> void:
 		return
 	_drawn = now
 	_fit(grid)
-	var cells := PackedInt32Array()
-	if grid.has_any(SimGrid.FIELD_SURFACES):
-		cells = SimGrid.indices_of(grid.surface_type, CHANNELS.keys())
+	var cells: PackedInt32Array = grid.surface_indices(CHANNELS.keys())
 	_paint_mask(grid, cells)
 	if cells != _mesh_cells:
 		_mesh_cells = cells

@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://wqpeucfpa128"
+path="res://.godot/imported/Dungeon Whispers.wav-400ab67d607e726dac7b8ba5e39c958e.sample"
+
+[deps]
+
+source_file="res://game/audio/music/Dungeon Whispers.wav"
+dest_files=["res://.godot/imported/Dungeon Whispers.wav-400ab67d607e726dac7b8ba5e39c958e.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

@@ -133,9 +133,11 @@ func _process(_delta: float) -> void:
 
 func _tune_environment(environment: Environment, settings: Dictionary) -> void:
 	if settings.fog:
+		var had_fog := environment.fog_enabled
 		_change(environment, "fog_enabled", true)
 		_change(environment, "fog_mode", Environment.FOG_MODE_DEPTH)
-		_change(environment, "fog_light_color", FOG_COLOR)
+		# The level's own haze colour (a warm dusk stays warm); grey if it has none.
+		_change(environment, "fog_light_color", environment.fog_light_color if had_fog else FOG_COLOR)
 		_change(environment, "fog_density", 1.0)
 		_change(environment, "fog_sky_affect", 0.0)
 		_change(environment, "fog_depth_begin", environment.fog_depth_begin)
@@ -156,9 +158,9 @@ func _change(target: Object, property: String, value: Variant) -> void:
 func _restore() -> void:
 	for i in range(_changes.size() - 1, -1, -1):
 		var change: Array = _changes[i]
+		if not is_instance_valid(change[0]):
+			continue  # freed with the level it belonged to (travelling to another)
 		var target: Object = change[0]
-		if not is_instance_valid(target):
-			continue
 		if change[1] is int:
 			(target as MeshInstance3D).set_surface_override_material(change[1], change[2])
 		else:

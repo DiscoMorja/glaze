@@ -76,8 +76,8 @@ mesh = SubResource("CoreMesh")
 
 [node name="Light" type="OmniLight3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.35, 0)
-light_color = Color(1, 0.68, 0.38, 1)
-light_energy = 1.6
-light_volumetric_fog_energy = 2.0
-omni_range = 8.0
+light_color = Color(1, 0.66, 0.36, 1)
+light_energy = 2.1
+light_volumetric_fog_energy = 3.0
+omni_range = 9.0
 omni_attenuation = 1.4
