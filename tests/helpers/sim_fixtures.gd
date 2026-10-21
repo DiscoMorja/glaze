@@ -15,9 +15,17 @@ static func flat_state(size: Vector3i = Vector3i(9, 4, 9), seed_value: int = 123
 
 ## Flat 12x5x12 arena with a hero (all abilities) at (2, 1, 2) and a plain
 ## bandit at (9, 1, 9), in combat.
+## Its school ranks are just enough for the skills before the "Later" ones
+## (which need rank 2 and would add potency to everything else); tests of
+## those raise the rank they need (rank_for()).
 static func duel_state() -> SimState:
 	var state := flat_state(Vector3i(12, 5, 12))
-	state.add_entity(SimEntity.character("Hero", PLAYERS, Vector3i(2, FLOOR_Y, 2), 20, "Sword", 4, [], SimAbilities.all()))
+	var hero := state.add_entity(SimEntity.character("Hero", PLAYERS, Vector3i(2, FLOOR_Y, 2), 20, "Sword", 4, [], SimAbilities.all()))
+	var earlier: Array[int] = []
+	for ability in SimAbilities.all():
+		if ability < SimAbilities.Ability.COMBUST:
+			earlier.append(ability)
+	hero.schools = StatRules.schools_for(earlier)
 	state.add_entity(SimEntity.character("Bandit", ENEMIES, Vector3i(9, FLOOR_Y, 9), 12, "Club", 3, ["Gold"]))
 	state.apply_command(StartCombatCommand.new())
 	state.drain_events()
@@ -30,6 +38,14 @@ static func teach(e: SimEntity, abilities: Array) -> void:
 	var ranks := StatRules.schools_for(e.abilities)
 	for i in ranks.size():
 		e.schools[i] = maxi(e.schools[i], ranks[i])
+
+
+## Raises `e`'s rank in an ability's school to what the ability needs.
+static func rank_for(e: SimEntity, ability: int) -> SimEntity:
+	var school: int = SimAbilities.SCHOOL[ability]
+	if school >= 0:
+		e.schools[school] = maxi(e.schools[school], SimAbilities.RANK[ability])
+	return e
 
 
 ## Oil flasks for whoever throws them (SimAbilities.FROM_ITEM).

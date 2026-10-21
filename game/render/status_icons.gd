@@ -90,6 +90,15 @@ func _glyph(id: String, r: Rect2, c: Color) -> void:
 			draw_arc(p + Vector2(w * 0.5, h * 0.3), w * 0.25, PI, 2.4 * PI, 10, c, 2.0)
 			draw_line(p + Vector2(w * 0.5, h * 0.55), p + Vector2(w * 0.5, h * 0.7), c, 2.0)
 			draw_circle(p + Vector2(w * 0.5, h * 0.9), w * 0.1, c)
+		"dread":  # wide, frightened eyes
+			for x: float in [0.28, 0.72]:
+				draw_circle(p + Vector2(w * x, h * 0.4), w * 0.2, c)
+				draw_circle(p + Vector2(w * x, h * 0.4), w * 0.07, Color.BLACK)
+			draw_arc(p + Vector2(w * 0.5, h * 0.95), w * 0.18, PI, 2.0 * PI, 8, c, 1.8)
+		"braced":  # a shield
+			draw_colored_polygon(PackedVector2Array([
+				p + Vector2(w * 0.1, h * 0.1), p + Vector2(w * 0.9, h * 0.1), p + Vector2(w * 0.85, h * 0.6),
+				p + Vector2(w * 0.5, h), p + Vector2(w * 0.15, h * 0.6)]), c)
 		"suspicious":  # an exclamation mark
 			draw_rect(Rect2(p + Vector2(w * 0.38, 0), Vector2(w * 0.24, h * 0.62)), c)
 			draw_circle(p + Vector2(w * 0.5, h * 0.88), w * 0.13, c)

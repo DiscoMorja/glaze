@@ -196,7 +196,8 @@ func _place_markers(state: SimState) -> void:
 			continue
 		var inventory: Array[String] = []
 		inventory.assign(spawn.inventory)
-		var e := SimArchetypes.make(spawn.role, spawn.entity_name if spawn.entity_name != "" else SimArchetypes.title(spawn.role), spawn.faction(), cell, inventory)
+		inventory.append_array(_roll_loot(state, spawn.loot, spawn.loot_rolls, spawn.name))
+		var e :=SimArchetypes.make(spawn.role, spawn.entity_name if spawn.entity_name != "" else SimArchetypes.title(spawn.role), spawn.faction(), cell, inventory)
 		if e.faction == SimEntity.Faction.PLAYERS:
 			e.owner = spawn.player
 		e.facing = spawn.facing()
@@ -226,7 +227,8 @@ func _place_markers(state: SimState) -> void:
 			continue
 		var items: Array[String] = []
 		items.assign(box.items)
-		var chest := SimEntity.container(box.display_name, cell, items, box.key, box.hp)
+		items.append_array(_roll_loot(state, box.loot, box.loot_rolls, box.name))
+		var chest :=SimEntity.container(box.display_name, cell, items, box.key, box.hp)
 		chest.lock_level = box.lock_level
 		chest.model = box.look
 		chest.group = box.group_name()
@@ -241,6 +243,16 @@ func _place_markers(state: SimState) -> void:
 		var cell: Variant = _floor_cell(state, barrel.global_position)
 		if cell != null:
 			state.add_entity(SimEntity.barrel(barrel.display_name(), cell, barrel.surface(), barrel.amount))
+
+
+## A marker's random loot (LootTables), rolled with the state's seeded RNG.
+func _roll_loot(state: SimState, table: String, rolls: int, marker: String) -> Array[String]:
+	if table == "":
+		return []
+	if not LootTables.has_table(table):
+		push_warning("%s: no loot table named %s" % [marker, table])
+		return []
+	return LootTables.roll(state.rng, table, rolls)
 
 
 ## The walkable cell under a marker: the highest open, supported cell in its

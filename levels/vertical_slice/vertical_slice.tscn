@@ -12972,6 +12972,7 @@ material = SubResource("Mat_wood")
 [node name="Chief" type="Marker3D" parent="Bandits"]
 transform = Transform3D(-0.00000004371139, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, -0.00000004371139, 80.50, 6.50, 123.50)
 script = ExtResource("2_spawn")
+loot = "bandit"
 role = "brute"
 entity_name = "Chief"
 team = 1
@@ -12981,6 +12982,7 @@ equipment = Array[String](["Iron helm", "Leather armour"])
 [node name="Hexer" type="Marker3D" parent="Bandits"]
 transform = Transform3D(-0.00000004371139, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, -0.00000004371139, 75.50, 6.50, 127.50)
 script = ExtResource("2_spawn")
+loot = "tomes"
 role = "firecaller"
 entity_name = "Hexer"
 team = 1
@@ -12988,6 +12990,7 @@ team = 1
 [node name="Shaman" type="Marker3D" parent="Bandits"]
 transform = Transform3D(-0.00000004371139, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, -0.00000004371139, 79.50, 6.50, 127.50)
 script = ExtResource("2_spawn")
+loot = "bandit"
 role = "shaman"
 entity_name = "Shaman"
 team = 1
@@ -12995,6 +12998,7 @@ team = 1
 [node name="Cutpurse" type="Marker3D" parent="Bandits"]
 transform = Transform3D(-0.00000004371139, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, -0.00000004371139, 85.50, 6.50, 128.50)
 script = ExtResource("2_spawn")
+loot = "bandit"
 role = "skirmisher"
 entity_name = "Cutpurse"
 team = 1
@@ -13004,6 +13008,7 @@ equipment = Array[String](["Parrying dagger", "Brawler's gloves"])
 [node name="Thug" type="Marker3D" parent="Bandits"]
 transform = Transform3D(-0.00000004371139, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, -0.00000004371139, 88.50, 6.50, 122.50)
 script = ExtResource("2_spawn")
+loot = "bandit"
 role = "thug"
 entity_name = "Thug"
 team = 1
@@ -13011,6 +13016,7 @@ team = 1
 [node name="Lookout" type="Marker3D" parent="Bandits"]
 transform = Transform3D(-0.00000004371139, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, -0.00000004371139, 88.50, 9.50, 131.50)
 script = ExtResource("2_spawn")
+loot = "bandit"
 role = "archer"
 entity_name = "Lookout"
 team = 1
@@ -13018,6 +13024,7 @@ team = 1
 [node name="Pikeman" type="Marker3D" parent="Bandits"]
 transform = Transform3D(-0.00000004371139, 0.0, -1.0, 0.0, 1.0, 0.0, 1.0, 0.0, -0.00000004371139, 95.50, 4.66, 124.50)
 script = ExtResource("2_spawn")
+loot = "bandit"
 role = "pikeman"
 entity_name = "Pikeman"
 team = 1
@@ -13025,6 +13032,7 @@ team = 1
 [node name="ChiefsChest" type="Marker3D" parent="Bandits"]
 transform = Transform3D(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 78.50, 6.00, 120.50)
 script = ExtResource("5_container")
+loot = "tomes"
 display_name = "Chief's chest"
 items = Array[String](["Gold", "Gold", "Coins", "Chain shirt", "Healing potion"])
 key = "Camp key"
@@ -13978,6 +13986,7 @@ gold = 15
 [node name="Barrel1" type="Marker3D" parent="Village"]
 transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000, 289.50, 3.97, 160.50)
 script = ExtResource("5_container")
+loot = "household"
 display_name = "Barrel"
 look = "barrel"
 items = Array[String](["Bread", "Coins"])
@@ -13988,6 +13997,7 @@ transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000
 [node name="Crate1" type="Marker3D" parent="Village"]
 transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000, 262.50, 3.97, 169.50)
 script = ExtResource("5_container")
+loot = "household"
 display_name = "Crate"
 look = "crate"
 items = Array[String](["Healing potion"])
@@ -13995,6 +14005,7 @@ items = Array[String](["Healing potion"])
 [node name="Basket1" type="Marker3D" parent="Village"]
 transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000, 277.50, 3.97, 171.50)
 script = ExtResource("5_container")
+loot = "household"
 display_name = "Basket"
 look = "basket"
 items = Array[String](["Leather cap"])
@@ -14002,6 +14013,7 @@ items = Array[String](["Leather cap"])
 [node name="Barrel2" type="Marker3D" parent="Village"]
 transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000, 262.50, 3.97, 178.50)
 script = ExtResource("5_container")
+loot = "household"
 display_name = "Barrel"
 look = "barrel"
 items = Array[String](["Coins"])
@@ -14009,6 +14021,7 @@ items = Array[String](["Coins"])
 [node name="Pot1" type="Marker3D" parent="Village"]
 transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000, 251.50, 3.97, 149.50)
 script = ExtResource("5_container")
+loot = "household"
 display_name = "Pot"
 look = "pot"
 items = Array[String](["Warming draught"])
@@ -14016,6 +14029,7 @@ items = Array[String](["Warming draught"])
 [node name="Basket2" type="Marker3D" parent="Village"]
 transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000, 251.50, 3.97, 147.50)
 script = ExtResource("5_container")
+loot = "household"
 display_name = "Basket"
 look = "basket"
 items = Array[String]([])
@@ -14026,6 +14040,7 @@ transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000
 [node name="Barrel3" type="Marker3D" parent="Village"]
 transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000, 259.50, 3.97, 91.50)
 script = ExtResource("5_container")
+loot = "household"
 display_name = "Barrel"
 look = "barrel"
 items = Array[String]([])
@@ -14036,6 +14051,7 @@ transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000
 [node name="Crate2" type="Marker3D" parent="Village"]
 transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000, 261.50, 3.97, 98.50)
 script = ExtResource("5_container")
+loot = "household"
 display_name = "Crate"
 look = "crate"
 items = Array[String](["Belt"])
@@ -14043,6 +14059,7 @@ items = Array[String](["Belt"])
 [node name="LargeCrate1" type="Marker3D" parent="Village"]
 transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000, 249.50, 3.97, 98.50)
 script = ExtResource("5_container")
+loot = "household"
 display_name = "Large crate"
 look = "crate_large"
 items = Array[String](["Copper ring"])
@@ -14053,6 +14070,7 @@ transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000
 [node name="LargeCrate2" type="Marker3D" parent="Village"]
 transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000, 242.50, 3.97, 93.50)
 script = ExtResource("5_container")
+loot = "household"
 display_name = "Large crate"
 look = "crate_large"
 items = Array[String](["Copper ring"])
@@ -14060,6 +14078,7 @@ items = Array[String](["Copper ring"])
 [node name="LargeCrate3" type="Marker3D" parent="Village"]
 transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000, 252.50, 3.97, 86.50)
 script = ExtResource("5_container")
+loot = "household"
 display_name = "Large crate"
 look = "crate_large"
 items = Array[String]([])
@@ -14067,6 +14086,7 @@ items = Array[String]([])
 [node name="Basket3" type="Marker3D" parent="Village"]
 transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000, 259.50, 3.97, 89.50)
 script = ExtResource("5_container")
+loot = "household"
 display_name = "Basket"
 look = "basket"
 items = Array[String](["Coins"])
@@ -14074,6 +14094,7 @@ items = Array[String](["Coins"])
 [node name="Pot2" type="Marker3D" parent="Village"]
 transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000, 231.50, 3.95, 106.50)
 script = ExtResource("5_container")
+loot = "household"
 display_name = "Pot"
 look = "pot"
 items = Array[String](["Cooling salve"])
@@ -14081,6 +14102,7 @@ items = Array[String](["Cooling salve"])
 [node name="Pot1" type="Marker3D" parent="Bandits"]
 transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000, 72.50, 5.97, 122.50)
 script = ExtResource("5_container")
+loot = "bandit"
 display_name = "Pot"
 look = "pot"
 items = Array[String](["Coins", "Healing potion"])
@@ -14088,6 +14110,7 @@ items = Array[String](["Coins", "Healing potion"])
 [node name="LargeCrate1" type="Marker3D" parent="Bandits"]
 transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000, 84.50, 5.97, 121.50)
 script = ExtResource("5_container")
+loot = "bandit"
 display_name = "Large crate"
 look = "crate_large"
 items = Array[String](["Daggers"])
@@ -14095,6 +14118,7 @@ items = Array[String](["Daggers"])
 [node name="LargeCrate2" type="Marker3D" parent="Bandits"]
 transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000, 69.50, 5.97, 130.50)
 script = ExtResource("5_container")
+loot = "bandit"
 display_name = "Large crate"
 look = "crate_large"
 items = Array[String](["Leather boots", "Bread"])
@@ -14114,6 +14138,7 @@ transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000
 [node name="Basket4" type="Marker3D" parent="Village"]
 transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000, 251.50, 3.97, 121.50)
 script = ExtResource("5_container")
+loot = "household"
 display_name = "Basket"
 look = "basket"
 items = Array[String](["Healing potion"])
@@ -14127,6 +14152,7 @@ transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000
 [node name="Basket5" type="Marker3D" parent="Village"]
 transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000, 280.50, 3.97, 99.50)
 script = ExtResource("5_container")
+loot = "household"
 display_name = "Basket"
 look = "basket"
 items = Array[String](["Bread"])
@@ -14224,6 +14250,7 @@ transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000
 [node name="Crate1" type="Marker3D" parent="Bandits"]
 transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000, 87.50, 5.97, 129.50)
 script = ExtResource("5_container")
+loot = "bandit"
 display_name = "Crate"
 look = "crate"
 items = Array[String](["Coins", "Coins"])
@@ -14231,6 +14258,7 @@ items = Array[String](["Coins", "Coins"])
 [node name="Barrel1" type="Marker3D" parent="Bandits"]
 transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000, 79.50, 5.97, 133.50)
 script = ExtResource("5_container")
+loot = "bandit"
 display_name = "Barrel"
 look = "barrel"
 items = Array[String](["Leather leggings"])
@@ -14238,6 +14266,7 @@ items = Array[String](["Leather leggings"])
 [node name="LargeCrate3" type="Marker3D" parent="Bandits"]
 transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000, 74.50, 5.97, 123.50)
 script = ExtResource("5_container")
+loot = "bandit"
 display_name = "Large crate"
 look = "crate_large"
 items = Array[String](["Bread", "Bread", "Coins"])
@@ -14476,6 +14505,8 @@ transform = Transform3D(-0.05312, 0, -0.99859, 0, 1.00000, 0, 0.99859, 0, -0.053
 [node name="OldChest1" type="Marker3D" parent="."]
 transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000, 214.50, 3.77, 60.50)
 script = ExtResource("5_container")
+loot = "cache"
+loot_rolls = 2
 display_name = "Old chest"
 look = "chest"
 items = Array[String](["Silver ring", "Gold", "Healing potion"])
@@ -14483,6 +14514,8 @@ items = Array[String](["Silver ring", "Gold", "Healing potion"])
 [node name="MossyChest1" type="Marker3D" parent="."]
 transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000, 140.50, 3.83, 142.50)
 script = ExtResource("5_container")
+loot = "cache"
+loot_rolls = 2
 display_name = "Mossy chest"
 look = "chest"
 items = Array[String](["Bone amulet", "Gold", "Warming draught"])
@@ -14490,6 +14523,8 @@ items = Array[String](["Bone amulet", "Gold", "Warming draught"])
 [node name="ShepherdSChest1" type="Marker3D" parent="."]
 transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000, 122.50, 6.94, 225.50)
 script = ExtResource("5_container")
+loot = "cache"
+loot_rolls = 2
 display_name = "Shepherd's chest"
 look = "chest"
 items = Array[String](["Iron helm", "Coins", "Coins"])
@@ -14497,6 +14532,8 @@ items = Array[String](["Iron helm", "Coins", "Coins"])
 [node name="HiddenChest1" type="Marker3D" parent="."]
 transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000, 233.50, 3.97, 167.50)
 script = ExtResource("5_container")
+loot = "cache"
+loot_rolls = 2
 display_name = "Hidden chest"
 look = "chest"
 items = Array[String](["Amber pendant", "Healing potion"])
@@ -14504,6 +14541,8 @@ items = Array[String](["Amber pendant", "Healing potion"])
 [node name="RustyChest1" type="Marker3D" parent="."]
 transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000, 127.50, 13.34, 40.50)
 script = ExtResource("5_container")
+loot = "cache"
+loot_rolls = 2
 display_name = "Rusty chest"
 look = "chest"
 items = Array[String](["Brawler's gloves", "Gold", "Gold"])
@@ -14523,6 +14562,8 @@ transform = Transform3D(0.00080, 0, 1.00000, 0, 1.00000, 0, -1.00000, 0, 0.00080
 [node name="WashedUpChest1" type="Marker3D" parent="."]
 transform = Transform3D(1.00000, 0, 0.00000, 0, 1.00000, 0, -0.00000, 0, 1.00000, 26.50, 4.00, 90.50)
 script = ExtResource("5_container")
+loot = "cache"
+loot_rolls = 2
 display_name = "Washed-up chest"
 look = "chest"
 items = Array[String](["Fine sword", "Coins"])

@@ -139,6 +139,7 @@ var _enemy_turn_running := false
 var _autoready := OS.get_cmdline_user_args().has("--autoready")
 
 var _grid_renderer: SimGridRenderer
+var _snares: SnareMarkers
 var _retro: RetroLook
 var _fire_field: FireField
 var _vfx: VfxPlayer
@@ -431,7 +432,7 @@ func _load_level() -> int:
 	_level = level_scene.instantiate() as GameLevel
 	add_child(_level)
 	var bake_start := Time.get_ticks_usec()
-	_baked = await _level.bake()
+	_baked = await _level.bake(randi_range(1, 0x7FFFFFFF))  # a new world: its own loot rolls
 	_note_perf("bake", bake_start)
 	_cutaway.setup(_level)
 	return session
@@ -1249,6 +1250,7 @@ func _present(s: SimState, events: Array[SimEvent]) -> void:
 			_show_banner("Rested")
 	_entity_renderer.walk_seconds = 1.0 / EXPLORE_TICKS_PER_SECOND if not s.combat.active else 0.0
 	_grid_renderer.render(s.grid)
+	_snares.render(s)
 	_fire_field.sync(s.grid)
 	_entity_renderer.render(s, events)
 	_vfx.play(s, events)
@@ -1803,6 +1805,8 @@ func _build_scene() -> void:
 	_grid_renderer = SimGridRenderer.new()
 	_grid_renderer.show_fire = false
 	add_child(_grid_renderer)
+	_snares = SnareMarkers.new()
+	add_child(_snares)
 	_fire_field = FireField.new()
 	add_child(_fire_field)
 	_vfx = VfxPlayer.new()

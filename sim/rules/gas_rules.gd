@@ -4,7 +4,7 @@ extends RefCounted
 ## sideways, then decay. Delta-based like LiquidRules for order independence;
 ## only cells holding gas (and the cells it moves into) are visited.
 
-const GASES := [SimMaterials.Gas.STEAM, SimMaterials.Gas.SMOKE, SimMaterials.Gas.POISON]
+const GASES := [SimMaterials.Gas.STEAM, SimMaterials.Gas.SMOKE, SimMaterials.Gas.POISON, SimMaterials.Gas.DARKNESS]
 
 
 @warning_ignore("integer_division")
@@ -29,7 +29,7 @@ static func step(state: SimState) -> void:
 		var c := grid.coord(i)
 
 		var above := c + Vector3i.UP
-		if SimMaterials.gas_rises(t) and not grid.is_solid(above):
+		if SimMaterials.gas_rises(t, amount) and not grid.is_solid(above):
 			var ai := grid.index(above)
 			if _can_receive(types, next_types, ai, t):
 				delta[i] = delta.get(i, 0) - amount

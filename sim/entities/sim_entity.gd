@@ -72,6 +72,11 @@ var slowed := 0
 var pinned := 0
 ## Turns left distracted (Distract): it keeps looking where it was turned.
 var distracted := 0
+## Turns left in dread (Dread): on its turn it only runs from dread_from.
+var dread := 0
+var dread_from := Vector3i.ZERO
+## Turns left braced (Brace): extra armour, and it can't be shoved.
+var braced := 0
 ## A corpse that Blight already burst into gas.
 var blighted := false
 ## Body temperature level: -2 Frozen, -1 Cold, 0 Normal, 1 Hot, 2 Burning
@@ -148,6 +153,10 @@ func tick_statuses() -> void:
 		pinned -= 1
 	if distracted > 0:
 		distracted -= 1
+	if dread > 0:
+		dread -= 1
+	if braced > 0:
+		braced -= 1
 
 
 func is_burning() -> bool:
@@ -211,6 +220,9 @@ func to_dict() -> Dictionary:
 		"slowed": slowed,
 		"pinned": pinned,
 		"distracted": distracted,
+		"dread": dread,
+		"dread_from": dread_from,
+		"braced": braced,
 		"blighted": blighted,
 		"temperature": temperature,
 		"temp_turns": temp_turns,
@@ -285,6 +297,9 @@ static func from_dict(data: Dictionary) -> SimEntity:
 	e.slowed = data.get("slowed", e.slowed)
 	e.pinned = data.get("pinned", e.pinned)
 	e.distracted = data.get("distracted", e.distracted)
+	e.dread = data.get("dread", e.dread)
+	e.dread_from = data.get("dread_from", e.dread_from)
+	e.braced = data.get("braced", e.braced)
 	e.blighted = data.get("blighted", e.blighted)
 	e.temperature = data.get("temperature", e.temperature)
 	e.temp_turns = data.get("temp_turns", e.temp_turns)

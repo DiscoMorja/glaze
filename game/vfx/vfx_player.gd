@@ -32,6 +32,12 @@ const ABILITY_PROJECTILES := {
 	SimAbilities.Ability.DISTRACT: {"color": Color(0.75, 0.65, 1.0), "fallback": "arcane", "cast": "", "projectile": "", "impact": []},
 	SimAbilities.Ability.LOADED_SHOT: {"color": Color(0.9, 0.8, 0.55), "fallback": "spark", "cast": "", "projectile": "", "impact": []},
 	SimAbilities.Ability.PINNING_SHOT: {"color": Color(0.9, 0.8, 0.55), "fallback": "dust", "cast": "", "projectile": "", "impact": []},
+	SimAbilities.Ability.COMBUST: {"color": Color(1.0, 0.4, 0.1), "fallback": "fire", "cast": "fire_cast", "projectile": "", "impact": []},
+	SimAbilities.Ability.GLACIER: {"color": Color(0.6, 0.9, 1.0), "fallback": "ice", "cast": "water_cast", "projectile": "water_projectile", "impact": ["ice_impact"]},
+	SimAbilities.Ability.WELLSPRING: {"color": Color(0.45, 0.85, 1.0), "fallback": "heal", "cast": "", "projectile": "", "impact": []},
+	SimAbilities.Ability.SHROUD: {"color": Color(0.3, 0.15, 0.45), "fallback": "arcane", "cast": "", "projectile": "", "impact": []},
+	SimAbilities.Ability.DREAD: {"color": Color(0.55, 0.3, 0.8), "fallback": "arcane", "cast": "", "projectile": "", "impact": []},
+	SimAbilities.Ability.SMOKE_BOMB: {"color": Color(0.45, 0.45, 0.45), "fallback": "dust", "cast": "", "projectile": "", "impact": []},
 }
 ## Colour of an arrow or stone from a bow or sling.
 const SHOT_COLOR := Color(0.9, 0.8, 0.55)
@@ -130,6 +136,35 @@ func play(state: SimState, events: Array[SimEvent]) -> void:
 			SimEvent.Type.DISTRACTED:
 				_later(delay, func() -> void:
 					VfxFactory.floating_text(self, _body(e.cell) + Vector3(0, 1.0, 0), "Huh?", Color(0.75, 0.65, 1.0), 60))
+			SimEvent.Type.COMBUSTED:
+				var burst := e.cells.duplicate()
+				_later(delay, func() -> void:
+					for c: Vector3i in burst:
+						VfxFactory.burst(self, _body(c), "fire", 1.6)
+					if not burst.is_empty():
+						shake_requested.emit(0.25))
+			SimEvent.Type.WELLSPRING:
+				var healed := e.cells.duplicate()
+				_later(delay, func() -> void:
+					for c: Vector3i in healed:
+						VfxFactory.burst(self, _feet(c), "heal", 1.0))
+			SimEvent.Type.CLOUDED:
+				var cloud := e.cells.duplicate()
+				var look := "arcane" if e.amount == SimMaterials.Gas.DARKNESS else "dust"
+				_later(delay, func() -> void:
+					for c: Vector3i in cloud:
+						VfxFactory.burst(self, _body(c), look, 0.9))
+			SimEvent.Type.DREADED:
+				_later(delay, func() -> void:
+					VfxFactory.floating_text(self, _body(e.cell) + Vector3(0, 1.0, 0), "Aaah!", Color(0.7, 0.45, 0.95), 60))
+			SimEvent.Type.BRACED:
+				var held := e.other_id >= 0  # a shove that didn't move it
+				_later(delay, func() -> void:
+					VfxFactory.floating_text(self, _body(e.cell) + Vector3(0, 1.0, 0), "Holds!" if held else "Braced", Color(0.85, 0.85, 0.75), 60))
+			SimEvent.Type.SNARED:
+				_later(delay, func() -> void:
+					VfxFactory.burst(self, _feet(e.cell), "dust", 1.0)
+					VfxFactory.floating_text(self, _body(e.cell) + Vector3(0, 1.0, 0), "Snared!", Color(0.9, 0.8, 0.55), 60))
 			SimEvent.Type.LEARNED:
 				var skill := e.text
 				_later(delay, func() -> void:

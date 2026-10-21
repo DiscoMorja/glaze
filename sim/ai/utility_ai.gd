@@ -174,9 +174,14 @@ static func candidates(state: SimState, e: SimEntity, walk: Dictionary = {}) -> 
 			SimAbilities.Ability.SHOCKWAVE:
 				for o in opponents:
 					result.append(CastCommand.new(e.id, ability, o.cell))
-			SimAbilities.Ability.DRAIN, SimAbilities.Ability.PINNING_SHOT, SimAbilities.Ability.LOADED_SHOT:
+			SimAbilities.Ability.DRAIN, SimAbilities.Ability.PINNING_SHOT, SimAbilities.Ability.LOADED_SHOT, \
+					SimAbilities.Ability.COMBUST, SimAbilities.Ability.GLACIER:
 				for o in opponents:
 					result.append(CastCommand.new(e.id, ability, o.cell))
+			SimAbilities.Ability.WELLSPRING:
+				for a in allies:
+					if a.hp < a.max_hp:
+						result.append(CastCommand.new(e.id, ability, a.cell))
 			SimAbilities.Ability.SHOVE, SimAbilities.Ability.STEAL, SimAbilities.Ability.CLEAVE, SimAbilities.Ability.LOW_BLOW, SimAbilities.Ability.BACKSTAB:
 				for o in opponents:
 					if SimAbilities.is_adjacent(e.cell, o.cell):

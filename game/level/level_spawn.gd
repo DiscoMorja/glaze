@@ -19,6 +19,10 @@ enum Team { PLAYERS, ENEMIES, NEUTRAL }
 		_update_label()
 @export var team: Team = Team.ENEMIES
 @export var inventory: Array[String] = []
+## A LootTables table rolled `loot_rolls` times at bake, added to what it
+## carries (empty = only `inventory`). Enemies drop it when they fall.
+@export var loot := ""
+@export_range(0, 8) var loot_rolls := 1
 ## Party members: the co-op player who controls this character (0 = host,
 ## 1 = guest). Playing alone, the host controls everyone.
 @export_range(0, 1) var player := 0

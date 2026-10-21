@@ -38,8 +38,9 @@ static func is_free(state: SimState, c: Vector3i) -> bool:
 static func damage(state: SimState, e: SimEntity, amount: int, source_id: int = -1, element: Element = Element.PHYSICAL) -> void:
 	if not e.is_alive() or amount <= 0:
 		return
-	if element == Element.PHYSICAL and e.armor > 0:
-		amount = maxi(amount - e.armor, (amount + 1) / 2)  # armour softens blows, at most by half
+	var armor := e.armor + (SimAbilities.BRACE_ARMOR if e.braced > 0 else 0)
+	if element == Element.PHYSICAL and armor > 0:
+		amount = maxi(amount - armor, (amount + 1) / 2)  # armour softens blows, at most by half
 	elif element != Element.PHYSICAL:
 		amount = StatRules.ward_reduced(e, amount)  # and Ward softens fire and frost
 	e.hp = maxi(e.hp - amount, 0)
@@ -206,6 +207,37 @@ static func turn_start(state: SimState, e: SimEntity) -> void:
 		state.emit_event(SimEvent.Type.TURN_SKIPPED, e.cell, e.id)
 	on_ground(state, e)
 	_poison(state, e)
+	if e.dread > 0 and not skip and state.combat.active and e.is_alive():
+		flee(state, e, e.dread_from, SimAbilities.FLEE_CELLS)
+		e.ap = 0  # running is all it does this turn
+
+
+## Runs up to `cells` cells away from `from`, one cell at a time, always to
+## the neighbour furthest from it (ties: the first in SimPerception.FACINGS
+## order). Blind panic: it doesn't avoid fire or ledges. Pinned can't run.
+static func flee(state: SimState, e: SimEntity, from: Vector3i, cells: int) -> void:
+	var path: Array[Vector3i] = []
+	while path.size() < cells and e.is_alive() and e.pinned == 0:
+		var here := _distance2(e.cell, from)
+		var best: Variant = null
+		for d: Vector3i in SimPerception.FACINGS:
+			var next: Variant = state.grid.floor_near(e.cell + d, 1)
+			if next == null or not SimPathfinder.is_standable(state, next, e.id):
+				continue
+			if _distance2(next, from) > here and (best == null or _distance2(next, from) > _distance2(best, from)):
+				best = next
+		if best == null:
+			break
+		e.facing = SimPerception.facing_toward(e.cell, best, e.facing)
+		e.cell = best
+		path.append(best)
+		EntityOps.enter_cell(state, e)
+	var fled := state.emit_event(SimEvent.Type.FLED, e.cell, e.id)
+	fled.cells = path
+
+
+static func _distance2(a: Vector3i, b: Vector3i) -> int:
+	return (a.x - b.x) * (a.x - b.x) + (a.z - b.z) * (a.z - b.z)
 
 
 ## Standing in poison water or poison gas hurts at the start of each turn.
@@ -310,6 +342,27 @@ static func enter_cell(state: SimState, e: SimEntity) -> void:
 	on_ground(state, e)
 	if state.grid.surface_type[i] == SimMaterials.Surface.ICE:
 		add_stagger(state, e, ICE_STAGGER)
+	_spring_snare(state, e)
+
+
+## A hidden Snare goes off under the first opponent of its setter to step in
+## (its setter's side walks over it safely).
+static func _spring_snare(state: SimState, e: SimEntity) -> void:
+	if state.snares.is_empty() or not state.snares.has(e.cell) or not e.takes_turns():
+		return
+	var setter_id: int = state.snares[e.cell]
+	var setter := state.get_entity(setter_id)
+	if setter == null or e.faction != CombatRules.opponent_of(setter.faction):
+		return
+	state.snares.erase(e.cell)
+	state.emit_event(SimEvent.Type.SNARED, e.cell, e.id, setter_id)
+	e.pinned = maxi(e.pinned, 1)  # caught: it stops here
+	e.travel.clear()
+	if state.combat.active:
+		add_stagger(state, e, SimAbilities.SNARE_STAGGER, setter_id)
+	else:
+		e.in_combat = true  # the snap gives the party away: the fight starts
+		state.provoked = true
 
 
 @warning_ignore("integer_division")

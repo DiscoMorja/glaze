@@ -43,8 +43,8 @@ func execute(state: SimState) -> void:
 		e.cell = c
 		walked.append(c)
 		EntityOps.enter_cell(state, e)
-		if not e.is_alive() or e.knocked_down or e.is_frozen():
-			break
+		if not e.is_alive() or e.knocked_down or e.is_frozen() or (state.combat.active and e.pinned > 0):
+			break  # (pinned: caught in a snare)
 	var moved := state.emit_event(SimEvent.Type.MOVED, e.cell, e.id)
 	moved.cells = walked
 	moved.amount = SimPathfinder.movement_cost(start, walked)

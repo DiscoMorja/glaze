@@ -48,6 +48,10 @@ const STATUS_LOOKS := {
 	"distracted": {"label": "Distracted", "color": "b9a8ff", "turns": true, "effects": [
 		{"emitter": "dazed", "scale": 0.8, "height": 1.9},
 	]},
+	"dread": {"label": "Dread", "color": "a070e0", "turns": true, "effects": [
+		{"emitter": "dazed", "scale": 0.8, "height": 1.9},
+	]},
+	"braced": {"label": "Braced", "color": "d0d0c0", "effects": []},
 	"suspicious": {"label": "Suspicious!", "color": "ffa040", "effects": []},
 	"sneaking": {"label": "Sneaking", "color": "a0a8c0", "effects": []},
 	"knocked": {"label": "Knocked down", "color": "e0e0e0", "effects": [
@@ -396,6 +400,8 @@ class _View:
 			"slowed": e.slowed,
 			"pinned": e.pinned,
 			"distracted": e.distracted,
+			"dread": e.dread,
+			"braced": e.braced,
 			"knocked": 1 if e.knocked_down else 0,
 			"suspicious": 1 if e.suspicious else 0,
 			"sneaking": 1 if e.sneaking else 0,

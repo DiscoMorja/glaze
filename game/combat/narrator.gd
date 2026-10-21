@@ -136,6 +136,22 @@ static func describe(state: SimState, e: SimEvent) -> String:
 			return "Vines burst from the ground."
 		SimEvent.Type.BLIGHTED:
 			return "Rot spreads."
+		SimEvent.Type.COMBUSTED:
+			return "Everything hot bursts into flame!" if not e.cells.is_empty() else ""
+		SimEvent.Type.WELLSPRING:
+			return "The water glows and heals."
+		SimEvent.Type.CLOUDED:
+			return "Darkness creeps over the ground." if e.amount == SimMaterials.Gas.DARKNESS else "Thick smoke billows out."
+		SimEvent.Type.DREADED:
+			return "%s is gripped by dread%s!" % [who, (" and drops the %s" % e.text.to_lower()) if e.text != "" else ""]
+		SimEvent.Type.FLED:
+			return "%s runs in panic." % who if not e.cells.is_empty() else ""
+		SimEvent.Type.BRACED:
+			return "%s holds its ground." % who if e.other_id >= 0 else "%s braces behind the shield." % who
+		SimEvent.Type.SNARE_SET:
+			return "%s hides a snare." % who
+		SimEvent.Type.SNARED:
+			return "%s is caught in a snare!" % who
 	return ""
 
 

@@ -63,6 +63,22 @@ static func description(action: int, actor: SimEntity = null) -> String:
 			return "Shoot your first special arrow (fire, water, oil, frost) with your bow or sling: a hit plus what the arrow carries. Uses the arrow up."
 		SimAbilities.Ability.PINNING_SHOT:
 			return "A bow or sling hit that pins the target: it can't move on its next turn."
+		SimAbilities.Ability.COMBUST:
+			return "Everyone Hot or Burning within %d cells of the target (but you) bursts into flame: %d fire damage, and fire where they stand. Kindle or a Firebolt first." % [SimAbilities.COMBUST_RADIUS, SimAbilities.COMBUST_DAMAGE + spell + potency]
+		SimAbilities.Ability.GLACIER:
+			return "All the water within %d cells freezes into ice at once, and everyone standing in it freezes solid. Rain first." % SimAbilities.GLACIER_RADIUS
+		SimAbilities.Ability.WELLSPRING:
+			return "Everyone standing in water within %d cells heals %d HP, friend or foe." % [SimAbilities.WELLSPRING_RADIUS, SimAbilities.WELLSPRING_HEAL + (StatRules.heal_cast_bonus(actor) if actor != null else 0) + potency]
+		SimAbilities.Ability.SHROUD:
+			return "A heavy cloud of darkness creeps over the ground: nobody sees into or out of it for a few turns."
+		SimAbilities.Ability.DREAD:
+			return "Terror: the target drops what it holds in its off hand and spends its next turn running from you. Outside combat it runs at once."
+		SimAbilities.Ability.BRACE:
+			return "With a shield: +%d armour, and nothing can shove you, until your next turn." % SimAbilities.BRACE_ARMOR
+		SimAbilities.Ability.SMOKE_BOMB:
+			return "A cloud of thick smoke that hangs low and blocks sight until it thins out. Hide in it, or blind an archer."
+		SimAbilities.Ability.SNARE:
+			return "Hide a trap next to you. The first enemy to step in is caught: it stops there, %d stagger in combat; outside one, the fight starts." % SimAbilities.SNARE_STAGGER
 	return ""
 
 

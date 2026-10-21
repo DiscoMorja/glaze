@@ -8,8 +8,9 @@ extends RefCounted
 ## in it, flows like water, Rain washes it clean.
 enum Surface { NONE, WATER, OIL, ICE, VINES, POISON }
 ## POISON gas is heavy: it creeps along the ground instead of rising, hurts
-## whoever stands in it, and explodes when fire reaches it.
-enum Gas { NONE, STEAM, SMOKE, POISON }
+## whoever stands in it, and explodes when fire reaches it. DARKNESS (Shroud)
+## is heavy too and lingers. Thick smoke and darkness block sight (SimLos).
+enum Gas { NONE, STEAM, SMOKE, POISON, DARKNESS }
 
 ## Amount of liquid or gas considered one "full" cell.
 const AMOUNT_FULL := 100
@@ -27,9 +28,14 @@ const _SURFACE_HOLD :=      [0,    20,    24,    0,     0,     20]
 ## Fuel a burning cell uses up per tick (vines go up fast).
 const _SURFACE_BURN :=      [0,    0,     2,     0,     4,     0]
 
-# Gases:                   NONE  STEAM  SMOKE  POISON
-const _GAS_DECAY :=        [0,   2,     3,     2]
-const _GAS_RISES :=        [false, true, true, false]
+# Gases:                   NONE  STEAM  SMOKE  POISON  DARKNESS
+const _GAS_DECAY :=        [0,   2,     3,     2,      1]
+const _GAS_RISES :=        [false, true, true, false, false]
+## A rising gas this thick hangs where it is instead (a Smoke Bomb's cloud);
+## it rises once it thins out. 0 = always rises.
+const _GAS_HANGS_FROM :=   [0,   0,     30,    0,      0]
+## A cell holding at least this much of the gas blocks sight (0 = never).
+const _GAS_OBSCURES_FROM := [0,  0,     30,    0,      20]
 ## Damage at the start of a turn standing in poison (water or gas), and the
 ## fire damage of exploding poison gas to whoever is in or next to it.
 const POISON_DAMAGE := 1
@@ -81,8 +87,12 @@ static func gas_decay(gas: int) -> int:
 	return _GAS_DECAY[gas]
 
 
-static func gas_rises(gas: int) -> bool:
-	return _GAS_RISES[gas]
+static func gas_rises(gas: int, amount: int = 0) -> bool:
+	return _GAS_RISES[gas] and (_GAS_HANGS_FROM[gas] == 0 or amount < _GAS_HANGS_FROM[gas])
+
+
+static func obscures(gas: int, amount: int) -> bool:
+	return _GAS_OBSCURES_FROM[gas] > 0 and amount >= _GAS_OBSCURES_FROM[gas]
 
 
 static func burn_rate(surface: int) -> int:

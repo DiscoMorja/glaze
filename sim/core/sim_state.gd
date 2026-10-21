@@ -19,6 +19,8 @@ var quests := {}
 var conversation := {}
 ## Fog of war (ExplorationRules): per map tile, EXPLORED once the party saw it.
 var explored := PackedByteArray()
+## Hidden traps (Snare): cell -> id of whoever set it (EntityOps.enter_cell()).
+var snares := {}
 ## Entity id -> the cell it last revealed from (derived: not saved or hashed).
 var seen_from := {}
 
@@ -146,6 +148,7 @@ func duplicate_state() -> SimState:
 	copy.conversation = conversation.duplicate(true)
 	copy.explored = explored.duplicate()  # packed arrays are shared, not copied
 	copy.seen_from = seen_from.duplicate()
+	copy.snares = snares.duplicate()
 	copy._next_entity_id = _next_entity_id
 	return copy
 
@@ -168,7 +171,7 @@ func to_snapshot() -> PackedByteArray:
 		"grid": grid.to_dict(), "entities": entity_data, "combat": combat.to_dict(),
 		"rng": rng.state, "tick": tick, "provoked": provoked, "next_entity_id": _next_entity_id,
 		"facts": facts, "quests": quests, "conversation": conversation,
-		"explored": explored,
+		"explored": explored, "snares": snares,
 		"version": SNAPSHOT_VERSION,
 	}
 	var raw := var_to_bytes(data)
@@ -196,6 +199,7 @@ static func from_snapshot(bytes: PackedByteArray) -> SimState:
 	state.quests = data.get("quests", {})
 	state.conversation = data.get("conversation", {})
 	state.explored = data.get("explored", PackedByteArray())
+	state.snares = data.get("snares", {})
 	state._next_entity_id = data.next_entity_id
 	return state
 
@@ -252,7 +256,7 @@ func checksum(with_grid: bool = true) -> String:
 	for e in entities:
 		ctx.update(var_to_bytes(e.to_dict()))
 	ctx.update(var_to_bytes(combat.to_dict()))
-	ctx.update(var_to_bytes([facts, quests, conversation]))
+	ctx.update(var_to_bytes([facts, quests, conversation, snares]))
 	if not explored.is_empty():
 		ctx.update(explored)
 	ctx.update(PackedInt64Array([tick, rng.state, _next_entity_id, 1 if provoked else 0]).to_byte_array())

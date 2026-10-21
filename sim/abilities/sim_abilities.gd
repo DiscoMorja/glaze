@@ -8,24 +8,31 @@ extends RefCounted
 enum Ability {
 	FIREBOLT, RAIN, TELEPORT, SHOVE, STEAL, FROST, OIL_FLASK, MEND, CLEAVE, BLINK, HELP_UP, REVIVE, PICKPOCKET, SHOCKWAVE, LOW_BLOW,
 	KINDLE, OVERGROWTH, DRAIN, BLIGHT, DISTRACT, BACKSTAB, LOADED_SHOT, PINNING_SHOT,
+	COMBUST, GLACIER, WELLSPRING, SHROUD, DREAD, BRACE, SMOKE_BOMB, SNARE,
 }
 
 const NAMES := ["Firebolt", "Rain", "Teleport", "Shove", "Steal", "Frost", "Oil Flask", "Mend", "Cleave", "Blink", "Help up", "Revive", "Pickpocket", "Shockwave", "Low Blow",
-		"Kindle", "Overgrowth", "Drain", "Blight", "Distract", "Backstab", "Loaded Shot", "Pinning Shot"]
-const AP_COST := [2, 2, 2, 1, 1, 2, 1, 2, 2, 1, 1, 0, 0, 2, 1, 1, 2, 2, 2, 1, 2, 2, 2]
+		"Kindle", "Overgrowth", "Drain", "Blight", "Distract", "Backstab", "Loaded Shot", "Pinning Shot",
+		"Combust", "Glacier", "Wellspring", "Shroud", "Dread", "Brace", "Smoke Bomb", "Snare"]
+const AP_COST := [2, 2, 2, 1, 1, 2, 1, 2, 2, 1, 1, 0, 0, 2, 1, 1, 2, 2, 2, 1, 2, 2, 2,
+		2, 2, 2, 2, 2, 1, 1, 1]
 ## Reach in cells. 1 means adjacent only (diagonals count). Shots reach as far
 ## as the bow or sling in hand (AttackCommand.reach()), at most this.
-const RANGE := [7, 7, 7, 1, 1, 6, 6, 5, 1, 4, 1, 1, 1, 5, 1, 6, 6, 5, 6, 6, 1, 7, 7]
+const RANGE := [7, 7, 7, 1, 1, 6, 6, 5, 1, 4, 1, 1, 1, 5, 1, 6, 6, 5, 6, 6, 1, 7, 7,
+		6, 6, 6, 6, 5, 1, 5, 1]
 ## Turns until an ability can be used again by its user: 1 = once per turn,
 ## 3 = every third turn. In combat they count down at the start of the user's
 ## turn; outside combat every CombatRules.REALTIME_TICKS_PER_TURN ticks.
-const COOLDOWN := [1, 2, 3, 1, 2, 2, 2, 3, 2, 2, 0, 0, 0, 2, 3, 3, 2, 2, 3, 2, 2, 1, 2]
+const COOLDOWN := [1, 2, 3, 1, 2, 2, 2, 3, 2, 2, 0, 0, 0, 2, 3, 3, 2, 2, 3, 2, 2, 1, 2,
+		3, 3, 3, 3, 3, 2, 3, 2]
 ## The school each ability belongs to (StatRules.School, -1 = everyone's) and
 ## the rank in it needed to use it. Ranks above that add potency.
 ## (StatRules.School order: FIRE 0, ICE 1, LIFE 2, DEATH 3, PSYCHIC 4,
 ## WARRIOR 5, ROGUE 6, RANGER 7.)
-const SCHOOL := [0, 1, 4, 5, 6, 1, -1, 2, 5, 4, -1, -1, -1, 5, 6, 0, 2, 3, 3, 4, 6, 7, 7]
-const RANK := [1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 2, 1, 1, 1, 1, 2, 1, 2, 1, 1]
+const SCHOOL := [0, 1, 4, 5, 6, 1, -1, 2, 5, 4, -1, -1, -1, 5, 6, 0, 2, 3, 3, 4, 6, 7, 7,
+		0, 1, 2, 3, 4, 5, 6, 7]
+const RANK := [1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 2, 1, 1, 1, 1, 2, 1, 2, 1, 1,
+		2, 2, 2, 2, 2, 2, 1, 2]
 ## Abilities that come from an item instead of being known: carrying an item
 ## whose "casts" names the ability grants it, and each use spends one.
 const FROM_ITEM := [Ability.OIL_FLASK]
@@ -88,6 +95,33 @@ const DISTRACT_TURNS := 2
 const SHOT_SPLASH_RADIUS := 1
 const SHOT_SPLASH_AMOUNT := 20
 const SHOTS := [Ability.LOADED_SHOT, Ability.PINNING_SHOT]
+## Combust: everyone Hot or Burning within this radius of the target bursts
+## into flame: fire damage, and their cell catches fire.
+const COMBUST_RADIUS := 3
+const COMBUST_DAMAGE := 3
+## Glacier: water within this radius freezes into ice at once, and everyone
+## standing in it freezes solid.
+const GLACIER_RADIUS := 2
+## Wellspring: everyone standing in water within this radius heals.
+const WELLSPRING_RADIUS := 3
+const WELLSPRING_HEAL := 4
+## Shroud: a heavy, lingering cloud of darkness (it blocks sight, SimLos).
+const SHROUD_RADIUS := 2
+const SHROUD_GAS := 60
+## Dread: the target drops its off-hand item and, on its next turn, only runs
+## from the caster (EntityOps.flee()). Counted like Pinned: the turn it is
+## cast in and the next. Outside combat it runs at once.
+const DREAD_TURNS := 2
+const FLEE_CELLS := 4
+## Brace (needs a shield in the off hand): extra armour and no shoving until
+## the caster's next turn.
+const BRACE_ARMOR := 2
+## Smoke Bomb: thick smoke that hangs low (and blocks sight) until it thins.
+const SMOKE_BOMB_RADIUS := 1
+const SMOKE_BOMB_GAS := 80
+## Snare: a hidden trap in an adjacent cell; the first opponent to step in
+## takes this much stagger (EntityOps.enter_cell()).
+const SNARE_STAGGER := 3
 
 
 ## Potency: the caster's rank in the ability's school above the rank it needs.
@@ -129,6 +163,39 @@ static func lacks(caster: SimEntity, ability: int) -> String:
 	if not has_rank(caster, ability):
 		return "Needs %s %d" % [StatRules.SCHOOLS[SCHOOL[ability]].capitalize(), RANK[ability]]
 	return ""
+
+
+## Whether the entity holds a shield (armour in the off hand), for Brace.
+static func has_shield(e: SimEntity) -> bool:
+	return SimItems.amount(e.worn.get("off_hand", ""), "armor") > 0
+
+
+## Living characters within `radius` of `target` (horizontally, at most a
+## level up or down), in id order.
+static func characters_near(state: SimState, target: Vector3i, radius: int) -> Array[SimEntity]:
+	var result: Array[SimEntity] = []
+	for e in state.entities:
+		if e.is_alive() and e.takes_turns() and absi(e.cell.y - target.y) <= 1 and in_range(target, e.cell, radius):
+			result.append(e)
+	return result
+
+
+## Who a Combust at `target` sets off: Hot or Burning, the caster aside.
+static func combust_victims(state: SimState, caster: SimEntity, target: Vector3i) -> Array[SimEntity]:
+	var result: Array[SimEntity] = []
+	for e in characters_near(state, target, COMBUST_RADIUS):
+		if e != caster and e.temperature >= EntityOps.TEMP_MAX - 1:
+			result.append(e)
+	return result
+
+
+## Who a Wellspring at `target` heals: those standing in water.
+static func in_water_near(state: SimState, target: Vector3i) -> Array[SimEntity]:
+	var result: Array[SimEntity] = []
+	for e in characters_near(state, target, WELLSPRING_RADIUS):
+		if state.grid.surface_type[state.grid.index(e.cell)] == SimMaterials.Surface.WATER:
+			result.append(e)
+	return result
 
 
 ## Index of the first carried ammunition (-1 = none).
@@ -234,7 +301,7 @@ static func validate(state: SimState, caster: SimEntity, ability: int, target: V
 		return false
 	if not state.grid.in_bounds(target) or state.grid.is_solid(target):
 		return false
-	var self_target := (ability == Ability.MEND or ability == Ability.KINDLE) and target == caster.cell
+	var self_target := (ability == Ability.MEND or ability == Ability.KINDLE or ability == Ability.BRACE) and target == caster.cell
 	if not self_target and not can_reach(ability, caster.cell, target):
 		return false
 	if needs_line_of_sight(ability) and not SimLos.has_line_of_sight(state.grid, caster.cell, target):
@@ -244,8 +311,24 @@ static func validate(state: SimState, caster: SimEntity, ability: int, target: V
 	var victim := state.entity_at(target)
 	var other_victim := victim != null and victim.id != caster.id
 	match ability:
-		Ability.FIREBOLT, Ability.RAIN, Ability.FROST, Ability.OIL_FLASK, Ability.OVERGROWTH:
+		Ability.FIREBOLT, Ability.RAIN, Ability.FROST, Ability.OIL_FLASK, Ability.OVERGROWTH, Ability.SHROUD, Ability.SMOKE_BOMB:
 			return true
+		Ability.COMBUST:
+			return not combust_victims(state, caster, target).is_empty()
+		Ability.GLACIER:
+			for c in splash_cells(state.grid, target, GLACIER_RADIUS):
+				if state.grid.surface_type[state.grid.index(c)] == SimMaterials.Surface.WATER:
+					return true
+			return false
+		Ability.WELLSPRING:
+			return not in_water_near(state, target).is_empty()
+		Ability.DREAD:
+			return other_victim and victim.takes_turns() and victim.faction != caster.faction
+		Ability.BRACE:
+			return target == caster.cell and has_shield(caster)
+		Ability.SNARE:
+			return (victim == null and not state.snares.has(target)
+					and SimPathfinder.is_standable(state, target, caster.id))
 		Ability.KINDLE:
 			return victim != null
 		Ability.DRAIN, Ability.DISTRACT, Ability.BACKSTAB, Ability.PINNING_SHOT:
@@ -404,6 +487,77 @@ static func execute(state: SimState, caster: SimEntity, ability: int, target: Ve
 			if victim.is_alive():
 				victim.pinned = EntityOps.PIN_TURNS
 				state.emit_event(SimEvent.Type.PINNED, victim.cell, victim.id, caster.id)
+		Ability.COMBUST:
+			var victims := combust_victims(state, caster, target)
+			var burst := state.emit_event(SimEvent.Type.COMBUSTED, target, caster.id)
+			for e in victims:
+				burst.cells.append(e.cell)
+			for e in victims:
+				EntityOps.damage(state, e, COMBUST_DAMAGE + caster.spell_power() + potency(caster, ability), caster.id, EntityOps.Element.FIRE)
+				FireRules.ignite(state, e.cell)
+		Ability.GLACIER:
+			_glacier(state, caster, target)
+		Ability.WELLSPRING:
+			var healed := in_water_near(state, target)
+			var spring := state.emit_event(SimEvent.Type.WELLSPRING, target, caster.id)
+			for e in healed:
+				spring.cells.append(e.cell)
+			for e in healed:
+				EntityOps.heal(state, e, WELLSPRING_HEAL + StatRules.heal_cast_bonus(caster) + potency(caster, ability), caster.id)
+		Ability.SHROUD, Ability.SMOKE_BOMB:
+			var shroud := ability == Ability.SHROUD
+			var gas := SimMaterials.Gas.DARKNESS if shroud else SimMaterials.Gas.SMOKE
+			var cells := splash_cells(state.grid, target, SHROUD_RADIUS if shroud else SMOKE_BOMB_RADIUS)
+			for c in cells:
+				state.grid.add_gas(c, gas, SHROUD_GAS if shroud else SMOKE_BOMB_GAS)
+			var cloud := state.emit_event(SimEvent.Type.CLOUDED, target, caster.id, -1, gas)
+			cloud.cells.assign(cells)
+		Ability.DREAD:
+			_dread(state, caster, victim)
+		Ability.BRACE:
+			caster.braced = 1
+			state.emit_event(SimEvent.Type.BRACED, caster.cell, caster.id)
+		Ability.SNARE:
+			state.snares[target] = caster.id
+			state.emit_event(SimEvent.Type.SNARE_SET, target, caster.id)
+
+
+## Freezes all the water in a wide area at once, and whoever stands in it.
+static func _glacier(state: SimState, caster: SimEntity, target: Vector3i) -> void:
+	var grid := state.grid
+	var frozen: Array[Vector3i] = []
+	for c in splash_cells(grid, target, GLACIER_RADIUS):
+		var i := grid.index(c)
+		if grid.surface_type[i] != SimMaterials.Surface.WATER:
+			continue
+		grid.edit_surfaces()
+		grid.surface_type[i] = SimMaterials.Surface.ICE
+		grid.edit_heat()
+		grid.set_temperature(i, mini(grid.temperature[i], SimMaterials.CHILL_TEMPERATURE))
+		if grid.fire[i] > 0:
+			grid.set_fire(i, 0)
+		frozen.append(c)
+		state.emit_event(SimEvent.Type.FROZE, c)
+	for c in frozen:
+		var caught := state.entity_at(c)
+		if caught != null:
+			EntityOps.change_temperature(state, caught, EntityOps.TEMP_MIN - caught.temperature, caster.id)
+
+
+## The victim's nerve breaks: what it holds in its off hand falls into its
+## pack (no wearing it again until the fight is over) and it runs: on its
+## next turn in combat, at once outside.
+static func _dread(state: SimState, caster: SimEntity, victim: SimEntity) -> void:
+	var held := EquipRules.worn(victim, EquipRules.OFF)
+	if held != "":
+		victim.inventory.append_array(EquipRules.put(victim, EquipRules.OFF, ""))
+	var event := state.emit_event(SimEvent.Type.DREADED, victim.cell, victim.id, caster.id)
+	event.text = held
+	victim.dread_from = caster.cell
+	if state.combat.active:
+		victim.dread = DREAD_TURNS
+	else:
+		EntityOps.flee(state, victim, caster.cell, FLEE_CELLS + potency(caster, Ability.DREAD))
 
 
 ## Heats the target a level; a barrel's contents react: oil catches fire,
@@ -472,6 +626,9 @@ static func _loaded_shot(state: SimState, caster: SimEntity, target: Vector3i, v
 static func _shove(state: SimState, caster: SimEntity, victim: SimEntity) -> void:
 	var dir := Vector3i(signi(victim.cell.x - caster.cell.x), 0, signi(victim.cell.z - caster.cell.z))
 	if dir == Vector3i.ZERO:
+		return
+	if victim.braced > 0:
+		state.emit_event(SimEvent.Type.BRACED, victim.cell, victim.id, caster.id)  # it holds its ground
 		return
 	var path: Array[Vector3i] = []
 	var hit_wall := false
